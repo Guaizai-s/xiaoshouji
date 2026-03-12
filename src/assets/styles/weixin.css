@@ -1,0 +1,400 @@
+/* 微信风格全局样式 */
+
+:root {
+  --wx-green: #07C160;
+  --wx-bg: #EDEDED;
+  --wx-white: #FFFFFF;
+  --wx-text-primary: #000000;
+  --wx-text-secondary: #999999;
+  --wx-border: #E5E5E5;
+  --wx-blue: #576B95;
+  --wx-bubble-self: #95EC69;
+  --wx-bubble-other: #FFFFFF;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  background-color: var(--wx-bg);
+  overflow: hidden;
+}
+
+/* 页面容器 */
+.wx-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: var(--wx-bg);
+}
+
+/* 顶部导航栏 */
+.wx-navbar {
+  display: flex;
+  align-items: center;
+  height: 44px;
+  background-color: var(--wx-white);
+  border-bottom: 1px solid var(--wx-border);
+  padding: 0 16px;
+  position: relative;
+}
+
+.wx-navbar-back {
+  font-size: 18px;
+  color: var(--wx-text-primary);
+  cursor: pointer;
+  padding: 8px;
+  margin-left: -8px;
+}
+
+.wx-navbar-title {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--wx-text-primary);
+}
+
+.wx-navbar-action {
+  margin-left: auto;
+  font-size: 16px;
+  color: var(--wx-text-primary);
+  cursor: pointer;
+}
+
+/* 内容区域 */
+.wx-content {
+  flex: 1;
+  overflow-y: auto;
+  background-color: var(--wx-bg);
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 列表 */
+.wx-list {
+  background-color: var(--wx-white);
+}
+
+.wx-list-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--wx-border);
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.wx-list-item:active {
+  background-color: var(--wx-bg);
+}
+
+.wx-list-item:last-child {
+  border-bottom: none;
+}
+
+.wx-list-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 4px;
+  object-fit: cover;
+  margin-right: 12px;
+  background-color: var(--wx-border);
+}
+
+.wx-list-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.wx-list-title {
+  font-size: 16px;
+  color: var(--wx-text-primary);
+  margin-bottom: 4px;
+}
+
+.wx-list-desc {
+  font-size: 14px;
+  color: var(--wx-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wx-list-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.wx-list-time {
+  font-size: 12px;
+  color: var(--wx-text-secondary);
+  margin-bottom: 4px;
+}
+
+.wx-list-badge {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  background-color: #F43530;
+  color: white;
+  border-radius: 9px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 底部导航栏 */
+.wx-tabbar {
+  display: flex;
+  height: 50px;
+  background-color: var(--wx-white);
+  border-top: 1px solid var(--wx-border);
+}
+
+.wx-tabbar-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.wx-tabbar-icon {
+  font-size: 24px;
+  margin-bottom: 2px;
+}
+
+.wx-tabbar-label {
+  font-size: 10px;
+}
+
+.wx-tabbar-item.active {
+  color: var(--wx-green);
+}
+
+.wx-tabbar-item:not(.active) {
+  color: var(--wx-text-primary);
+}
+
+/* 聊天气泡 */
+.wx-messages {
+  padding: 16px;
+}
+
+.wx-message {
+  display: flex;
+  margin-bottom: 16px;
+}
+
+.wx-message.self {
+  flex-direction: row-reverse;
+}
+
+.wx-message-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 4px;
+  object-fit: cover;
+  background-color: var(--wx-border);
+}
+
+.wx-message.self .wx-message-avatar {
+  margin-left: 8px;
+}
+
+.wx-message:not(.self) .wx-message-avatar {
+  margin-right: 8px;
+}
+
+.wx-message-content {
+  max-width: 70%;
+}
+
+.wx-message-bubble {
+  padding: 10px 12px;
+  border-radius: 4px;
+  word-break: break-word;
+  position: relative;
+}
+
+.wx-message.self .wx-message-bubble {
+  background-color: var(--wx-bubble-self);
+}
+
+.wx-message:not(.self) .wx-message-bubble {
+  background-color: var(--wx-bubble-other);
+}
+
+.wx-message-bubble img {
+  max-width: 100%;
+  border-radius: 4px;
+  display: block;
+}
+
+.wx-message-bubble.image {
+  padding: 0;
+  background: none;
+}
+
+.wx-message-bubble.sticker {
+  padding: 0;
+  background: none;
+}
+
+.wx-message-bubble.sticker img {
+  width: 120px;
+  height: 120px;
+}
+
+/* 输入框 */
+.wx-input-bar {
+  display: flex;
+  align-items: center;
+  padding: 8px;
+  background-color: var(--wx-white);
+  border-top: 1px solid var(--wx-border);
+}
+
+.wx-input-btn {
+  padding: 8px;
+  font-size: 24px;
+  color: var(--wx-text-secondary);
+  cursor: pointer;
+  background: none;
+  border: none;
+}
+
+.wx-input-field {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--wx-border);
+  border-radius: 4px;
+  font-size: 16px;
+  outline: none;
+  background-color: var(--wx-white);
+  margin: 0 8px;
+}
+
+.wx-input-send {
+  padding: 8px 16px;
+  background-color: var(--wx-green);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.wx-input-send:disabled {
+  background-color: var(--wx-border);
+  color: var(--wx-text-secondary);
+  cursor: not-allowed;
+}
+
+/* 表单 */
+.wx-form {
+  background-color: var(--wx-white);
+  padding: 16px;
+}
+
+.wx-form-group {
+  margin-bottom: 16px;
+}
+
+.wx-form-label {
+  display: block;
+  font-size: 14px;
+  color: var(--wx-text-secondary);
+  margin-bottom: 8px;
+}
+
+.wx-form-input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--wx-border);
+  border-radius: 4px;
+  font-size: 16px;
+  outline: none;
+}
+
+.wx-form-textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--wx-border);
+  border-radius: 4px;
+  font-size: 16px;
+  outline: none;
+  min-height: 100px;
+  resize: vertical;
+}
+
+.wx-form-select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--wx-border);
+  border-radius: 4px;
+  font-size: 16px;
+  outline: none;
+  background-color: var(--wx-white);
+}
+
+.wx-btn {
+  width: 100%;
+  padding: 12px;
+  background-color: var(--wx-green);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.wx-btn:active {
+  opacity: 0.8;
+}
+
+.wx-btn:disabled {
+  background-color: var(--wx-border);
+  color: var(--wx-text-secondary);
+  cursor: not-allowed;
+}
+
+/* 工具类 */
+.wx-divider {
+  height: 8px;
+  background-color: var(--wx-bg);
+}
+
+.wx-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 16px;
+  color: var(--wx-text-secondary);
+}
+
+.wx-empty-icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+}
+
+.wx-empty-text {
+  font-size: 14px;
+}
+
+/* 打字状态 */
+.wx-typing {
+  padding: 8px 16px;
+  color: var(--wx-text-secondary);
+  font-size: 14px;
+}
+
+/* 隐藏滚动条 */
+.wx-content::-webkit-scrollbar {
+  display: none;
+}
