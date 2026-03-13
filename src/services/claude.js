@@ -106,38 +106,44 @@ export async function callClaudeVision(role, imageBase64, mimeType, prompt = '�
     throw new Error('请配置 API Key');
   }
 
-  if (apiFormat === 'anthropic') {
-    const url = baseUrl || 'https://api.anthropic.com/v1/messages';
+  // 判断环境：生产环境使用Vercel Function，开发环境使用本地代理
+  const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+  const apiUrl = isProduction ? '/api/chat' : 'http://localhost:3001/api/anthropic';
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: model || 'claude-3-5-sonnet-20241022',
-        max_tokens: 4096,
-        messages: [
+  if (apiFormat === 'anthropic') {
+    // Anthropic格式的图片消息
+    const messages = [
+      {
+        role: 'user',
+        content: [
           {
-            role: 'user',
-            content: [
-              {
-                type: 'image',
-                source: {
-                  type: 'base64',
-                  media_type: mimeType,
-                  data: imageBase64
-                }
-              },
-              {
-                type: 'text',
-                text: prompt
-              }
-            ]
+            type: 'image',
+            source: {
+              type: 'base64',
+              media_type: mimeType,
+              data: imageBase64
+            }
+          },
+          {
+            type: 'text',
+            text: prompt
           }
         ]
+      }
+    ];
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        apiKey,
+        baseUrl,
+        model: model || 'claude-3-5-sonnet-20241022',
+        max_tokens: 4096,
+        messages: messages,
+        apiFormat: 'anthropic'
       })
     });
 
@@ -149,35 +155,37 @@ export async function callClaudeVision(role, imageBase64, mimeType, prompt = '�
     const data = await response.json();
     return data.content[0].text;
   } else {
-    // OpenAI 格式的 Vision API
-    const url = baseUrl || 'https://api.openai.com/v1/chat/completions';
+    // OpenAI格式的图片消息
+    const messages = [
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'text',
+            text: prompt
+          },
+          {
+            type: 'image_url',
+            image_url: {
+              url: `data:${mimeType};base64,${imageBase64}`
+            }
+          }
+        ]
+      }
+    ];
 
-    const response = await fetch(url, {
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
+        apiKey,
+        baseUrl,
         model: model || 'gpt-4-vision-preview',
-        messages: [
-          {
-            role: 'user',
-            content: [
-              {
-                type: 'text',
-                text: prompt
-              },
-              {
-                type: 'image_url',
-                image_url: {
-                  url: `data:${mimeType};base64,${imageBase64}`
-                }
-              }
-            ]
-          }
-        ],
-        max_tokens: 4096
+        max_tokens: 4096,
+        messages: messages,
+        apiFormat: 'openai'
       })
     });
 

@@ -46,10 +46,25 @@ const messages = ref([]);
 const isTyping = ref(false);
 const messagesContainer = ref(null);
 
-const userAvatar = ref('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="40" height="40"%3E%3Crect fill="%2307C160" width="40" height="40"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="20" fill="white"%3E我%3C/text%3E%3C/svg%3E');
+const defaultUserAvatar = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="40" height="40"%3E%3Crect fill="%2307C160" width="40" height="40"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="20" fill="white"%3E我%3C/text%3E%3C/svg%3E';
 const defaultAvatar = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="40" height="40"%3E%3Crect fill="%23ddd" width="40" height="40"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="20"%3E🤖%3C/text%3E%3C/svg%3E';
 
+// 从localStorage读取用户头像
+const userAvatar = ref(defaultUserAvatar);
+const loadUserAvatar = () => {
+  const saved = localStorage.getItem('userProfile');
+  if (saved) {
+    try {
+      const data = JSON.parse(saved);
+      userAvatar.value = data.avatar || defaultUserAvatar;
+    } catch (error) {
+      console.error('读取用户头像失败', error);
+    }
+  }
+};
+
 onMounted(async () => {
+  loadUserAvatar();
   await loadConversation();
   await loadMessages();
   scrollToBottom();

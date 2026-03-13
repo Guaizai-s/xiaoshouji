@@ -1,7 +1,9 @@
 <template>
   <div class="wx-navbar">
     <div v-if="showBack" class="wx-navbar-back" @click="goBack">
-      ← 返回
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+      </svg>
     </div>
     <div class="wx-navbar-title">{{ title }}</div>
     <div v-if="action" class="wx-navbar-action" @click="onAction">
