@@ -27,10 +27,11 @@ export async function callClaude(role, messages) {
  * 调用 Anthropic 官方 API
  */
 async function callAnthropicAPI(baseUrl, apiKey, model, systemPrompt, messages) {
-  // 使用本地代理避免CORS问题
-  const proxyUrl = 'http://localhost:3001/api/anthropic';
+  // 判断环境：生产环境使用Vercel Function，开发环境使用本地代理
+  const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+  const apiUrl = isProduction ? '/api/chat' : 'http://localhost:3001/api/anthropic';
 
-  const response = await fetch(proxyUrl, {
+  const response = await fetch(apiUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -41,7 +42,8 @@ async function callAnthropicAPI(baseUrl, apiKey, model, systemPrompt, messages) 
       model: model || 'claude-3-5-sonnet-20241022',
       max_tokens: 4096,
       system: systemPrompt || '',
-      messages: messages
+      messages: messages,
+      apiFormat: 'anthropic'
     })
   });
 
@@ -58,15 +60,16 @@ async function callAnthropicAPI(baseUrl, apiKey, model, systemPrompt, messages) 
  * 调用 OpenAI 兼容 API
  */
 async function callOpenAIAPI(baseUrl, apiKey, model, systemPrompt, messages) {
-  // 使用本地代理避免CORS问题
-  const proxyUrl = 'http://localhost:3001/api/openai';
+  // 判断环境：生产环境使用Vercel Function，开发环境使用本地代理
+  const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+  const apiUrl = isProduction ? '/api/chat' : 'http://localhost:3001/api/openai';
 
   // 转换消息格式（添加 system 消息）
   const openaiMessages = systemPrompt
     ? [{ role: 'system', content: systemPrompt }, ...messages]
     : messages;
 
-  const response = await fetch(proxyUrl, {
+  const response = await fetch(apiUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -75,7 +78,8 @@ async function callOpenAIAPI(baseUrl, apiKey, model, systemPrompt, messages) {
       apiKey,
       baseUrl,
       model: model || 'gpt-3.5-turbo',
-      messages: openaiMessages
+      messages: openaiMessages,
+      apiFormat: 'openai'
     })
   });
 
