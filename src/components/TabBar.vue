@@ -52,9 +52,24 @@ const navigate = (path) => {
 </script>
 
 <style scoped>
+/* 重置button默认样式 */
+.wx-tabbar-item {
+  border: none;
+  background: none;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
 .wx-tabbar-icon {
   width: 24px;
   height: 24px;
   margin-bottom: 2px;
+}
+
+/* 移动端安全区域适配 */
+.wx-tabbar {
+  padding-bottom: env(safe-area-inset-bottom);
 }
 </style>
