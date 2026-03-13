@@ -13,7 +13,7 @@ export default async function handler(req, res) {
   }
 
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ error: { message: 'Method not allowed' } });
   }
 
   try {
@@ -23,12 +23,15 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: { message: '缺少API Key' } });
     }
 
+    let response;
+    let url;
+
     // 根据API格式调用不同的端点
     if (apiFormat === 'openai') {
       // OpenAI格式
-      const url = baseUrl || 'https://api.openai.com/v1/chat/completions';
+      url = baseUrl || 'https://api.openai.com/v1/chat/completions';
 
-      const response = await fetch(url, {
+      response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -40,19 +43,11 @@ export default async function handler(req, res) {
           max_tokens: max_tokens || 4096
         })
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        return res.status(response.status).json(data);
-      }
-
-      return res.status(200).json(data);
     } else {
       // Anthropic格式（默认）
-      const url = baseUrl || 'https://api.anthropic.com/v1/messages';
+      url = baseUrl || 'https://api.anthropic.com/v1/messages';
 
-      const response = await fetch(url, {
+      response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -66,15 +61,31 @@ export default async function handler(req, res) {
           messages: messages
         })
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        return res.status(response.status).json(data);
-      }
-
-      return res.status(200).json(data);
     }
+
+    // 获取响应文本
+    const responseText = await response.text();
+
+    // 尝试解析JSON
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (parseError) {
+      // 如果不是JSON，返回错误信息
+      console.error('API返回非JSON响应:', responseText.substring(0, 500));
+      return res.status(502).json({
+        error: {
+          message: `API返回格式错误: ${responseText.substring(0, 100)}...`
+        }
+      });
+    }
+
+    if (!response.ok) {
+      return res.status(response.status).json(data);
+    }
+
+    return res.status(200).json(data);
+
   } catch (error) {
     console.error('API调用错误:', error);
     return res.status(500).json({
