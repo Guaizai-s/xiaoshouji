@@ -28,8 +28,16 @@ export default async function handler(req, res) {
 
     // 根据API格式调用不同的端点
     if (apiFormat === 'openai') {
-      // OpenAI格式
-      url = baseUrl || 'https://api.openai.com/v1/chat/completions';
+      // OpenAI格式 - 智能补全URL
+      const rawUrl = baseUrl || 'https://api.openai.com/v1';
+      // 如果URL不包含具体路径就自动补全
+      if (rawUrl.endsWith('/chat/completions')) {
+        url = rawUrl;
+      } else if (rawUrl.endsWith('/v1') || rawUrl.endsWith('/v1/')) {
+        url = rawUrl.replace(/\/$/, '') + '/chat/completions';
+      } else {
+        url = rawUrl.replace(/\/$/, '') + '/v1/chat/completions';
+      }
 
       response = await fetch(url, {
         method: 'POST',
@@ -44,8 +52,15 @@ export default async function handler(req, res) {
         })
       });
     } else {
-      // Anthropic格式（默认）
-      url = baseUrl || 'https://api.anthropic.com/v1/messages';
+      // Anthropic格式 - 智能补全URL
+      const rawUrl = baseUrl || 'https://api.anthropic.com';
+      if (rawUrl.endsWith('/messages')) {
+        url = rawUrl;
+      } else if (rawUrl.endsWith('/v1') || rawUrl.endsWith('/v1/')) {
+        url = rawUrl.replace(/\/$/, '') + '/messages';
+      } else {
+        url = rawUrl.replace(/\/$/, '') + '/v1/messages';
+      }
 
       response = await fetch(url, {
         method: 'POST',
