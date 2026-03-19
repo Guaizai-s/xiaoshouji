@@ -1,4 +1,4 @@
-// API调用，支持Anthropic和OpenAI兼容API两种格式
+// Claude API 调用服务
 
 /**
  * 调用 Claude API

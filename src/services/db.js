@@ -1,4 +1,5 @@
-import Dexie from 'dexie';//IndexedDB数据库，管理角色、会话和消息数据
+import Dexie from 'dexie';
+
 // 创建数据库
 const db = new Dexie('XiaoShouJiDB');
 
