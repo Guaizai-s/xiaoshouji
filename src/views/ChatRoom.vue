@@ -1,10 +1,10 @@
+// 聊天界面
 <template>
   <div class="wx-page">
-    <nav-bar :title="role?.name || '聊天'" :show-back="true" />
+    <nav-bar :title="isTyping ? '对方正在输入...' : (role?.name || '聊天')" :show-back="true" />
 
     <div ref="messagesContainer" class="wx-content">
       <div v-if="messages.length === 0" class="wx-empty">
-        <div class="wx-empty-icon">💬</div>
         <div class="wx-empty-text">暂无消息</div>
         <div class="wx-empty-text">发送第一条消息开始对话</div>
       </div>
@@ -19,9 +19,6 @@
         />
       </div>
 
-      <div v-if="isTyping" class="wx-typing">
-        {{ role?.name || '对方' }} 正在输入...
-      </div>
     </div>
 
     <chat-input @send="sendTextMessage" @send-image="sendImageMessage" />

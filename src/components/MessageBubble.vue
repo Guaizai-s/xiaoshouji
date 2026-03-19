@@ -20,6 +20,7 @@
         </div>
       </div>
     </template>
+    
     <!-- 单条消息 -->
     <template v-else>
       <div class="wx-message" :class="{ self: message.role === 'user' }">
@@ -90,33 +91,145 @@ const parseEmoji = (text) => {
 </script>
 
 <style scoped>
+/* 整体包裹层，加入轻微的 Q 弹入场动画 */
 .wx-message-wrapper {
   display: flex;
   flex-direction: column;
+  margin-bottom: 20px;
+  animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .wx-message-wrapper.self {
   align-items: flex-end;
 }
 
+/* 每一行消息（包含换行分割出的独立气泡） */
+.wx-message {
+  display: flex;
+  align-items: flex-start; /* 顶部对齐，确保尖角和头像对齐 */
+  margin-bottom: 8px; /* 换行气泡之间的间距 */
+  padding: 0 16px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.wx-message.self {
+  flex-direction: row-reverse;
+}
+
+/* 微信风格微圆角正方形头像 */
+.wx-message-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px; 
+  object-fit: cover;
+  flex-shrink: 0;
+  background-color: #fff;
+}
+
+.wx-message:not(.self) .wx-message-avatar {
+  margin-right: 12px;
+}
+.wx-message.self .wx-message-avatar {
+  margin-left: 12px;
+}
+
+/* 没有头像时的占位符（用于换行后的气泡保持对齐） */
 .wx-message-avatar-placeholder {
   width: 40px;
   height: 40px;
   flex-shrink: 0;
 }
-
-.wx-message.self .wx-message-avatar-placeholder {
-  margin-left: 8px;
-}
-
 .wx-message:not(.self) .wx-message-avatar-placeholder {
-  margin-right: 8px;
+  margin-right: 12px;
+}
+.wx-message.self .wx-message-avatar-placeholder {
+  margin-left: 12px;
 }
 
+/* 内容区域 */
+.wx-message-content {
+  display: flex;
+  flex-direction: column;
+  max-width: 65%; /* 控制气泡最大宽度 */
+  position: relative;
+}
+
+.wx-message.self .wx-message-content {
+  align-items: flex-end;
+}
+
+/* --- 核心气泡样式 --- */
+.wx-message-bubble {
+  position: relative;
+}
+
+/* 仅对文本气泡应用底色和圆角 */
+.wx-message-bubble.text {
+  padding: 10px 14px;
+  font-size: 16px;
+  line-height: 1.4;
+  word-break: break-word;
+  border-radius: 8px;
+  color: #111111;
+}
+
+/* AI 的文本气泡 (纯白) */
+.wx-message:not(.self) .wx-message-bubble.text {
+  background-color: #ffffff;
+}
+
+/* 用户的文本气泡 (微信绿) */
+.wx-message.self .wx-message-bubble.text {
+  background-color: #95ec69;
+}
+
+/* --- 气泡小尾巴 (伪元素三角形) --- */
+/* 注意：使用了 :first-child，确保如果一段话被换行分割，只有第一个气泡有小尾巴 */
+.wx-message:first-child:not(.self) .wx-message-bubble.text::before {
+  content: '';
+  position: absolute;
+  top: 14px; /* 对齐头像上部 */
+  left: -6px;
+  width: 0;
+  height: 0;
+  border-top: 6px solid transparent;
+  border-bottom: 6px solid transparent;
+  border-right: 6px solid #ffffff;
+}
+
+.wx-message:first-child.self .wx-message-bubble.text::before {
+  content: '';
+  position: absolute;
+  top: 14px;
+  right: -6px;
+  width: 0;
+  height: 0;
+  border-top: 6px solid transparent;
+  border-bottom: 6px solid transparent;
+  border-left: 6px solid #95ec69;
+}
+
+/* --- 图片和贴纸消息样式 --- */
+.wx-message-bubble.image img,
+.wx-message-bubble.sticker img {
+  max-width: 100%;
+  border-radius: 8px; /* 图片也加点圆角更柔和 */
+  display: block;
+}
+
+/* --- 表情包解析样式 --- */
 :deep(.emoji-img) {
-  width: 80px;
-  height: 80px;
+  width: 24px; /* 行内表情大小，如果你原本的 80px 是大表情，可以改回去 */
+  height: 24px;
   vertical-align: middle;
   display: inline-block;
+  margin: 0 2px;
+}
+
+/* Q弹入场动画 */
+@keyframes popIn {
+  0% { opacity: 0; transform: scale(0.95) translateY(5px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
 }
 </style>

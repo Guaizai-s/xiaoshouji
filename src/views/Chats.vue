@@ -1,4 +1,4 @@
-<template>
+<template>//会话列表
   <div class="wx-page">
     <nav-bar title="微信" />
 
