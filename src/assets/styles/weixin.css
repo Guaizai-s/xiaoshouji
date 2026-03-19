@@ -216,7 +216,7 @@ html, body {
 
 .wx-message-bubble {
   padding: 10px 12px;
-  border-radius: 4px;
+  border-radius: 8px;
   word-break: break-word;
   position: relative;
 }
@@ -227,6 +227,32 @@ html, body {
 
 .wx-message:not(.self) .wx-message-bubble {
   background-color: var(--wx-bubble-other);
+}
+
+/* 对方气泡尖角 */
+.wx-message:not(.self) .wx-message-bubble.text::before {
+  content: '';
+  position: absolute;
+  top: 14px;
+  left: -5px;
+  width: 0;
+  height: 0;
+  border-top: 6px solid transparent;
+  border-bottom: 6px solid transparent;
+  border-right: 6px solid #ffffff;
+}
+
+/* 自己气泡尖角 */
+.wx-message.self .wx-message-bubble.text::before {
+  content: '';
+  position: absolute;
+  top: 14px;
+  right: -5px;
+  width: 0;
+  height: 0;
+  border-top: 6px solid transparent;
+  border-bottom: 6px solid transparent;
+  border-left: 6px solid var(--wx-bubble-self);
 }
 
 .wx-message-bubble img {
@@ -280,13 +306,15 @@ html, body {
 }
 
 .wx-input-send {
-  padding: 8px 16px;
+  padding: 8px 12px;
   background-color: var(--wx-green);
   color: white;
   border: none;
   border-radius: 4px;
   font-size: 14px;
   cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .wx-input-send:disabled {

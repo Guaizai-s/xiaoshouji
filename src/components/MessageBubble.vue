@@ -9,12 +9,10 @@
         :class="{ self: message.role === 'user' }"
       >
         <img
-          v-if="index === 0"
           class="wx-message-avatar"
           :src="avatar"
           alt="avatar"
         />
-        <div v-else class="wx-message-avatar-placeholder"></div>
         <div class="wx-message-content">
           <div class="wx-message-bubble text" v-html="parseEmoji(part)"></div>
         </div>
@@ -93,10 +91,16 @@ const parseEmoji = (text) => {
 .wx-message-wrapper {
   display: flex;
   flex-direction: column;
+  animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
 }
 
 .wx-message-wrapper.self {
   align-items: flex-end;
+}
+
+@keyframes popIn {
+  0% { opacity: 0; transform: scale(0.95) translateY(5px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
 }
 
 .wx-message-avatar-placeholder {
