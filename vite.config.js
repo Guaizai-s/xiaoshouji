@@ -12,7 +12,7 @@ export default defineConfig({
         name: '小手机',
         short_name: '小手机',
         description: 'AI聊天助手',
-        theme_color: '#07C160',
+        theme_color: '#EDEDED',
         background_color: '#EDEDED',
         display: 'standalone',
         start_url: '/',

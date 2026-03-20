@@ -13,19 +13,22 @@
 
       <div v-else class="wx-list">
         <div
-          v-for="conv in conversations"
+          v-for="conv in sortedConversations"
           :key="conv.id"
           class="wx-list-item"
+          :class="{ 'item-muted': conv.isMuted, 'item-pinned': conv.isTop }"
           @click="openChat(conv)"
         >
-          <img class="wx-list-avatar" :src="conv.role?.avatar || defaultAvatar" alt="avatar" />
+          <div class="avatar-wrap">
+            <img class="wx-list-avatar" :src="conv.role?.avatar || defaultAvatar" alt="avatar" />
+            <div v-if="conv.unread > 0" class="badge" :class="{ 'badge-grey': conv.isMuted }">{{ conv.unread }}</div>
+          </div>
           <div class="wx-list-content">
             <div class="wx-list-title">{{ conv.role?.name || '未知角色' }}</div>
             <div class="wx-list-desc">{{ conv.lastMessage || '暂无消息' }}</div>
           </div>
           <div class="wx-list-meta">
             <div class="wx-list-time">{{ formatTime(conv.updatedAt) }}</div>
-            <div v-if="conv.unread > 0" class="wx-list-badge">{{ conv.unread }}</div>
           </div>
         </div>
       </div>
@@ -36,7 +39,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import NavBar from '../components/NavBar.vue';
 import TabBar from '../components/TabBar.vue';
@@ -45,6 +48,15 @@ import { conversationService } from '../services/db';
 const router = useRouter();
 const conversations = ref([]);
 const defaultAvatar = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="48" height="48"%3E%3Crect fill="%23ddd" width="48" height="48" rx="4"/%3E%3Cpath fill="%23999" d="M24 12a6 6 0 100 12 6 6 0 000-12zm0 16c-4.4 0-8 2.7-8 6v2h16v-2c0-3.3-3.6-6-8-6z"/%3E%3C/svg%3E';
+
+// 置顶的排前面
+const sortedConversations = computed(() => {
+  return [...conversations.value].sort((a, b) => {
+    if (a.isTop && !b.isTop) return -1;
+    if (!a.isTop && b.isTop) return 1;
+    return (b.updatedAt || 0) - (a.updatedAt || 0);
+  });
+});
 
 onMounted(async () => {
   await loadConversations();
@@ -94,5 +106,43 @@ const formatTime = (timestamp) => {
   height: 64px;
   color: #c0c0c0;
   margin-bottom: 16px;
+}
+.avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+  margin-right: 12px;
+}
+.wx-list-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 6px;
+  object-fit: cover;
+  display: block;
+}
+.badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 18px;
+  height: 18px;
+  background: #e64340;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  border: 1.5px solid #fff;
+}
+.badge-grey {
+  background: #b2b2b2;
+}
+.item-pinned {
+  background: #f7f7f7;
+}
+.item-muted .wx-list-title {
+  color: #666;
 }
 </style>

@@ -3,7 +3,8 @@ import { createRouter, createWebHistory } from 'vue-router';
 const routes = [
   {
     path: '/',
-    redirect: '/chats'
+    name: 'Desktop',
+    component: () => import('../views/Desktop.vue')
   },
   {
     path: '/chats',
@@ -49,6 +50,16 @@ const routes = [
     path: '/profile',
     name: 'Profile',
     component: () => import('../views/Profile.vue')
+  },
+  {
+    path: '/chat-details/conv/:convId',
+    name: 'ChatDetails',
+    component: () => import('../views/ChatDetails.vue')
+  },
+  {
+    path: '/settings',
+    name: 'AppSettings',
+    component: () => import('../views/AppSettings.vue')
   }
 ];
 

@@ -3,11 +3,19 @@ import Dexie from 'dexie';
 // 创建数据库
 const db = new Dexie('XiaoShouJiDB');
 
-// 定义数据库模式
+// v1: 原始结构
 db.version(1).stores({
   roles: '++id, name, createdAt, updatedAt',
   conversations: '++id, roleId, updatedAt',
   messages: '++id, conversationId, timestamp'
+});
+
+// v2: 新增 apiProfiles 表，conversations 加 isTop/isMuted 索引
+db.version(2).stores({
+  roles: '++id, name, createdAt, updatedAt',
+  conversations: '++id, roleId, updatedAt, isTop, isMuted',
+  messages: '++id, conversationId, timestamp',
+  apiProfiles: '++id, name, createdAt'
 });
 
 // 角色管理
@@ -161,6 +169,25 @@ export const messageService = {
       lastMessage: '',
       unread: 0
     });
+  }
+};
+
+// API 方案管理
+export const apiProfileService = {
+  async getAll() {
+    return await db.apiProfiles.orderBy('createdAt').toArray();
+  },
+  async create(data) {
+    const now = Date.now();
+    const id = await db.apiProfiles.add({ ...data, createdAt: now, updatedAt: now });
+    return await db.apiProfiles.get(id);
+  },
+  async update(id, data) {
+    await db.apiProfiles.update(id, { ...data, updatedAt: Date.now() });
+    return await db.apiProfiles.get(id);
+  },
+  async delete(id) {
+    await db.apiProfiles.delete(id);
   }
 };
 

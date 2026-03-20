@@ -39,41 +39,11 @@
         </div>
 
         <div class="wx-form-group">
-          <label class="wx-form-label">API 格式 *</label>
-          <select v-model="formData.apiFormat" class="wx-form-select">
-            <option value="anthropic">Anthropic (官方)</option>
-            <option value="openai">OpenAI 兼容</option>
+          <label class="wx-form-label">API 方案</label>
+          <select v-model="formData.apiProfileId" class="wx-form-select">
+            <option :value="null">使用全局配置</option>
+            <option v-for="p in apiProfiles" :key="p.id" :value="p.id">{{ p.name }}</option>
           </select>
-        </div>
-
-        <div class="wx-form-group">
-          <label class="wx-form-label">API Key *</label>
-          <input
-            v-model="formData.apiKey"
-            class="wx-form-input"
-            type="password"
-            placeholder="请输入 API Key"
-          />
-        </div>
-
-        <div class="wx-form-group">
-          <label class="wx-form-label">API 端点 (可选)</label>
-          <input
-            v-model="formData.baseUrl"
-            class="wx-form-input"
-            type="text"
-            :placeholder="apiPlaceholder"
-          />
-        </div>
-
-        <div class="wx-form-group">
-          <label class="wx-form-label">模型名称 (可选)</label>
-          <input
-            v-model="formData.model"
-            class="wx-form-input"
-            type="text"
-            :placeholder="modelPlaceholder"
-          />
         </div>
 
         <div class="wx-form-group">
@@ -94,39 +64,26 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import NavBar from '../components/NavBar.vue';
-import { roleService } from '../services/db';
+import { roleService, apiProfileService } from '../services/db';
 
 const router = useRouter();
 const avatarInput = ref(null);
 const avatarPreview = ref('');
-const avatarFile = ref(null);
+const apiProfiles = ref([]);
 
 const formData = ref({
   name: '',
-  apiFormat: 'anthropic',
-  apiKey: '',
-  baseUrl: '',
-  model: '',
+  apiProfileId: null,
   systemPrompt: ''
 });
 
-const apiPlaceholder = computed(() => {
-  return formData.value.apiFormat === 'anthropic'
-    ? 'https://api.anthropic.com/v1/messages'
-    : 'https://api.openai.com/v1/chat/completions';
-});
+const isValid = computed(() => formData.value.name.trim());
 
-const modelPlaceholder = computed(() => {
-  return formData.value.apiFormat === 'anthropic'
-    ? 'claude-3-5-sonnet-20241022'
-    : 'gpt-3.5-turbo';
-});
-
-const isValid = computed(() => {
-  return formData.value.name.trim() && formData.value.apiKey.trim();
+onMounted(async () => {
+  apiProfiles.value = await apiProfileService.getAll();
 });
 
 const selectAvatar = () => {
@@ -146,23 +103,14 @@ const handleAvatarChange = (event) => {
 };
 
 const save = async () => {
-  if (!isValid.value) {
-    alert('请填写必填项');
-    return;
-  }
-
+  if (!isValid.value) { alert('请填写角色名称'); return; }
   try {
     await roleService.create({
       name: formData.value.name.trim(),
-      apiFormat: formData.value.apiFormat,
-      apiKey: formData.value.apiKey.trim(),
-      baseUrl: formData.value.baseUrl.trim() || null,
-      model: formData.value.model.trim() || null,
+      apiProfileId: formData.value.apiProfileId,
       avatar: avatarPreview.value || null,
       systemPrompt: formData.value.systemPrompt.trim() || null
     });
-
-    alert('角色创建成功！');
     router.back();
   } catch (error) {
     alert('创建失败: ' + error.message);

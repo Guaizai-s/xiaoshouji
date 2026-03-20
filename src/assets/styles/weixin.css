@@ -211,6 +211,7 @@ html, body {
 }
 
 .wx-message-content {
+  width: 11em;
   max-width: 70%;
 }
 

@@ -91,7 +91,7 @@ const parseEmoji = (text) => {
 .wx-message-wrapper {
   display: flex;
   flex-direction: column;
-  animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+  animation: popIn 0.2s ease-out both;
 }
 
 .wx-message-wrapper.self {
@@ -99,8 +99,8 @@ const parseEmoji = (text) => {
 }
 
 @keyframes popIn {
-  0% { opacity: 0; transform: scale(0.95) translateY(5px); }
-  100% { opacity: 1; transform: scale(1) translateY(0); }
+  0%   { opacity: 0; transform: translateY(6px); }
+  100% { opacity: 1; transform: translateY(0); }
 }
 
 .wx-message-avatar-placeholder {

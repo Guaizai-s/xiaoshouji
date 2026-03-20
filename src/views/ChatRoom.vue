@@ -1,6 +1,6 @@
 <template>
-  <div class="wx-page">
-    <nav-bar :title="role?.name || '聊天'" :show-back="true" />
+  <div class="wx-page" @click="onPageClick">
+    <nav-bar :title="isTyping ? '对方正在输入…' : (role?.name || '聊天')" :show-back="true" action="•••" @action="goDetails" />
 
     <div ref="messagesContainer" class="wx-content">
       <div v-if="messages.length === 0" class="wx-empty">
@@ -18,19 +18,15 @@
           :role-avatar="role?.avatar || defaultAvatar"
         />
       </div>
-
-      <div v-if="isTyping" class="wx-typing">
-        {{ role?.name || '对方' }} 正在输入...
-      </div>
     </div>
 
-    <chat-input @send="sendTextMessage" @send-image="sendImageMessage" />
+    <chat-input ref="chatInputRef" @send="sendTextMessage" @send-image="sendImageMessage" />
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, nextTick, watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import NavBar from '../components/NavBar.vue';
 import MessageBubble from '../components/MessageBubble.vue';
 import ChatInput from '../components/ChatInput.vue';
@@ -38,7 +34,10 @@ import { conversationService, messageService, roleService } from '../services/db
 import { callClaude, callClaudeVision, fileToBase64 } from '../services/claude';
 
 const route = useRoute();
+const router = useRouter();
 const conversationId = parseInt(route.params.id);
+
+const goDetails = () => { router.push(`/chat-details/conv/${conversationId}`); };
 
 const conversation = ref(null);
 const role = ref(null);
@@ -88,6 +87,14 @@ const loadMessages = async () => {
   messages.value = await messageService.getByConversation(conversationId);
 };
 
+const chatInputRef = ref(null);
+
+const onPageClick = (e) => {
+  if (!e.target.closest('.wx-input-bar')) {
+    document.activeElement?.blur();
+  }
+};
+
 const scrollToBottom = () => {
   if (messagesContainer.value) {
     messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
@@ -96,36 +103,32 @@ const scrollToBottom = () => {
 
 const sendTextMessage = async (text) => {
   try {
-    // 1. 保存用户消息
     await messageService.create(conversationId, 'user', text, 'text');
     await loadMessages();
 
-    // 2. 显示"正在输入"状态
     isTyping.value = true;
-
-    // 3. 记录开始时间
     const startTime = Date.now();
 
-    // 4. 获取上下文消息（最近15轮）
     const contextMessages = await messageService.getContext(conversationId, 15);
-    const apiMessages = contextMessages.map(msg => ({
-      role: msg.role,
-      content: msg.content
-    }));
+    const apiMessages = contextMessages.map(msg => ({ role: msg.role, content: msg.content }));
 
-    // 5. 调用 API
     const response = await callClaude(role.value, apiMessages);
 
-    // 6. 智能延迟（模拟打字）
     const elapsed = Date.now() - startTime;
-    const minDelay = 800;
-    if (elapsed < minDelay) {
-      await sleep(minDelay - elapsed);
-    }
+    if (elapsed < 800) await sleep(800 - elapsed);
 
-    // 7. 保存 AI 回复
-    await messageService.create(conversationId, 'assistant', response, 'text');
-    await loadMessages();
+    // 按换行拆分，逐条延迟存入，模拟打字效果
+    const parts = response.split('\n').filter(p => p.trim());
+    if (parts.length <= 1) {
+      await messageService.create(conversationId, 'assistant', response, 'text');
+      await loadMessages();
+    } else {
+      for (let i = 0; i < parts.length; i++) {
+        if (i > 0) await sleep(500);
+        await messageService.create(conversationId, 'assistant', parts[i], 'text');
+        await loadMessages();
+      }
+    }
 
     isTyping.value = false;
   } catch (error) {
@@ -136,31 +139,26 @@ const sendTextMessage = async (text) => {
 
 const sendImageMessage = async (file) => {
   try {
-    // 1. 读取图片
     const base64 = await fileToBase64(file);
-    const imageUrl = URL.createObjectURL(file);
+    const dataUrl = `data:${file.type};base64,${base64}`;
 
-    // 2. 保存用户图片消息
-    await messageService.create(conversationId, 'user', imageUrl, 'image');
+    await messageService.create(conversationId, 'user', dataUrl, 'image');
     await loadMessages();
 
-    // 3. 显示"正在输入"状态
     isTyping.value = true;
-
-    // 4. 记录开始时间
     const startTime = Date.now();
 
-    // 5. 调用 Vision API
-    const response = await callClaudeVision(role.value, base64, file.type);
+    // 获取文字上下文
+    const contextMessages = await messageService.getContext(conversationId, 15);
+    const textContext = contextMessages
+      .filter(msg => msg.type === 'text')
+      .map(msg => ({ role: msg.role, content: msg.content }));
 
-    // 6. 智能延迟
+    const response = await callClaudeVision(role.value, base64, file.type, textContext);
+
     const elapsed = Date.now() - startTime;
-    const minDelay = 800;
-    if (elapsed < minDelay) {
-      await sleep(minDelay - elapsed);
-    }
+    if (elapsed < 800) await sleep(800 - elapsed);
 
-    // 7. 保存 AI 回复
     await messageService.create(conversationId, 'assistant', response, 'text');
     await loadMessages();
 
