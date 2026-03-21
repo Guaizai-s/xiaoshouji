@@ -53,6 +53,7 @@
 
     <!-- Dock 栏 -->
     <div class="dock">
+      <div class="home-bar"></div>
       <div
         v-for="app in dockApps"
         :key="'dock-' + app.id"
@@ -69,9 +70,6 @@
         </div>
       </div>
     </div>
-
-    <!-- Home 指示条 -->
-    <div class="home-bar"></div>
   </div>
 </template>
 
@@ -382,8 +380,8 @@ const handleAppClick = (app) => {
 .dock {
   position: relative;
   z-index: 10;
-  margin: 0 16px 28px;
-  padding: 12px 16px;
+  margin: 0 16px 12px;
+  padding: 10px 16px 6px;
   background: rgba(255,255,255,0.16);
   backdrop-filter: blur(40px) saturate(200%);
   -webkit-backdrop-filter: blur(40px) saturate(200%);
@@ -403,12 +401,11 @@ const handleAppClick = (app) => {
 /* Home 指示条 */
 .home-bar {
   position: absolute;
-  bottom: 8px;
+  top: 5px;
   left: 50%;
   transform: translateX(-50%);
   width: 120px; height: 4px;
   background: rgba(255,255,255,0.55);
   border-radius: 2px;
-  z-index: 10;
 }
 </style>

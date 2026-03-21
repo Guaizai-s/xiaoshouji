@@ -33,7 +33,7 @@ html, body {
   align-items: center;
   height: 44px;
   background-color: var(--wx-white);
-  border-bottom: 1px solid var(--wx-border);
+  border-bottom: 1px solid var(--wx-white);
   padding: 0 16px;
   position: relative;
 }
@@ -211,8 +211,9 @@ html, body {
 }
 
 .wx-message-content {
-  width: 11em;
-  max-width: 70%;
+  width: auto;
+  max-width: 12em;
+  flex-shrink: 1;
 }
 
 .wx-message-bubble {
