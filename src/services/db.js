@@ -177,6 +177,9 @@ export const apiProfileService = {
   async getAll() {
     return await db.apiProfiles.orderBy('createdAt').toArray();
   },
+  async getById(id) {
+    return await db.apiProfiles.get(id);
+  },
   async create(data) {
     const now = Date.now();
     const id = await db.apiProfiles.add({ ...data, createdAt: now, updatedAt: now });

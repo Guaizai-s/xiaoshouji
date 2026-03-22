@@ -282,7 +282,7 @@ onMounted(async () => {
 <style scoped>
 .wx-page {
   width: 100%;
-  height: 100vh;
+  height: 100dvh;
   background: #f2f2f7;
   display: flex;
   flex-direction: column;

@@ -166,7 +166,14 @@
             <div class="form-row"><label class="form-label">名称</label><input class="form-input" v-model="editingProfile.name" placeholder="如：GPT-4o" /></div>
             <div class="form-row"><label class="form-label">API Key</label><input class="form-input" type="password" v-model="editingProfile.apiKey" placeholder="sk-..." /></div>
             <div class="form-row"><label class="form-label">Base URL</label><input class="form-input" v-model="editingProfile.baseUrl" placeholder="留空用默认" /></div>
-            <div class="form-row no-border"><label class="form-label">模型</label><input class="form-input" v-model="editingProfile.model" placeholder="gpt-4o" /></div>
+            <div class="form-row"><label class="form-label">模型</label><input class="form-input" v-model="editingProfile.model" placeholder="gpt-4o" /></div>
+            <div class="form-row no-border">
+              <label class="form-label">API格式</label>
+              <select class="form-select" v-model="editingProfile.apiFormat">
+                <option value="anthropic">Anthropic (Claude)</option>
+                <option value="openai">OpenAI 兼容</option>
+              </select>
+            </div>
           </div>
           <button class="action-btn mt-8 green" @click="saveProfile">保存</button>
           <button v-if="editingProfile.id" class="action-btn mt-3 red" @click="deleteProfile">删除方案</button>
@@ -322,7 +329,7 @@ onMounted(loadAll);
 
 // ---- API 方案 ----
 const editProfile = (p) => { editingProfile.value = { ...p }; activePage.value = 'editProfile'; };
-const newProfile  = ()  => { editingProfile.value = { name:'', apiKey:'', baseUrl:'', model:'gpt-4o' }; activePage.value = 'editProfile'; };
+const newProfile  = ()  => { editingProfile.value = { name:'', apiKey:'', baseUrl:'', model:'gpt-4o', apiFormat:'openai' }; activePage.value = 'editProfile'; };
 const saveProfile = async () => {
   if (!editingProfile.value.name) { alert('请填写方案名称'); return; }
   if (editingProfile.value.id) await apiProfileService.update(editingProfile.value.id, editingProfile.value);
@@ -419,7 +426,7 @@ const importData = async (e) => {
 <style scoped>
 .page {
   width: 100%;
-  height: 100vh;
+  height: 100dvh;
   background: #f2f2f7;
   overflow: hidden;
   position: relative;
@@ -550,6 +557,7 @@ const importData = async (e) => {
 .form-label { font-size: 15px; color: #111; min-width: 72px; flex-shrink: 0; }
 .form-input { flex: 1; border: none; outline: none; font-size: 15px; color: #333; text-align: right; background: transparent; font-family: inherit; }
 .form-input::placeholder { color: #c7c7cc; }
+.form-select { flex: 1; border: none; outline: none; font-size: 15px; color: #333; text-align: right; background: transparent; font-family: inherit; appearance: none; }
 
 /* 按钮 */
 .action-btn {

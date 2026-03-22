@@ -26,7 +26,7 @@ const getTransitionName = (route) => {
 <style>
 #app {
   width: 100%;
-  height: 100vh;
+  height: 100dvh;
   background-color: #EDEDED;
   overflow: hidden;
 }

@@ -30,7 +30,7 @@ import { useRoute, useRouter } from 'vue-router';
 import NavBar from '../components/NavBar.vue';
 import MessageBubble from '../components/MessageBubble.vue';
 import ChatInput from '../components/ChatInput.vue';
-import { conversationService, messageService, roleService } from '../services/db';
+import { conversationService, messageService, roleService, apiProfileService } from '../services/db';
 import { callClaude, callClaudeVision, fileToBase64 } from '../services/claude';
 
 const route = useRoute();
@@ -78,6 +78,20 @@ watch(messages, () => {
 const loadConversation = async () => {
   conversation.value = await conversationService.getOrCreate(conversationId);
   role.value = await roleService.getById(conversation.value.roleId);
+
+  // 如果角色关联了API方案，获取配置并合并到role对象
+  if (role.value?.apiProfileId) {
+    const apiProfile = await apiProfileService.getById(role.value.apiProfileId);
+    if (apiProfile) {
+      role.value = {
+        ...role.value,
+        apiKey: apiProfile.apiKey,
+        baseUrl: apiProfile.baseUrl,
+        model: apiProfile.model,
+        apiFormat: apiProfile.apiFormat
+      };
+    }
+  }
 
   // 标记为已读
   await conversationService.markAsRead(conversationId);

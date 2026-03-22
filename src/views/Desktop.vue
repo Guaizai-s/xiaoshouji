@@ -222,7 +222,7 @@ const handleAppClick = (app) => {
 <style scoped>
 .desktop {
   width: 100%;
-  height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   position: relative;
@@ -251,8 +251,8 @@ const handleAppClick = (app) => {
   z-index: 10;
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  padding: 10px 22px 0;
+  align-items: flex-end;
+  padding: env(safe-area-inset-top) 22px 6px;
   color: white;
   font-size: 14px;
   font-weight: 600;
