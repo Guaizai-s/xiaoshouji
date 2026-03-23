@@ -123,7 +123,8 @@ const sendTextMessage = async (text) => {
     isTyping.value = true;
     const startTime = Date.now();
 
-    const contextMessages = await messageService.getContext(conversationId, 15);
+    const contextLength = role.value?.chatSettings?.contextLength || 15;
+    const contextMessages = await messageService.getContext(conversationId, contextLength);
     const apiMessages = contextMessages.map(msg => ({ role: msg.role, content: msg.content }));
 
     const response = await callClaude(role.value, apiMessages);
@@ -153,8 +154,9 @@ const sendTextMessage = async (text) => {
 
 const sendImageMessage = async (file) => {
   try {
-    const base64 = await fileToBase64(file);
-    const dataUrl = `data:${file.type};base64,${base64}`;
+    // 压缩图片
+    const compressedBase64 = await compressImage(file);
+    const dataUrl = `data:${file.type};base64,${compressedBase64}`;
 
     await messageService.create(conversationId, 'user', dataUrl, 'image');
     await loadMessages();
@@ -162,13 +164,14 @@ const sendImageMessage = async (file) => {
     isTyping.value = true;
     const startTime = Date.now();
 
-    // 获取文字上下文
-    const contextMessages = await messageService.getContext(conversationId, 15);
+    // 图片请求使用较少上下文避免413错误
+    const contextLength = Math.min(role.value?.chatSettings?.contextLength || 15, 5);
+    const contextMessages = await messageService.getContext(conversationId, contextLength);
     const textContext = contextMessages
       .filter(msg => msg.type === 'text')
       .map(msg => ({ role: msg.role, content: msg.content }));
 
-    const response = await callClaudeVision(role.value, base64, file.type, textContext);
+    const response = await callClaudeVision(role.value, compressedBase64, file.type, textContext);
 
     const elapsed = Date.now() - startTime;
     if (elapsed < 800) await sleep(800 - elapsed);
@@ -184,4 +187,36 @@ const sendImageMessage = async (file) => {
 };
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+// 压缩图片
+const compressImage = (file, maxWidth = 800, quality = 0.7) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth) {
+          height = (height * maxWidth) / width;
+          width = maxWidth;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const base64 = canvas.toDataURL(file.type, quality).split(',')[1];
+        resolve(base64);
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+};
 </script>

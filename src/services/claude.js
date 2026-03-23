@@ -27,9 +27,8 @@ export async function callClaude(role, messages) {
  * 调用 Anthropic 官方 API
  */
 async function callAnthropicAPI(baseUrl, apiKey, model, systemPrompt, messages) {
-  // 判断环境：生产环境使用Vercel Function，开发环境使用本地代理
-  const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
-  const apiUrl = isProduction ? '/api/chat' : 'http://localhost:3001/api/anthropic';
+  // 统一使用 Vercel Function
+  const apiUrl = '/api/chat';
 
   const response = await fetch(apiUrl, {
     method: 'POST',
@@ -60,9 +59,8 @@ async function callAnthropicAPI(baseUrl, apiKey, model, systemPrompt, messages) 
  * 调用 OpenAI 兼容 API
  */
 async function callOpenAIAPI(baseUrl, apiKey, model, systemPrompt, messages) {
-  // 判断环境：生产环境使用Vercel Function，开发环境使用本地代理
-  const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
-  const apiUrl = isProduction ? '/api/chat' : 'http://localhost:3001/api/openai';
+  // 统一使用 Vercel Function
+  const apiUrl = '/api/chat';
 
   // 转换消息格式（添加 system 消息）
   const openaiMessages = systemPrompt
@@ -99,8 +97,8 @@ export async function callClaudeVision(role, imageBase64, mimeType, contextMessa
     throw new Error('请配置 API Key');
   }
 
-  const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
-  const apiUrl = isProduction ? '/api/chat' : 'http://localhost:3001/api/anthropic';
+  // 统一使用 Vercel Function
+  const apiUrl = '/api/chat';
 
   // 图片消息放在最后一条 user 消息里
   const imageUserMessage = {

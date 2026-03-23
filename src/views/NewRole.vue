@@ -72,6 +72,7 @@ import { roleService, apiProfileService } from '../services/db';
 const router = useRouter();
 const avatarInput = ref(null);
 const avatarPreview = ref('');
+const avatarFile = ref(null);
 const apiProfiles = ref([]);
 
 const formData = ref({

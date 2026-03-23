@@ -3,7 +3,6 @@
     <div class="nav-bar">
       <div class="nav-back" @click="goBack">
         <svg width="10" height="18" viewBox="0 0 10 18" fill="none"><path d="M9 1L1 9L9 17" stroke="#111" stroke-width="2" stroke-linecap="round"/></svg>
-        {{ currentView !== 'main' ? '聊天信息' : '' }}
       </div>
       <div class="nav-title">{{ viewTitle }}</div>
       <div class="nav-placeholder"></div>
