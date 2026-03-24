@@ -33,6 +33,10 @@
           >
             <template v-if="message.type === 'text'">
               <span v-html="parseEmoji(message.content)"></span>
+              <div v-if="message.audioUrl" class="audio-player" @click="toggleAudio">
+                <span class="audio-icon">{{ isPlaying ? '⏸' : '▶️' }}</span>
+                <span class="audio-text">语音消息</span>
+              </div>
             </template>
             <template v-else-if="message.type === 'image'">
               <img :src="message.content" alt="image" />
@@ -48,7 +52,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 
 const props = defineProps({
   message: {
@@ -64,6 +68,26 @@ const props = defineProps({
     default: ''
   }
 });
+
+const isPlaying = ref(false);
+const audioElement = ref(null);
+
+const toggleAudio = () => {
+  if (!props.message.audioUrl) return;
+
+  if (!audioElement.value) {
+    audioElement.value = new Audio(props.message.audioUrl);
+    audioElement.value.onended = () => { isPlaying.value = false; };
+  }
+
+  if (isPlaying.value) {
+    audioElement.value.pause();
+    isPlaying.value = false;
+  } else {
+    audioElement.value.play();
+    isPlaying.value = true;
+  }
+};
 
 const avatar = computed(() => {
   return props.message.role === 'user' ? props.userAvatar : props.roleAvatar;
@@ -122,5 +146,30 @@ const parseEmoji = (text) => {
   height: 80px;
   vertical-align: middle;
   display: inline-block;
+}
+
+.audio-player {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.audio-player:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.audio-icon {
+  font-size: 14px;
+}
+
+.audio-text {
+  font-size: 13px;
+  color: #576b95;
 }
 </style>

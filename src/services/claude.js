@@ -1,4 +1,5 @@
 // Claude API 调用服务
+import { mergeSystemPrompts } from '../config/systemPrompts';
 
 /**
  * 调用 Claude API
@@ -13,11 +14,14 @@ export async function callClaude(role, messages) {
     throw new Error('请配置 API Key');
   }
 
+  // 合并内置提示词和用户提示词
+  const finalSystemPrompt = mergeSystemPrompts(systemPrompt);
+
   // 根据 API 格式构建请求
   if (apiFormat === 'anthropic') {
-    return await callAnthropicAPI(baseUrl, apiKey, model, systemPrompt, messages);
+    return await callAnthropicAPI(baseUrl, apiKey, model, finalSystemPrompt, messages);
   } else if (apiFormat === 'openai') {
-    return await callOpenAIAPI(baseUrl, apiKey, model, systemPrompt, messages);
+    return await callOpenAIAPI(baseUrl, apiKey, model, finalSystemPrompt, messages);
   } else {
     throw new Error('不支持的 API 格式');
   }
@@ -27,10 +31,41 @@ export async function callClaude(role, messages) {
  * 调用 Anthropic 官方 API
  */
 async function callAnthropicAPI(baseUrl, apiKey, model, systemPrompt, messages) {
-  // 统一使用 Vercel Function
-  const apiUrl = '/api/chat';
+  // 检查是否使用直接调用（国内API）
+  const useDirect = localStorage.getItem('useDirectAPI') === 'true';
 
-  const response = await fetch(apiUrl, {
+  if (useDirect && baseUrl) {
+    // 直接调用API（绕过Vercel代理）
+    const url = baseUrl.endsWith('/messages') ? baseUrl :
+                baseUrl.endsWith('/v1') ? `${baseUrl}/messages` :
+                `${baseUrl}/v1/messages`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01'
+      },
+      body: JSON.stringify({
+        model: model || 'claude-3-5-sonnet-20241022',
+        max_tokens: 4096,
+        system: systemPrompt || '',
+        messages: messages
+      })
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error?.message || `API 请求失败: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.content[0].text;
+  }
+
+  // 使用 Vercel Function 代理
+  const response = await fetch('/api/chat', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -59,15 +94,43 @@ async function callAnthropicAPI(baseUrl, apiKey, model, systemPrompt, messages) 
  * 调用 OpenAI 兼容 API
  */
 async function callOpenAIAPI(baseUrl, apiKey, model, systemPrompt, messages) {
-  // 统一使用 Vercel Function
-  const apiUrl = '/api/chat';
+  // 检查是否使用直接调用（国内API）
+  const useDirect = localStorage.getItem('useDirectAPI') === 'true';
 
   // 转换消息格式（添加 system 消息）
   const openaiMessages = systemPrompt
     ? [{ role: 'system', content: systemPrompt }, ...messages]
     : messages;
 
-  const response = await fetch(apiUrl, {
+  if (useDirect && baseUrl) {
+    // 直接调用API（绕过Vercel代理）
+    const url = baseUrl.endsWith('/chat/completions') ? baseUrl :
+                baseUrl.endsWith('/v1') ? `${baseUrl}/chat/completions` :
+                `${baseUrl}/v1/chat/completions`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: model || 'gpt-3.5-turbo',
+        messages: openaiMessages
+      })
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new Error(error.error?.message || `API 请求失败: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.choices[0].message.content;
+  }
+
+  // 使用 Vercel Function 代理
+  const response = await fetch('/api/chat', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -97,6 +160,9 @@ export async function callClaudeVision(role, imageBase64, mimeType, contextMessa
     throw new Error('请配置 API Key');
   }
 
+  // 合并内置提示词和用户提示词
+  const finalSystemPrompt = mergeSystemPrompts(systemPrompt);
+
   // 统一使用 Vercel Function
   const apiUrl = '/api/chat';
 
@@ -122,7 +188,7 @@ export async function callClaudeVision(role, imageBase64, mimeType, contextMessa
         apiKey, baseUrl,
         model: model || 'claude-3-5-sonnet-20241022',
         max_tokens: 4096,
-        system: systemPrompt || '',
+        system: finalSystemPrompt || '',
         messages,
         apiFormat: 'anthropic'
       })
@@ -144,8 +210,8 @@ export async function callClaudeVision(role, imageBase64, mimeType, contextMessa
         { type: 'image_url', image_url: { url: `data:${mimeType};base64,${imageBase64}` } }
       ]
     };
-    const messages = systemPrompt
-      ? [{ role: 'system', content: systemPrompt }, ...contextMessages, openaiImageMessage]
+    const messages = finalSystemPrompt
+      ? [{ role: 'system', content: finalSystemPrompt }, ...contextMessages, openaiImageMessage]
       : [...contextMessages, openaiImageMessage];
 
     const response = await fetch(apiUrl, {

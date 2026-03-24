@@ -53,7 +53,6 @@
 
     <!-- Dock 栏 -->
     <div class="dock">
-      <div class="home-bar"></div>
       <div
         v-for="app in dockApps"
         :key="'dock-' + app.id"
@@ -397,15 +396,4 @@ const handleAppClick = (app) => {
 }
 .dock-item { cursor: pointer; }
 .dock-item:active .dock-icon { transform: scale(0.88); }
-
-/* Home 指示条 */
-.home-bar {
-  position: absolute;
-  top: 5px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 120px; height: 4px;
-  background: rgba(255,255,255,0.55);
-  border-radius: 2px;
-}
 </style>

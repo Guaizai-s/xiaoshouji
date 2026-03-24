@@ -18,6 +18,14 @@ db.version(2).stores({
   apiProfiles: '++id, name, createdAt'
 });
 
+// v3: messages 表支持 audioUrl（语音存储）
+db.version(3).stores({
+  roles: '++id, name, createdAt, updatedAt',
+  conversations: '++id, roleId, updatedAt, isTop, isMuted',
+  messages: '++id, conversationId, timestamp',
+  apiProfiles: '++id, name, createdAt'
+});
+
 // 角色管理
 export const roleService = {
   // 创建角色
@@ -118,12 +126,13 @@ export const conversationService = {
 // 消息管理
 export const messageService = {
   // 创建消息
-  async create(conversationId, role, content, type = 'text') {
+  async create(conversationId, role, content, type = 'text', audioUrl = null) {
     const message = {
       conversationId,
       role,
       content,
       type,
+      audioUrl,
       timestamp: Date.now()
     };
     const id = await db.messages.add(message);

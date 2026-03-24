@@ -37,6 +37,11 @@
                 <chevron-right />
               </div>
             </div>
+            <label class="card-item">
+              <div class="item-icon bg-purple-500">🌐</div>
+              <span class="item-label">直接调用API</span>
+              <input type="checkbox" v-model="useDirectAPI" @change="saveDirectAPI" class="wx-switch" />
+            </label>
           </div>
 
           <!-- 数据管理 -->
@@ -311,6 +316,7 @@ const ChevronRight = ChevRight;
 const apiProfiles  = ref([]);
 const editingProfile = ref({ name:'', apiKey:'', baseUrl:'', model:'' });
 const globalMinimax  = ref({ apiKey:'', groupId:'' });
+const useDirectAPI = ref(false);
 const wallpaperPreview = ref('');
 const customIcons  = ref({});
 const dataMsg = ref('');
@@ -319,6 +325,7 @@ const loadAll = async () => {
   apiProfiles.value = await apiProfileService.getAll();
   const mm = localStorage.getItem('globalMinimax');
   if (mm) globalMinimax.value = JSON.parse(mm);
+  useDirectAPI.value = localStorage.getItem('useDirectAPI') === 'true';
   const wp = localStorage.getItem('desktopWallpaper') || localStorage.getItem('desktop_wallpaper') || '';
   wallpaperPreview.value = wp;
   const icons = {};
@@ -348,6 +355,11 @@ const deleteProfile = async () => {
 const saveMinimax = () => {
   localStorage.setItem('globalMinimax', JSON.stringify(globalMinimax.value));
   activePage.value = 'main';
+};
+
+// ---- 直接调用API ----
+const saveDirectAPI = () => {
+  localStorage.setItem('useDirectAPI', useDirectAPI.value ? 'true' : 'false');
 };
 
 // ---- 壁纸 ----

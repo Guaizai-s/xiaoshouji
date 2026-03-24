@@ -10,15 +10,12 @@
 
     <!-- ===== 主页 ===== -->
     <div v-show="currentView === 'main'" class="page-content">
-      <!-- 头像区 -->
-      <div class="panel members-panel">
-        <div class="member-item">
-          <img :src="role?.avatar || defaultAvatar" class="member-avatar" />
-          <span class="member-name">{{ role?.name || '...' }}</span>
-        </div>
-        <!-- 加号：未来群聊入口 -->
-        <div class="member-add" title="创建群聊（即将上线）">
-          <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M11 4v14M4 11h14" stroke="#07c160" stroke-width="2.5" stroke-linecap="round"/></svg>
+      <!-- 角色设置 -->
+      <div class="group-label">角色设置</div>
+      <div class="panel">
+        <div class="list-item" @click="currentView = 'roleEdit'">
+          <span class="item-label">编辑角色</span>
+          <div class="item-right"><span class="item-value">{{ role?.name || '...' }}</span><span class="arrow"></span></div>
         </div>
       </div>
 
@@ -55,6 +52,14 @@
       <!-- 聊天行为 -->
       <div class="group-label">聊天行为</div>
       <div class="panel">
+        <label class="list-item">
+          <span class="item-label">聊天背景图</span>
+          <div class="item-right">
+            <span class="text-blue" @click.stop="triggerBgUpload">{{ settings.chatBackground ? '已设置' : '选择图片' }}</span>
+            <span v-if="settings.chatBackground" class="text-red" @click.stop="clearBackground" style="margin-left:8px">清除</span>
+          </div>
+          <input ref="bgInput" type="file" accept="image/*" style="display:none" @change="onBgUpload" />
+        </label>
         <label class="list-item">
           <span class="item-label">置顶聊天</span>
           <input type="checkbox" v-model="settings.isTop" class="wx-switch" />
@@ -192,6 +197,37 @@
       <div class="hint-text">长期记忆以「[长期记忆]」标注，核心记忆以「[核心设定]」标注，一起附在系统提示中发送给模型。</div>
     </div>
 
+    <!-- ===== 角色编辑 ===== -->
+    <div v-show="currentView === 'roleEdit'" class="page-content">
+      <div class="group-label">基本信息</div>
+      <div class="panel panel-form">
+        <div class="form-row">
+          <label class="form-label">角色名称</label>
+          <input class="form-input" v-model="roleEditData.name" placeholder="请输入角色名称" />
+        </div>
+        <label class="form-row">
+          <span class="form-label">角色头像</span>
+          <div class="item-right">
+            <img v-if="roleEditData.avatar" :src="roleEditData.avatar" style="width:32px;height:32px;border-radius:6px;margin-right:8px" />
+            <span class="text-blue" @click.stop="triggerAvatarUpload">选择图片</span>
+          </div>
+          <input ref="avatarInput" type="file" accept="image/*" style="display:none" @change="onAvatarUpload" />
+        </label>
+      </div>
+      <div class="group-label">系统提示词</div>
+      <div class="panel panel-form">
+        <div class="form-row textarea-row">
+          <textarea
+            class="form-textarea"
+            v-model="roleEditData.systemPrompt"
+            placeholder="定义角色的性格、说话风格、背景故事等..."
+            rows="8"
+          ></textarea>
+        </div>
+      </div>
+      <button class="save-btn" @click="saveRoleEdit">保存角色</button>
+    </div>
+
   </div>
 </template>
 
@@ -212,10 +248,13 @@ const showContextSlider = ref(false);
 const role = ref(null);
 const apiProfiles = ref([]);
 const saveMsg = ref('');
+const bgInput = ref(null);
+const avatarInput = ref(null);
+const roleEditData = ref({ name: '', avatar: '', systemPrompt: '' });
 const defaultAvatar = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="48" height="48"%3E%3Crect fill="%23ddd" width="48" height="48" rx="4"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="24"%3E🤖%3C/text%3E%3C/svg%3E';
 
 const viewTitle = computed(() => {
-  const map = { main: '聊天信息', api: 'API 方案', minimax: 'Minimax 音色', memory: '记忆设置' };
+  const map = { main: '聊天信息', api: 'API 方案', minimax: 'Minimax 音色', memory: '记忆设置', roleEdit: '编辑角色' };
   return map[currentView.value] || '聊天信息';
 });
 
@@ -227,6 +266,7 @@ const selectedProfileName = computed(() => {
 
 const settings = reactive({
   contextLength: 15,
+  chatBackground: '',
   isTop: false,
   isMuted: false,
   isRealTimeOn: true,
@@ -248,6 +288,56 @@ const goBack = () => {
   router.back();
 };
 
+const triggerBgUpload = () => {
+  bgInput.value?.click();
+};
+
+const onBgUpload = (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    settings.chatBackground = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+};
+
+const clearBackground = () => {
+  settings.chatBackground = '';
+};
+
+const triggerAvatarUpload = () => {
+  avatarInput.value?.click();
+};
+
+const onAvatarUpload = (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    roleEditData.value.avatar = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+};
+
+const saveRoleEdit = async () => {
+  if (!role.value || !roleEditData.value.name.trim()) {
+    alert('请填写角色名称');
+    return;
+  }
+  await roleService.update(role.value.id, {
+    name: roleEditData.value.name,
+    avatar: roleEditData.value.avatar,
+    systemPrompt: roleEditData.value.systemPrompt
+  });
+  role.value = await roleService.getById(role.value.id);
+  currentView.value = 'main';
+  saveMsg.value = '角色已保存';
+  setTimeout(() => { saveMsg.value = ''; }, 1500);
+};
+
 const saveSettings = async () => {
   if (!role.value) return;
   await roleService.update(role.value.id, { chatSettings: JSON.parse(JSON.stringify(settings)) });
@@ -260,6 +350,16 @@ const saveSettings = async () => {
 };
 
 watch(settings, saveSettings, { deep: true });
+
+watch(currentView, (newView) => {
+  if (newView === 'roleEdit' && role.value) {
+    roleEditData.value = {
+      name: role.value.name || '',
+      avatar: role.value.avatar || '',
+      systemPrompt: role.value.systemPrompt || ''
+    };
+  }
+});
 
 onMounted(async () => {
   apiProfiles.value = await apiProfileService.getAll();
@@ -420,5 +520,26 @@ onMounted(async () => {
   background: rgba(0,0,0,0.65); color: #fff;
   padding: 8px 20px; border-radius: 20px; font-size: 14px;
   pointer-events: none;
+}
+
+.text-blue { color: #007aff; cursor: pointer; }
+.text-red { color: #ff3b30; cursor: pointer; }
+
+.save-btn {
+  display: block;
+  width: calc(100% - 32px);
+  margin: 16px 16px;
+  padding: 14px;
+  background: #07c160;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.save-btn:active {
+  opacity: 0.8;
 }
 </style>
