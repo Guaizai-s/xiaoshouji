@@ -74,6 +74,7 @@ const onHeart = () => {
   display: flex;
   align-items: center;
   gap: 12px;
+  margin-left: auto;
 }
 
 .wx-navbar-heart {

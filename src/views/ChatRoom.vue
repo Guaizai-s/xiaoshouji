@@ -25,7 +25,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick, watch } from 'vue';
+import { ref, onMounted, nextTick, watch, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import NavBar from '../components/NavBar.vue';
 import MessageBubble from '../components/MessageBubble.vue';
