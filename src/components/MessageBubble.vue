@@ -33,9 +33,16 @@
           >
             <template v-if="message.type === 'text'">
               <span v-html="parseEmoji(message.content)"></span>
-              <div v-if="message.audioUrl" class="audio-player" @click="toggleAudio">
-                <span class="audio-icon">{{ isPlaying ? '⏸' : '▶️' }}</span>
-                <span class="audio-text">语音消息</span>
+              <div v-if="message.audioUrl" class="audio-player" :style="{ width: audioBubbleWidth }" @click="toggleAudio">
+                <span class="audio-icon">
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M3 8h2v4H3V8zm4-2h2v8H7V6zm4-2h2v12h-2V4z" />
+                  </svg>
+                </span>
+                <span class="audio-duration">{{ audioDuration }}"</span>
+              </div>
+              <div v-if="message.audioUrl && showTranscript" class="audio-transcript">
+                {{ message.content }}
               </div>
             </template>
             <template v-else-if="message.type === 'image'">
@@ -66,14 +73,22 @@ const props = defineProps({
   roleAvatar: {
     type: String,
     default: ''
+  },
+  linkedStickers: {
+    type: Array,
+    default: () => []
   }
 });
 
 const isPlaying = ref(false);
 const audioElement = ref(null);
+const showTranscript = ref(false);
 
 const toggleAudio = () => {
   if (!props.message.audioUrl) return;
+
+  // 切换文字显示
+  showTranscript.value = !showTranscript.value;
 
   if (!audioElement.value) {
     audioElement.value = new Audio(props.message.audioUrl);
@@ -93,6 +108,24 @@ const avatar = computed(() => {
   return props.message.role === 'user' ? props.userAvatar : props.roleAvatar;
 });
 
+// 估算音频时长（基于文本长度）
+const audioDuration = computed(() => {
+  if (!props.message.audioUrl) return 0;
+  // 中文约3.5字/秒，英文约2.5词/秒
+  const text = props.message.content || '';
+  const chineseChars = (text.match(/[\u4e00-\u9fa5]/g) || []).length;
+  const englishWords = (text.match(/[a-zA-Z]+/g) || []).length;
+  const duration = Math.ceil(chineseChars / 3.5 + englishWords / 2.5);
+  return Math.max(1, Math.min(duration, 60)); // 最小1秒，最大60秒
+});
+
+// 气泡宽度（根据时长动态变化）
+const audioBubbleWidth = computed(() => {
+  const duration = audioDuration.value;
+  const width = 60 + duration * 3; // 基础60px + 每秒3px
+  return `${Math.min(width, 200)}px`; // 最大200px
+});
+
 // 分割消息（按换行符）
 const messageParts = computed(() => {
   if (props.message.type !== 'text') return [props.message.content];
@@ -100,13 +133,19 @@ const messageParts = computed(() => {
   return props.message.content.split('\n').filter(part => part.trim());
 });
 
-// 解析表情标签 [表情：xxx] -> <img src="/emojis/xxx.png">
+// 解析表情标签 [表情:xxx] -> 使用用户上传的表情包
 const parseEmoji = (text) => {
   if (!text) return '';
-  // 匹配 [表情：xxx] 或 [表情:xxx] 格式
+  // 匹配 [表情:xxx] 或 [表情：xxx] 格式
   return text.replace(/\[表情[：:]\s*([^\]]+)\]/g, (match, emojiName) => {
     const name = emojiName.trim();
-    return `<img class="emoji-img" src="/emojis/${name}.png" alt="${name}" onerror="this.style.display='none';this.parentNode.innerHTML+=this.alt" />`;
+    // 从关联的表情包中查找
+    const sticker = props.linkedStickers.find(s => s.name === name);
+    if (sticker && sticker.imageUrl) {
+      return `<img class="emoji-img" src="${sticker.imageUrl}" alt="${name}" />`;
+    }
+    // 如果没找到，显示文本
+    return `[${name}]`;
   });
 };
 </script>
@@ -151,13 +190,42 @@ const parseEmoji = (text) => {
 .audio-player {
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: space-between;
+  gap: 12px;
   margin-top: 8px;
-  padding: 6px 10px;
-  background: rgba(0, 0, 0, 0.05);
-  border-radius: 12px;
+  padding: 12px 16px;
+  background: #fff;
+  border-radius: 8px;
   cursor: pointer;
-  user-select: none;
+  transition: background 0.2s;
+  min-width: 60px;
+}
+
+.audio-player:active {
+  background: #f0f0f0;
+}
+
+.audio-icon {
+  display: flex;
+  align-items: center;
+  color: #000;
+}
+
+.audio-duration {
+  font-size: 16px;
+  color: #000;
+  font-weight: 500;
+}
+
+.audio-transcript {
+  margin-top: 8px;
+  padding: 12px 16px;
+  background: #fff;
+  border-radius: 8px;
+  font-size: 15px;
+  color: #000;
+  line-height: 1.5;
+  word-break: break-word;
 }
 
 .audio-player:hover {

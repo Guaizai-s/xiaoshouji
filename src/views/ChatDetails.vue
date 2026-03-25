@@ -106,6 +106,24 @@
       </div>
       <div v-if="settings.isProactive" class="hint-text">满足勾选条件时，系统将在后台自动唤醒 AI 向你发消息。</div>
 
+      <!-- 用户人设 -->
+      <div class="group-label">用户人设</div>
+      <div class="panel">
+        <div class="list-item" @click="currentView = 'persona'">
+          <span class="item-label">选择人设卡</span>
+          <div class="item-right"><span class="item-value">{{ selectedPersonaName }}</span><span class="arrow"></span></div>
+        </div>
+      </div>
+
+      <!-- 表情包 -->
+      <div class="group-label">表情包</div>
+      <div class="panel">
+        <div class="list-item" @click="currentView = 'stickers'">
+          <span class="item-label">关联表情包</span>
+          <div class="item-right"><span class="item-value">{{ linkedStickersCount }} 个</span><span class="arrow"></span></div>
+        </div>
+      </div>
+
       <div v-if="saveMsg" class="save-toast">{{ saveMsg }}</div>
     </div>
 
@@ -228,13 +246,56 @@
       <button class="save-btn" @click="saveRoleEdit">保存角色</button>
     </div>
 
+    <!-- ===== 人设卡选择 ===== -->
+    <div v-show="currentView === 'persona'" class="page-content">
+      <div class="group-label">选择用户人设卡</div>
+      <div class="panel">
+        <div class="list-item" @click="settings.selectedPersonaId = null">
+          <span class="item-label">不使用人设</span>
+          <div class="item-right">
+            <svg v-if="!settings.selectedPersonaId" width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 9l4.5 4.5L15 4.5" stroke="#07c160" stroke-width="2.5" stroke-linecap="round"/></svg>
+          </div>
+        </div>
+        <div v-for="p in personas" :key="p.id" class="list-item" @click="settings.selectedPersonaId = p.id">
+          <div style="flex:1">
+            <div class="item-label">{{ p.name }}</div>
+            <div class="item-desc">{{ p.description }}</div>
+          </div>
+          <div class="item-right">
+            <svg v-if="settings.selectedPersonaId === p.id" width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 9l4.5 4.5L15 4.5" stroke="#07c160" stroke-width="2.5" stroke-linecap="round"/></svg>
+          </div>
+        </div>
+        <div v-if="personas.length === 0" class="empty-hint">暂无人设卡</div>
+      </div>
+      <div class="hint-text">选择后，AI 将获知你的人设信息和当前状态。</div>
+      <button class="save-btn" @click="$router.push('/personas')">管理人设卡</button>
+    </div>
+
+    <!-- ===== 表情包关联 ===== -->
+    <div v-show="currentView === 'stickers'" class="page-content">
+      <div class="group-label">关联表情包</div>
+      <div class="panel">
+        <div v-for="s in stickers" :key="s.id" class="list-item" @click="toggleSticker(s.id)">
+          <img :src="s.imageUrl" style="width:40px;height:40px;border-radius:6px;margin-right:12px" />
+          <div style="flex:1">
+            <div class="item-label">{{ s.name }}</div>
+            <div class="item-desc">{{ s.description }}</div>
+          </div>
+          <input type="checkbox" :checked="settings.linkedStickerIds?.includes(s.id)" class="wx-switch" @click.stop />
+        </div>
+        <div v-if="stickers.length === 0" class="empty-hint">暂无表情包</div>
+      </div>
+      <div class="hint-text">关联后，AI 可在对话中使用这些表情包。</div>
+      <button class="save-btn" @click="$router.push('/stickers')">管理表情包</button>
+    </div>
+
   </div>
 </template>
 
 <script setup>
 import { ref, computed, reactive, watch, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { roleService, conversationService, apiProfileService } from '../services/db';
+import { roleService, conversationService, apiProfileService, personaService, stickerService } from '../services/db';
 
 const route = useRoute();
 const router = useRouter();
@@ -247,6 +308,8 @@ const currentView = ref('main');
 const showContextSlider = ref(false);
 const role = ref(null);
 const apiProfiles = ref([]);
+const personas = ref([]);
+const stickers = ref([]);
 const saveMsg = ref('');
 const bgInput = ref(null);
 const avatarInput = ref(null);
@@ -254,7 +317,7 @@ const roleEditData = ref({ name: '', avatar: '', systemPrompt: '' });
 const defaultAvatar = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="48" height="48"%3E%3Crect fill="%23ddd" width="48" height="48" rx="4"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="24"%3E🤖%3C/text%3E%3C/svg%3E';
 
 const viewTitle = computed(() => {
-  const map = { main: '聊天信息', api: 'API 方案', minimax: 'Minimax 音色', memory: '记忆设置', roleEdit: '编辑角色' };
+  const map = { main: '聊天信息', api: 'API 方案', minimax: 'Minimax 音色', memory: '记忆设置', roleEdit: '编辑角色', persona: '用户人设', stickers: '表情包' };
   return map[currentView.value] || '聊天信息';
 });
 
@@ -262,6 +325,16 @@ const selectedProfileName = computed(() => {
   if (!settings.apiProfileId) return '全局配置';
   const p = apiProfiles.value.find(p => p.id === settings.apiProfileId);
   return p ? p.name : '全局配置';
+});
+
+const selectedPersonaName = computed(() => {
+  if (!settings.selectedPersonaId) return '未选择';
+  const p = personas.value.find(p => p.id === settings.selectedPersonaId);
+  return p ? p.name : '未选择';
+});
+
+const linkedStickersCount = computed(() => {
+  return settings.linkedStickerIds?.length || 0;
 });
 
 const settings = reactive({
@@ -281,6 +354,8 @@ const settings = reactive({
   apiProfileId: null,
   longTermMemory: '',
   coreMemory: '',
+  selectedPersonaId: null,
+  linkedStickerIds: []
 });
 
 const goBack = () => {
@@ -338,6 +413,16 @@ const saveRoleEdit = async () => {
   setTimeout(() => { saveMsg.value = ''; }, 1500);
 };
 
+const toggleSticker = (stickerId) => {
+  if (!settings.linkedStickerIds) settings.linkedStickerIds = [];
+  const index = settings.linkedStickerIds.indexOf(stickerId);
+  if (index > -1) {
+    settings.linkedStickerIds.splice(index, 1);
+  } else {
+    settings.linkedStickerIds.push(stickerId);
+  }
+};
+
 const saveSettings = async () => {
   if (!role.value) return;
   await roleService.update(role.value.id, { chatSettings: JSON.parse(JSON.stringify(settings)) });
@@ -363,6 +448,8 @@ watch(currentView, (newView) => {
 
 onMounted(async () => {
   apiProfiles.value = await apiProfileService.getAll();
+  personas.value = await personaService.getAll();
+  stickers.value = await stickerService.getAll();
 
   let rid = roleId;
   if (!rid && convId) {
@@ -445,6 +532,7 @@ onMounted(async () => {
 .sub-item { padding-left: 28px; }
 .item-label { font-size: 16px; color: #111; }
 .sub-item .item-label { font-size: 15px; color: #333; }
+.item-desc { font-size: 13px; color: #999; margin-top: 2px; }
 .item-right { display: flex; align-items: center; gap: 6px; }
 .item-value { font-size: 14px; color: #8e8e93; }
 .arrow {

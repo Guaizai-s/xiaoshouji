@@ -26,6 +26,16 @@ db.version(3).stores({
   apiProfiles: '++id, name, createdAt'
 });
 
+// v4: 新增 userPersonas（用户人设卡）和 stickers（表情包）
+db.version(4).stores({
+  roles: '++id, name, createdAt, updatedAt',
+  conversations: '++id, roleId, updatedAt, isTop, isMuted',
+  messages: '++id, conversationId, timestamp',
+  apiProfiles: '++id, name, createdAt',
+  userPersonas: '++id, name, createdAt',
+  stickers: '++id, name, createdAt'
+});
+
 // 角色管理
 export const roleService = {
   // 创建角色
@@ -200,6 +210,50 @@ export const apiProfileService = {
   },
   async delete(id) {
     await db.apiProfiles.delete(id);
+  }
+};
+
+// 用户人设卡管理
+export const personaService = {
+  async getAll() {
+    return await db.userPersonas.orderBy('createdAt').reverse().toArray();
+  },
+  async getById(id) {
+    return await db.userPersonas.get(id);
+  },
+  async create(data) {
+    const now = Date.now();
+    const id = await db.userPersonas.add({ ...data, createdAt: now });
+    return await db.userPersonas.get(id);
+  },
+  async update(id, data) {
+    await db.userPersonas.update(id, data);
+    return await db.userPersonas.get(id);
+  },
+  async delete(id) {
+    await db.userPersonas.delete(id);
+  }
+};
+
+// 表情包管理
+export const stickerService = {
+  async getAll() {
+    return await db.stickers.orderBy('createdAt').reverse().toArray();
+  },
+  async getById(id) {
+    return await db.stickers.get(id);
+  },
+  async create(data) {
+    const now = Date.now();
+    const id = await db.stickers.add({ ...data, createdAt: now });
+    return await db.stickers.get(id);
+  },
+  async update(id, data) {
+    await db.stickers.update(id, data);
+    return await db.stickers.get(id);
+  },
+  async delete(id) {
+    await db.stickers.delete(id);
   }
 };
 

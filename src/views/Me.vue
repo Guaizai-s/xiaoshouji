@@ -19,7 +19,34 @@
       <div class="wx-divider"></div>
 
       <div class="wx-list">
-        <div class="wx-list-item">
+        <div class="wx-list-item" @click="router.push('/personas')">
+          <div style="width: 24px; height: 24px; margin-right: 12px; color: #10aeff;">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+          </div>
+          <div class="wx-list-content">
+            <div class="wx-list-title">用户设定</div>
+          </div>
+          <svg style="width: 18px; height: 18px; color: #999;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+        </div>
+        <div class="wx-list-item" @click="router.push('/stickers')">
+          <div style="width: 24px; height: 24px; margin-right: 12px; color: #ffc300;">
+            <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="15.5" cy="9.5" r="1.5"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M12 16c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5zM12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+          </div>
+          <div class="wx-list-content">
+            <div class="wx-list-title">表情包上传</div>
+          </div>
+          <svg style="width: 18px; height: 18px; color: #999;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+        </div>
+      </div>
+
+      <div class="wx-divider"></div>
+
+      <div class="wx-list">
+        <div class="wx-list-item" @click="router.push('/settings')">
           <div style="width: 24px; height: 24px; margin-right: 12px;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
               <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />

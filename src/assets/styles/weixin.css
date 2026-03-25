@@ -12,6 +12,16 @@
   --wx-bubble-other: #FFFFFF;
 }
 
+[data-theme="dark"] {
+  --wx-bg: #111111;
+  --wx-white: #1e1e1e;
+  --wx-text-primary: #eeeeee;
+  --wx-text-secondary: #666666;
+  --wx-border: #2c2c2c;
+  --wx-bubble-self: #2a5c1e;
+  --wx-bubble-other: #2c2c2c;
+}
+
 html, body {
   width: 100%;
   height: 100%;
@@ -35,7 +45,11 @@ html, body {
   background-color: var(--wx-white);
   border-bottom: 1px solid var(--wx-white);
   padding: 0 16px;
-  position: relative;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
 }
 
 .wx-navbar-back {
@@ -68,6 +82,8 @@ html, body {
   overflow-y: auto;
   background-color: var(--wx-bg);
   -webkit-overflow-scrolling: touch;
+  padding-top: 44px;
+  padding-bottom: 60px;
 }
 
 /* 列表 */

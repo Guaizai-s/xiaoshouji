@@ -3,8 +3,7 @@
     <nav-bar :title="isTyping ? '对方正在输入…' : (role?.name || '聊天')" :show-back="true" :show-heart="true" action="•••" @action="goDetails" @heart="onHeart" />
 
     <div ref="messagesContainer" class="wx-content" :style="chatBackgroundStyle">
-      <div v-if="messages.length === 0" class="wx-empty">
-        <div class="wx-empty-icon">💬</div>
+      <div v-if="messages.length === 0 && !isLoading" class="wx-empty">
         <div class="wx-empty-text">暂无消息</div>
         <div class="wx-empty-text">发送第一条消息开始对话</div>
       </div>
@@ -16,6 +15,7 @@
           :message="message"
           :user-avatar="userAvatar"
           :role-avatar="role?.avatar || defaultAvatar"
+          :linked-stickers="linkedStickers"
         />
       </div>
     </div>
@@ -30,7 +30,7 @@ import { useRoute, useRouter } from 'vue-router';
 import NavBar from '../components/NavBar.vue';
 import MessageBubble from '../components/MessageBubble.vue';
 import ChatInput from '../components/ChatInput.vue';
-import { conversationService, messageService, roleService, apiProfileService } from '../services/db';
+import { conversationService, messageService, roleService, apiProfileService, personaService, stickerService } from '../services/db';
 import { callClaude, callClaudeVision, fileToBase64 } from '../services/claude';
 import { textToSpeech } from '../services/minimax';
 
@@ -49,7 +49,9 @@ const conversation = ref(null);
 const role = ref(null);
 const messages = ref([]);
 const isTyping = ref(false);
+const isLoading = ref(true);
 const messagesContainer = ref(null);
+const linkedStickers = ref([]);
 
 const defaultUserAvatar = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="40" height="40"%3E%3Crect fill="%2307C160" width="40" height="40"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="20" fill="white"%3E我%3C/text%3E%3C/svg%3E';
 const defaultAvatar = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="40" height="40"%3E%3Crect fill="%23ddd" width="40" height="40"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="20"%3E🤖%3C/text%3E%3C/svg%3E';
@@ -104,19 +106,32 @@ const loadConversation = async () => {
     }
   }
 
+  // 加载关联的表情包
+  const settings = role.value?.chatSettings || {};
+  if (settings.linkedStickerIds?.length > 0) {
+    linkedStickers.value = await Promise.all(
+      settings.linkedStickerIds.map(id => stickerService.getById(id))
+    );
+    linkedStickers.value = linkedStickers.value.filter(s => s);
+  }
+
   // 标记为已读
   await conversationService.markAsRead(conversationId);
 };
 
 const loadMessages = async () => {
   messages.value = await messageService.getByConversation(conversationId);
+  isLoading.value = false;
 };
 
 const chatInputRef = ref(null);
 
 const onPageClick = (e) => {
-  if (!e.target.closest('.wx-input-bar')) {
+  if (!e.target.closest('.wx-input-bar') && !e.target.closest('.action-panel')) {
     document.activeElement?.blur();
+    if (chatInputRef.value) {
+      chatInputRef.value.closeActionSheet();
+    }
   }
 };
 
@@ -144,53 +159,95 @@ const generateReply = async () => {
     const contextMessages = await messageService.getContext(conversationId, contextLength);
     const apiMessages = contextMessages.map(msg => ({ role: msg.role, content: msg.content }));
 
-    // 如果开启了时间感知，添加时间信息到system prompt
-    let roleWithTime = role.value;
+    // 构建增强的系统提示词
+    let enhancedPrompt = role.value.systemPrompt || '';
+
+    // 添加时间感知
     if (role.value?.chatSettings?.isRealTimeOn) {
       const now = new Date();
       const timeStr = `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 ${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
-      roleWithTime = {
-        ...role.value,
-        systemPrompt: `当前时间：${timeStr}\n\n${role.value.systemPrompt || ''}`
-      };
+      enhancedPrompt = `当前时间：${timeStr}\n\n${enhancedPrompt}`;
     }
 
-    const response = await callClaude(roleWithTime, apiMessages);
+    // 添加用户人设信息
+    const settings = role.value?.chatSettings || {};
+    if (settings.selectedPersonaId) {
+      const persona = await personaService.getById(settings.selectedPersonaId);
+      if (persona) {
+        const userStatus = localStorage.getItem('userStatus') || '';
+        enhancedPrompt += `\n\n[用户信息]\n${persona.description}`;
+        if (userStatus) enhancedPrompt += `\n\n[用户状态]\n${userStatus}`;
+      }
+    }
+
+    // 添加表情包信息
+    if (settings.linkedStickerIds?.length > 0) {
+      const linkedStickers = await Promise.all(
+        settings.linkedStickerIds.map(id => stickerService.getById(id))
+      );
+      const stickerList = linkedStickers.filter(s => s).map(s => `${s.name}:${s.description}`).join('、');
+      if (stickerList) {
+        enhancedPrompt += `\n\n[可用表情包]\n你可以使用以下表情包，使用格式为[表情:名字]:\n${stickerList}`;
+      }
+    }
+
+    let roleWithTime = { ...role.value, systemPrompt: enhancedPrompt };
+
+    // 流式回调：收到一个换行就创建一个气泡
+    const useStream = localStorage.getItem('useStreamAPI') === 'true';
+    let audioUrl = null;
+
+    const response = await callClaude(roleWithTime, apiMessages, useStream ? async (chunk) => {
+      // 移除语音标记
+      const cleanChunk = chunk.replace(/\[语音[:：][^\]]+\]/g, '').trim();
+      if (cleanChunk) {
+        await messageService.create(conversationId, 'assistant', cleanChunk, 'text');
+        await loadMessages();
+      }
+    } : null);
 
     const elapsed = Date.now() - startTime;
     if (elapsed < 800) await sleep(800 - elapsed);
 
-    // 检测语音标记 [语音:文本内容]
-    let audioUrl = null;
-    const voiceMatch = response.match(/\[语音[:：]([^\]]+)\]/);
-    if (voiceMatch) {
-      try {
-        const voiceText = voiceMatch[1].trim();
-        const voiceSettings = role.value?.chatSettings || {};
-        audioUrl = await textToSpeech(voiceText, {
-          voiceId: voiceSettings.minimaxVoiceId,
-          speed: voiceSettings.minimaxSpeed,
-          pitch: voiceSettings.minimaxPitch
-        });
-      } catch (error) {
-        console.warn('语音生成失败:', error.message);
+    // 非流式模式：按原逻辑处理
+    if (!useStream) {
+      // 检测语音标记 [语音:文本内容]
+      const voiceMatch = response.match(/\[语音[:：]([^\]]+)\]/);
+      if (voiceMatch) {
+        try {
+          const voiceText = voiceMatch[1].trim();
+          const voiceSettings = role.value?.chatSettings || {};
+          audioUrl = await textToSpeech(voiceText, {
+            voiceId: voiceSettings.minimaxVoiceId,
+            speed: voiceSettings.minimaxSpeed,
+            pitch: voiceSettings.minimaxPitch
+          });
+        } catch (error) {
+          console.warn('语音生成失败:', error.message);
+        }
       }
-    }
 
-    // 移除语音标记，只保留文本
-    const cleanResponse = response.replace(/\[语音[:：][^\]]+\]/g, '').trim();
+      // 移除语音标记，只保留文本
+      const cleanResponse = response.replace(/\[语音[:：][^\]]+\]/g, '').trim();
 
-    // 按换行拆分，逐条延迟存入，模拟打字效果
-    const parts = cleanResponse.split('\n').filter(p => p.trim());
+      // 如果移除语音标记后没有内容，且语音生成失败，使用原文本
+      const finalContent = cleanResponse || (audioUrl ? '' : response);
 
-    if (parts.length <= 1) {
-      await messageService.create(conversationId, 'assistant', cleanResponse, 'text', audioUrl);
-      await loadMessages();
-    } else {
-      for (let i = 0; i < parts.length; i++) {
-        if (i > 0) await sleep(500);
-        await messageService.create(conversationId, 'assistant', parts[i], 'text', i === 0 ? audioUrl : null);
-        await loadMessages();
+      // 只有在有内容或有语音时才创建消息
+      if (finalContent || audioUrl) {
+        // 按换行拆分，逐条延迟存入
+        const parts = finalContent.split('\n').filter(p => p.trim());
+
+        if (parts.length <= 1) {
+          await messageService.create(conversationId, 'assistant', finalContent, 'text', audioUrl);
+          await loadMessages();
+        } else {
+          for (let i = 0; i < parts.length; i++) {
+            if (i > 0) await sleep(500);
+            await messageService.create(conversationId, 'assistant', parts[i], 'text', i === 0 ? audioUrl : null);
+            await loadMessages();
+          }
+        }
       }
     }
 
@@ -209,28 +266,7 @@ const sendImageMessage = async (file) => {
 
     await messageService.create(conversationId, 'user', dataUrl, 'image');
     await loadMessages();
-
-    isTyping.value = true;
-    const startTime = Date.now();
-
-    // 图片请求使用较少上下文避免413错误
-    const contextLength = Math.min(role.value?.chatSettings?.contextLength || 15, 5);
-    const contextMessages = await messageService.getContext(conversationId, contextLength);
-    const textContext = contextMessages
-      .filter(msg => msg.type === 'text')
-      .map(msg => ({ role: msg.role, content: msg.content }));
-
-    const response = await callClaudeVision(role.value, compressedBase64, file.type, textContext);
-
-    const elapsed = Date.now() - startTime;
-    if (elapsed < 800) await sleep(800 - elapsed);
-
-    await messageService.create(conversationId, 'assistant', response, 'text');
-    await loadMessages();
-
-    isTyping.value = false;
   } catch (error) {
-    isTyping.value = false;
     alert('图片发送失败: ' + error.message);
   }
 };

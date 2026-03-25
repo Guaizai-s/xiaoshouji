@@ -78,8 +78,18 @@
         </div>
 
         <div class="scroll-area">
+          <!-- 夜间模式 -->
+          <div class="section-label">主题</div>
+          <div class="card-group">
+            <label class="card-item no-border">
+              <div class="item-icon bg-indigo-500">🌙</div>
+              <span class="item-label">夜间模式</span>
+              <input type="checkbox" v-model="isDarkMode" @change="toggleDarkMode" class="wx-switch" />
+            </label>
+          </div>
+
           <!-- 壁纸 -->
-          <div class="section-label">壁纸</div>
+          <div class="section-label" style="margin-top:24px">壁纸</div>
           <div class="card-group">
             <label class="card-item">
               <div class="item-icon bg-cyan-500"><img-icon /></div>
@@ -320,12 +330,15 @@ const useDirectAPI = ref(false);
 const wallpaperPreview = ref('');
 const customIcons  = ref({});
 const dataMsg = ref('');
+const isDarkMode = ref(false);
 
 const loadAll = async () => {
   apiProfiles.value = await apiProfileService.getAll();
   const mm = localStorage.getItem('globalMinimax');
   if (mm) globalMinimax.value = JSON.parse(mm);
   useDirectAPI.value = localStorage.getItem('useDirectAPI') === 'true';
+  isDarkMode.value = localStorage.getItem('darkMode') === 'true';
+  if (isDarkMode.value) document.documentElement.setAttribute('data-theme', 'dark');
   const wp = localStorage.getItem('desktopWallpaper') || localStorage.getItem('desktop_wallpaper') || '';
   wallpaperPreview.value = wp;
   const icons = {};
@@ -333,6 +346,15 @@ const loadAll = async () => {
   customIcons.value = icons;
 };
 onMounted(loadAll);
+
+const toggleDarkMode = () => {
+  localStorage.setItem('darkMode', isDarkMode.value ? 'true' : 'false');
+  if (isDarkMode.value) {
+    document.documentElement.setAttribute('data-theme', 'dark');
+  } else {
+    document.documentElement.removeAttribute('data-theme');
+  }
+};
 
 // ---- API 方案 ----
 const editProfile = (p) => { editingProfile.value = { ...p }; activePage.value = 'editProfile'; };
@@ -601,4 +623,18 @@ const importData = async (e) => {
 .bg-gray-600  { background: #4b5563; }
 .bg-green-400 { background: #4ade80; }
 .bg-red-500   { background: #ef4444; }
+
+/* Switch 开关 */
+.wx-switch {
+  position: relative; width: 46px; height: 26px; appearance: none;
+  background-color: #e5e5e5; border-radius: 13px; outline: none; cursor: pointer;
+  transition: background-color 0.3s; margin: 0; flex-shrink: 0;
+}
+.wx-switch::after {
+  content: ''; position: absolute; top: 2px; left: 2px; width: 22px; height: 22px;
+  background-color: #ffffff; border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  transition: transform 0.3s;
+}
+.wx-switch:checked { background-color: #07c160; }
+.wx-switch:checked::after { transform: translateX(20px); }
 </style>

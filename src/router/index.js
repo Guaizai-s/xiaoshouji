@@ -60,6 +60,16 @@ const routes = [
     path: '/settings',
     name: 'AppSettings',
     component: () => import('../views/AppSettings.vue')
+  },
+  {
+    path: '/personas',
+    name: 'UserPersonas',
+    component: () => import('../views/UserPersonas.vue')
+  },
+  {
+    path: '/stickers',
+    name: 'StickerManage',
+    component: () => import('../views/StickerManage.vue')
   }
 ];
 
