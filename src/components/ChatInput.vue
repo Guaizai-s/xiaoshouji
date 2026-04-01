@@ -1,7 +1,42 @@
 <template>
-  <!-- 功能面板 -->
-  <transition name="slide-up">
-    <div v-if="showActionSheet" class="action-panel">
+  <div class="input-container">
+    <div class="wx-input-bar">
+      <button class="wx-input-btn wx-input-plus" @click="onPlusClick" title="更多">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14" />
+        </svg>
+      </button>
+      <input
+        ref="fileInput"
+        type="file"
+        accept="image/*"
+        style="display: none"
+        @change="onFileChange"
+      />
+      <input
+        v-model="inputText"
+        class="wx-input-field"
+        type="text"
+        placeholder="请输入消息..."
+        @keyup.enter="onSend"
+      />
+      <button class="wx-input-btn wx-generate-btn" @click="onGenerate" title="生成回复">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M5 3l3.057-3L20 12 8.057 24 5 21l9-9-9-9z"/>
+        </svg>
+      </button>
+      <button
+        class="wx-input-send"
+        :disabled="!inputText.trim() && !selectedFile"
+        @click="onSend"
+      >
+        发送
+      </button>
+    </div>
+
+    <!-- 功能面板 -->
+    <transition name="slide-up">
+      <div v-if="showActionSheet" class="action-panel" @click.stop>
       <div class="action-grid">
         <div class="action-item" @click="onImageClick">
           <div class="action-icon">
@@ -83,39 +118,6 @@
       </div>
     </div>
   </transition>
-
-  <div class="wx-input-bar">
-    <button class="wx-input-btn wx-input-plus" @click="showActionSheet = !showActionSheet" title="更多">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14" />
-      </svg>
-    </button>
-    <input
-      ref="fileInput"
-      type="file"
-      accept="image/*"
-      style="display: none"
-      @change="onFileChange"
-    />
-    <input
-      v-model="inputText"
-      class="wx-input-field"
-      type="text"
-      placeholder="请输入消息..."
-      @keyup.enter="onSend"
-    />
-    <button class="wx-input-btn wx-generate-btn" @click="onGenerate" title="生成回复">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M5 3l3.057-3L20 12 8.057 24 5 21l9-9-9-9z"/>
-      </svg>
-    </button>
-    <button
-      class="wx-input-send"
-      :disabled="!inputText.trim() && !selectedFile"
-      @click="onSend"
-    >
-      发送
-    </button>
   </div>
 </template>
 
@@ -128,6 +130,7 @@ const inputText = ref('');
 const fileInput = ref(null);
 const selectedFile = ref(null);
 const showActionSheet = ref(false);
+const inputField = ref(null);
 
 const onSend = () => {
   if (selectedFile.value) {
@@ -156,9 +159,31 @@ const onFileChange = (event) => {
     inputText.value = `[图片: ${file.name}]`;
   }
 };
+
+const closeActionSheet = () => {
+  showActionSheet.value = false;
+};
+
+const onPlusClick = () => {
+  showActionSheet.value = !showActionSheet.value;
+  if (showActionSheet.value) {
+    document.activeElement?.blur();
+  }
+};
+
+defineExpose({ closeActionSheet });
 </script>
 
 <style scoped>
+.input-container {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: #fff;
+}
+
 .wx-input-plus svg {
   width: 24px;
   height: 24px;
@@ -168,6 +193,7 @@ const onFileChange = (event) => {
   background: none;
   border: none;
   padding: 6px;
+  margin-left: 8px;
   cursor: pointer;
   color: #576b95;
   display: flex;

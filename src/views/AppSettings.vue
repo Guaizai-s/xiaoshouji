@@ -42,6 +42,11 @@
               <span class="item-label">直接调用API</span>
               <input type="checkbox" v-model="useDirectAPI" @change="saveDirectAPI" class="wx-switch" />
             </label>
+            <label class="card-item">
+              <div class="item-icon bg-blue-500">⚡</div>
+              <span class="item-label">流式输出</span>
+              <input type="checkbox" v-model="useStreamAPI" @change="saveStreamAPI" class="wx-switch" />
+            </label>
           </div>
 
           <!-- 数据管理 -->
@@ -327,6 +332,7 @@ const apiProfiles  = ref([]);
 const editingProfile = ref({ name:'', apiKey:'', baseUrl:'', model:'' });
 const globalMinimax  = ref({ apiKey:'', groupId:'' });
 const useDirectAPI = ref(false);
+const useStreamAPI = ref(false);
 const wallpaperPreview = ref('');
 const customIcons  = ref({});
 const dataMsg = ref('');
@@ -337,6 +343,7 @@ const loadAll = async () => {
   const mm = localStorage.getItem('globalMinimax');
   if (mm) globalMinimax.value = JSON.parse(mm);
   useDirectAPI.value = localStorage.getItem('useDirectAPI') === 'true';
+  useStreamAPI.value = localStorage.getItem('useStreamAPI') === 'true';
   isDarkMode.value = localStorage.getItem('darkMode') === 'true';
   if (isDarkMode.value) document.documentElement.setAttribute('data-theme', 'dark');
   const wp = localStorage.getItem('desktopWallpaper') || localStorage.getItem('desktop_wallpaper') || '';
@@ -382,6 +389,11 @@ const saveMinimax = () => {
 // ---- 直接调用API ----
 const saveDirectAPI = () => {
   localStorage.setItem('useDirectAPI', useDirectAPI.value ? 'true' : 'false');
+};
+
+// ---- 流式输出 ----
+const saveStreamAPI = () => {
+  localStorage.setItem('useStreamAPI', useStreamAPI.value ? 'true' : 'false');
 };
 
 // ---- 壁纸 ----
