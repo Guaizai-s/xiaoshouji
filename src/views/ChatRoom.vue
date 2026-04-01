@@ -30,7 +30,7 @@ import { useRoute, useRouter } from 'vue-router';
 import NavBar from '../components/NavBar.vue';
 import MessageBubble from '../components/MessageBubble.vue';
 import ChatInput from '../components/ChatInput.vue';
-import { conversationService, messageService, roleService, apiProfileService, personaService, stickerService } from '../services/db';
+import { conversationService, messageService, roleService, apiProfileService, personaService, stickerService, stickerLibraryService } from '../services/db';
 import { callClaude, callClaudeVision, fileToBase64 } from '../services/claude';
 import { textToSpeech } from '../services/minimax';
 
@@ -72,7 +72,21 @@ const loadUserAvatar = () => {
 
 const chatBackgroundStyle = computed(() => {
   const bg = role.value?.chatSettings?.chatBackground;
-  return bg ? { backgroundImage: `url(${bg})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {};
+  if (!bg) return {};
+
+  // 检测是否是夜间模式
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+
+  if (isDark) {
+    // 夜间模式：在背景图上添加半透明黑色遮罩
+    return {
+      backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url(${bg})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center'
+    };
+  }
+
+  return { backgroundImage: `url(${bg})`, backgroundSize: 'cover', backgroundPosition: 'center' };
 });
 
 onMounted(async () => {
@@ -108,11 +122,8 @@ const loadConversation = async () => {
 
   // 加载关联的表情包
   const settings = role.value?.chatSettings || {};
-  if (settings.linkedStickerIds?.length > 0) {
-    linkedStickers.value = await Promise.all(
-      settings.linkedStickerIds.map(id => stickerService.getById(id))
-    );
-    linkedStickers.value = linkedStickers.value.filter(s => s);
+  if (settings.linkedLibraryId) {
+    linkedStickers.value = await stickerService.getByLibrary(settings.linkedLibraryId);
   }
 
   // 标记为已读
@@ -157,7 +168,13 @@ const generateReply = async () => {
 
     const contextLength = role.value?.chatSettings?.contextLength || 15;
     const contextMessages = await messageService.getContext(conversationId, contextLength);
-    const apiMessages = contextMessages.map(msg => ({ role: msg.role, content: msg.content }));
+    const apiMessages = contextMessages.map(msg => {
+      // 如果是语音消息，恢复语音标记格式
+      if (msg.audioUrl && msg.content) {
+        return { role: msg.role, content: `[语音:${msg.content}]` };
+      }
+      return { role: msg.role, content: msg.content };
+    });
 
     // 构建增强的系统提示词
     let enhancedPrompt = role.value.systemPrompt || '';
@@ -181,11 +198,9 @@ const generateReply = async () => {
     }
 
     // 添加表情包信息
-    if (settings.linkedStickerIds?.length > 0) {
-      const linkedStickers = await Promise.all(
-        settings.linkedStickerIds.map(id => stickerService.getById(id))
-      );
-      const stickerList = linkedStickers.filter(s => s).map(s => `${s.name}:${s.description}`).join('、');
+    if (settings.linkedLibraryId) {
+      const linkedStickers = await stickerService.getByLibrary(settings.linkedLibraryId);
+      const stickerList = linkedStickers.map(s => `${s.name}:${s.description}`).join('、');
       if (stickerList) {
         enhancedPrompt += `\n\n[可用表情包]\n你可以使用以下表情包，使用格式为[表情:名字]:\n${stickerList}`;
       }
@@ -196,8 +211,10 @@ const generateReply = async () => {
     // 流式回调：收到一个换行就创建一个气泡
     const useStream = localStorage.getItem('useStreamAPI') === 'true';
     let audioUrl = null;
+    let fullResponse = '';
 
     const response = await callClaude(roleWithTime, apiMessages, useStream ? async (chunk) => {
+      fullResponse += chunk;
       // 移除语音标记
       const cleanChunk = chunk.replace(/\[语音[:：][^\]]+\]/g, '').trim();
       if (cleanChunk) {
@@ -208,6 +225,31 @@ const generateReply = async () => {
 
     const elapsed = Date.now() - startTime;
     if (elapsed < 800) await sleep(800 - elapsed);
+
+    // 流式模式：检测完整响应中的语音标记
+    if (useStream && fullResponse) {
+      const voiceMatch = fullResponse.match(/\[语音[:：]([^\]]+)\]/);
+      if (voiceMatch) {
+        try {
+          const voiceText = voiceMatch[1].trim();
+          const voiceSettings = role.value?.chatSettings || {};
+          audioUrl = await textToSpeech(voiceText, {
+            voiceId: voiceSettings.minimaxVoiceId,
+            speed: voiceSettings.minimaxSpeed,
+            pitch: voiceSettings.minimaxPitch
+          });
+          // 更新第一条消息添加audioUrl
+          const msgs = await messageService.getByConversation(conversationId);
+          const lastAssistantMsg = msgs.filter(m => m.role === 'assistant').pop();
+          if (lastAssistantMsg) {
+            await messageService.update(lastAssistantMsg.id, { audioUrl });
+            await loadMessages();
+          }
+        } catch (error) {
+          console.warn('语音生成失败:', error.message);
+        }
+      }
+    }
 
     // 非流式模式：按原逻辑处理
     if (!useStream) {
@@ -230,8 +272,12 @@ const generateReply = async () => {
       // 移除语音标记，只保留文本
       const cleanResponse = response.replace(/\[语音[:：][^\]]+\]/g, '').trim();
 
-      // 如果移除语音标记后没有内容，且语音生成失败，使用原文本
-      const finalContent = cleanResponse || (audioUrl ? '' : response);
+      // 提取语音文本用于转录显示
+      const voiceMatch = response.match(/\[语音[:：]([^\]]+)\]/);
+      const voiceText = voiceMatch ? voiceMatch[1].trim() : '';
+
+      // 确定最终内容：优先使用cleanResponse，如果为空且有语音则使用语音文本
+      const finalContent = cleanResponse || voiceText;
 
       // 只有在有内容或有语音时才创建消息
       if (finalContent || audioUrl) {
@@ -274,7 +320,7 @@ const sendImageMessage = async (file) => {
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 // 压缩图片
-const compressImage = (file, maxWidth = 800, quality = 0.7) => {
+const compressImage = (file, maxWidth = 1200, quality = 0.6) => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {

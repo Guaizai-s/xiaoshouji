@@ -119,8 +119,8 @@
       <div class="group-label">表情包</div>
       <div class="panel">
         <div class="list-item" @click="currentView = 'stickers'">
-          <span class="item-label">关联表情包</span>
-          <div class="item-right"><span class="item-value">{{ linkedStickersCount }} 个</span><span class="arrow"></span></div>
+          <span class="item-label">关联表情包库</span>
+          <div class="item-right"><span class="item-value">{{ linkedLibraryName }}</span><span class="arrow"></span></div>
         </div>
       </div>
 
@@ -273,19 +273,17 @@
 
     <!-- ===== 表情包关联 ===== -->
     <div v-show="currentView === 'stickers'" class="page-content">
-      <div class="group-label">关联表情包</div>
+      <div class="group-label">选择表情包库</div>
       <div class="panel">
-        <div v-for="s in stickers" :key="s.id" class="list-item" @click="toggleSticker(s.id)">
-          <img :src="s.imageUrl" style="width:40px;height:40px;border-radius:6px;margin-right:12px" />
+        <div v-for="lib in libraries" :key="lib.id" class="list-item" @click="selectLibrary(lib.id)">
           <div style="flex:1">
-            <div class="item-label">{{ s.name }}</div>
-            <div class="item-desc">{{ s.description }}</div>
+            <div class="item-label">{{ lib.name }}</div>
           </div>
-          <input type="checkbox" :checked="settings.linkedStickerIds?.includes(s.id)" class="wx-switch" @click.stop />
+          <input type="radio" :checked="settings.linkedLibraryId === lib.id" class="wx-radio" @click.stop />
         </div>
-        <div v-if="stickers.length === 0" class="empty-hint">暂无表情包</div>
+        <div v-if="libraries.length === 0" class="empty-hint">暂无表情包库</div>
       </div>
-      <div class="hint-text">关联后，AI 可在对话中使用这些表情包。</div>
+      <div class="hint-text">选择后，AI 可在对话中使用该库中的表情包。</div>
       <button class="save-btn" @click="$router.push('/stickers')">管理表情包</button>
     </div>
 
@@ -295,7 +293,7 @@
 <script setup>
 import { ref, computed, reactive, watch, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { roleService, conversationService, apiProfileService, personaService, stickerService } from '../services/db';
+import { roleService, conversationService, apiProfileService, personaService, stickerService, stickerLibraryService } from '../services/db';
 
 const route = useRoute();
 const router = useRouter();
@@ -309,7 +307,7 @@ const showContextSlider = ref(false);
 const role = ref(null);
 const apiProfiles = ref([]);
 const personas = ref([]);
-const stickers = ref([]);
+const libraries = ref([]);
 const saveMsg = ref('');
 const bgInput = ref(null);
 const avatarInput = ref(null);
@@ -333,8 +331,10 @@ const selectedPersonaName = computed(() => {
   return p ? p.name : '未选择';
 });
 
-const linkedStickersCount = computed(() => {
-  return settings.linkedStickerIds?.length || 0;
+const linkedLibraryName = computed(() => {
+  if (!settings.linkedLibraryId) return '未选择';
+  const lib = libraries.value.find(l => l.id === settings.linkedLibraryId);
+  return lib ? lib.name : '未选择';
 });
 
 const settings = reactive({
@@ -413,14 +413,8 @@ const saveRoleEdit = async () => {
   setTimeout(() => { saveMsg.value = ''; }, 1500);
 };
 
-const toggleSticker = (stickerId) => {
-  if (!settings.linkedStickerIds) settings.linkedStickerIds = [];
-  const index = settings.linkedStickerIds.indexOf(stickerId);
-  if (index > -1) {
-    settings.linkedStickerIds.splice(index, 1);
-  } else {
-    settings.linkedStickerIds.push(stickerId);
-  }
+const selectLibrary = (libraryId) => {
+  settings.linkedLibraryId = libraryId;
 };
 
 const saveSettings = async () => {
@@ -449,7 +443,7 @@ watch(currentView, (newView) => {
 onMounted(async () => {
   apiProfiles.value = await apiProfileService.getAll();
   personas.value = await personaService.getAll();
-  stickers.value = await stickerService.getAll();
+  libraries.value = await stickerLibraryService.getAll();
 
   let rid = roleId;
   if (!rid && convId) {
@@ -629,5 +623,32 @@ onMounted(async () => {
 
 .save-btn:active {
   opacity: 0.8;
+}
+
+.wx-radio {
+  width: 18px;
+  height: 18px;
+  appearance: none;
+  border: 2px solid #c7c7cc;
+  border-radius: 50%;
+  outline: none;
+  cursor: pointer;
+  position: relative;
+}
+
+.wx-radio:checked {
+  border-color: #07c160;
+}
+
+.wx-radio:checked::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 10px;
+  height: 10px;
+  background: #07c160;
+  border-radius: 50%;
 }
 </style>

@@ -36,6 +36,17 @@ db.version(4).stores({
   stickers: '++id, name, createdAt'
 });
 
+// v5: 新增 stickerLibraries（表情包库），stickers 添加 libraryId 索引
+db.version(5).stores({
+  roles: '++id, name, createdAt, updatedAt',
+  conversations: '++id, roleId, updatedAt, isTop, isMuted',
+  messages: '++id, conversationId, timestamp',
+  apiProfiles: '++id, name, createdAt',
+  userPersonas: '++id, name, createdAt',
+  stickers: '++id, name, libraryId, createdAt',
+  stickerLibraries: '++id, name, createdAt'
+});
+
 // 角色管理
 export const roleService = {
   // 创建角色
@@ -181,6 +192,11 @@ export const messageService = {
     await db.messages.delete(id);
   },
 
+  // 更新消息
+  async update(id, updates) {
+    await db.messages.update(id, updates);
+  },
+
   // 清空会话消息
   async clearConversation(conversationId) {
     await db.messages.where('conversationId').equals(conversationId).delete();
@@ -240,6 +256,9 @@ export const stickerService = {
   async getAll() {
     return await db.stickers.orderBy('createdAt').reverse().toArray();
   },
+  async getByLibrary(libraryId) {
+    return await db.stickers.where('libraryId').equals(libraryId).toArray();
+  },
   async getById(id) {
     return await db.stickers.get(id);
   },
@@ -254,6 +273,30 @@ export const stickerService = {
   },
   async delete(id) {
     await db.stickers.delete(id);
+  }
+};
+
+// 表情包库管理
+export const stickerLibraryService = {
+  async getAll() {
+    return await db.stickerLibraries.orderBy('createdAt').reverse().toArray();
+  },
+  async getById(id) {
+    return await db.stickerLibraries.get(id);
+  },
+  async create(data) {
+    const now = Date.now();
+    const id = await db.stickerLibraries.add({ ...data, createdAt: now });
+    return await db.stickerLibraries.get(id);
+  },
+  async update(id, data) {
+    await db.stickerLibraries.update(id, data);
+    return await db.stickerLibraries.get(id);
+  },
+  async delete(id) {
+    // 删除库时同时删除库中的所有表情包
+    await db.stickers.where('libraryId').equals(id).delete();
+    await db.stickerLibraries.delete(id);
   }
 };
 

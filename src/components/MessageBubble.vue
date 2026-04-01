@@ -17,10 +17,33 @@
           <div class="wx-message-bubble text" v-html="parseEmoji(part)"></div>
         </div>
       </div>
+
+      <!-- 音频播放器单独气泡 -->
+      <div v-if="message.audioUrl" class="wx-message" :class="{ self: message.role === 'user' }">
+        <img
+          class="wx-message-avatar"
+          :src="avatar"
+          alt="avatar"
+        />
+        <div class="wx-message-content">
+          <div class="audio-player" :style="{ width: audioBubbleWidth }" @click="toggleAudio">
+            <span class="audio-icon">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M3 8h2v4H3V8zm4-2h2v8H7V6zm4-2h2v12h-2V4z" />
+              </svg>
+            </span>
+            <span class="audio-duration">{{ audioDuration }}"</span>
+          </div>
+          <div v-if="showTranscript" class="audio-transcript">
+            {{ message.content }}
+          </div>
+        </div>
+      </div>
     </template>
     <!-- 单条消息 -->
     <template v-else>
-      <div class="wx-message" :class="{ self: message.role === 'user' }">
+      <!-- 文本气泡 -->
+      <div v-if="message.content" class="wx-message" :class="{ self: message.role === 'user' }">
         <img
           class="wx-message-avatar"
           :src="avatar"
@@ -33,17 +56,6 @@
           >
             <template v-if="message.type === 'text'">
               <span v-html="parseEmoji(message.content)"></span>
-              <div v-if="message.audioUrl" class="audio-player" :style="{ width: audioBubbleWidth }" @click="toggleAudio">
-                <span class="audio-icon">
-                  <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M3 8h2v4H3V8zm4-2h2v8H7V6zm4-2h2v12h-2V4z" />
-                  </svg>
-                </span>
-                <span class="audio-duration">{{ audioDuration }}"</span>
-              </div>
-              <div v-if="message.audioUrl && showTranscript" class="audio-transcript">
-                {{ message.content }}
-              </div>
             </template>
             <template v-else-if="message.type === 'image'">
               <img :src="message.content" alt="image" />
@@ -51,6 +63,28 @@
             <template v-else-if="message.type === 'sticker'">
               <img :src="message.content" alt="sticker" />
             </template>
+          </div>
+        </div>
+      </div>
+
+      <!-- 音频播放器单独气泡 -->
+      <div v-if="message.audioUrl" class="wx-message" :class="{ self: message.role === 'user' }">
+        <img
+          class="wx-message-avatar"
+          :src="avatar"
+          alt="avatar"
+        />
+        <div class="wx-message-content">
+          <div class="audio-player" :style="{ width: audioBubbleWidth }" @click="toggleAudio">
+            <span class="audio-icon">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M3 8h2v4H3V8zm4-2h2v8H7V6zm4-2h2v12h-2V4z" />
+              </svg>
+            </span>
+            <span class="audio-duration">{{ audioDuration }}"</span>
+          </div>
+          <div v-if="showTranscript" class="audio-transcript">
+            {{ message.content }}
           </div>
         </div>
       </div>
@@ -192,8 +226,7 @@ const parseEmoji = (text) => {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-top: 8px;
-  padding: 12px 16px;
+  padding: 8px 12px;
   background: #fff;
   border-radius: 8px;
   cursor: pointer;

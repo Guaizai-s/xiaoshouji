@@ -13,13 +13,13 @@
 }
 
 [data-theme="dark"] {
-  --wx-bg: #111111;
+  --wx-bg: #000000;
   --wx-white: #1e1e1e;
   --wx-text-primary: #eeeeee;
   --wx-text-secondary: #666666;
   --wx-border: #2c2c2c;
-  --wx-bubble-self: #2a5c1e;
-  --wx-bubble-other: #2c2c2c;
+  --wx-bubble-self: #70B673;
+  --wx-bubble-other: #303030;
 }
 
 html, body {
@@ -83,7 +83,7 @@ html, body {
   background-color: var(--wx-bg);
   -webkit-overflow-scrolling: touch;
   padding-top: 44px;
-  padding-bottom: 60px;
+  padding-bottom: 16px;
 }
 
 /* 列表 */
@@ -271,6 +271,16 @@ html, body {
   border-top: 6px solid transparent;
   border-bottom: 6px solid transparent;
   border-left: 6px solid var(--wx-bubble-self);
+}
+
+/* 夜间模式：对方气泡文字白色 */
+[data-theme="dark"] .wx-message:not(.self) .wx-message-bubble {
+  color: #ffffff;
+}
+
+/* 夜间模式：对方气泡尖角颜色 */
+[data-theme="dark"] .wx-message:not(.self) .wx-message-bubble.text::before {
+  border-right-color: #303030;
 }
 
 .wx-message-bubble img {

@@ -13,7 +13,11 @@ export async function textToSpeech(text, voiceSettings = {}) {
     throw new Error('请先配置 Minimax API Key 和 Group ID');
   }
 
-  const response = await fetch('/api/minimax-tts', {
+  const apiUrl = window.location.hostname === 'localhost'
+    ? 'http://localhost:3001/api/minimax-tts'
+    : '/api/minimax-tts';
+
+  const response = await fetch(apiUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

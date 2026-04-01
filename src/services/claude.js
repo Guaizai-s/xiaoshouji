@@ -2,12 +2,121 @@
 import { mergeSystemPrompts } from '../config/systemPrompts';
 
 /**
+ * 处理 Anthropic 流式响应
+ */
+async function handleAnthropicStream(response, onChunk) {
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let fullText = '';
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    const chunk = decoder.decode(value, { stream: true });
+    const lines = chunk.split('\n').filter(line => line.trim());
+
+    for (const line of lines) {
+      if (line.startsWith('data: ')) {
+        const data = line.slice(6);
+        if (data === '[DONE]') continue;
+
+        try {
+          const parsed = JSON.parse(data);
+          if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
+            const text = parsed.delta.text;
+            buffer += text;
+            fullText += text;
+
+            // 遇到换行就发送一个气泡
+            if (onChunk && buffer.includes('\n')) {
+              const parts = buffer.split('\n');
+              for (let i = 0; i < parts.length - 1; i++) {
+                if (parts[i].trim()) {
+                  onChunk(parts[i]);
+                }
+              }
+              buffer = parts[parts.length - 1];
+            }
+          }
+        } catch (e) {
+          // 忽略解析错误
+        }
+      }
+    }
+  }
+
+  // 发送剩余内容
+  if (onChunk && buffer.trim()) {
+    onChunk(buffer);
+  }
+
+  return fullText;
+}
+
+/**
+ * 处理 OpenAI 流式响应
+ */
+async function handleOpenAIStream(response, onChunk) {
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let fullText = '';
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    const chunk = decoder.decode(value, { stream: true });
+    const lines = chunk.split('\n').filter(line => line.trim());
+
+    for (const line of lines) {
+      if (line.startsWith('data: ')) {
+        const data = line.slice(6);
+        if (data === '[DONE]') continue;
+
+        try {
+          const parsed = JSON.parse(data);
+          if (parsed.choices?.[0]?.delta?.content) {
+            const text = parsed.choices[0].delta.content;
+            buffer += text;
+            fullText += text;
+
+            // 遇到换行就发送一个气泡
+            if (onChunk && buffer.includes('\n')) {
+              const parts = buffer.split('\n');
+              for (let i = 0; i < parts.length - 1; i++) {
+                if (parts[i].trim()) {
+                  onChunk(parts[i]);
+                }
+              }
+              buffer = parts[parts.length - 1];
+            }
+          }
+        } catch (e) {
+          // 忽略解析错误
+        }
+      }
+    }
+  }
+
+  // 发送剩余内容
+  if (onChunk && buffer.trim()) {
+    onChunk(buffer);
+  }
+
+  return fullText;
+}
+
+/**
  * 调用 Claude API
  * @param {Object} role - 角色配置
  * @param {Array} messages - 消息历史
+ * @param {Function} onChunk - 流式回调（可选）
  * @returns {Promise<string>} - AI 回复内容
  */
-export async function callClaude(role, messages) {
+export async function callClaude(role, messages, onChunk = null) {
   const { apiKey, baseUrl, model, apiFormat, systemPrompt } = role;
 
   if (!apiKey) {
@@ -19,9 +128,9 @@ export async function callClaude(role, messages) {
 
   // 根据 API 格式构建请求
   if (apiFormat === 'anthropic') {
-    return await callAnthropicAPI(baseUrl, apiKey, model, finalSystemPrompt, messages);
+    return await callAnthropicAPI(baseUrl, apiKey, model, finalSystemPrompt, messages, onChunk);
   } else if (apiFormat === 'openai') {
-    return await callOpenAIAPI(baseUrl, apiKey, model, finalSystemPrompt, messages);
+    return await callOpenAIAPI(baseUrl, apiKey, model, finalSystemPrompt, messages, onChunk);
   } else {
     throw new Error('不支持的 API 格式');
   }
@@ -30,9 +139,10 @@ export async function callClaude(role, messages) {
 /**
  * 调用 Anthropic 官方 API
  */
-async function callAnthropicAPI(baseUrl, apiKey, model, systemPrompt, messages) {
+async function callAnthropicAPI(baseUrl, apiKey, model, systemPrompt, messages, onChunk) {
   // 检查是否使用直接调用（国内API）
   const useDirect = localStorage.getItem('useDirectAPI') === 'true';
+  const useStream = localStorage.getItem('useStreamAPI') === 'true';
 
   if (useDirect && baseUrl) {
     // 直接调用API（绕过Vercel代理）
@@ -51,7 +161,8 @@ async function callAnthropicAPI(baseUrl, apiKey, model, systemPrompt, messages) 
         model: model || 'claude-3-5-sonnet-20241022',
         max_tokens: 4096,
         system: systemPrompt || '',
-        messages: messages
+        messages: messages,
+        stream: useStream
       })
     });
 
@@ -60,12 +171,21 @@ async function callAnthropicAPI(baseUrl, apiKey, model, systemPrompt, messages) 
       throw new Error(error.error?.message || `API 请求失败: ${response.status}`);
     }
 
+    // 流式响应
+    if (useStream) {
+      return await handleAnthropicStream(response, onChunk);
+    }
+
     const data = await response.json();
     return data.content[0].text;
   }
 
-  // 使用 Vercel Function 代理
-  const response = await fetch('/api/chat', {
+  // 使用 Vercel Function 代理（本地开发使用本地代理服务器）
+  const apiUrl = window.location.hostname === 'localhost'
+    ? 'http://localhost:3001/api/chat'
+    : '/api/chat';
+
+  const response = await fetch(apiUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -96,6 +216,7 @@ async function callAnthropicAPI(baseUrl, apiKey, model, systemPrompt, messages) 
 async function callOpenAIAPI(baseUrl, apiKey, model, systemPrompt, messages) {
   // 检查是否使用直接调用（国内API）
   const useDirect = localStorage.getItem('useDirectAPI') === 'true';
+  const useStream = localStorage.getItem('useStreamAPI') === 'true';
 
   // 转换消息格式（添加 system 消息）
   const openaiMessages = systemPrompt
@@ -116,7 +237,8 @@ async function callOpenAIAPI(baseUrl, apiKey, model, systemPrompt, messages) {
       },
       body: JSON.stringify({
         model: model || 'gpt-3.5-turbo',
-        messages: openaiMessages
+        messages: openaiMessages,
+        stream: useStream
       })
     });
 
@@ -125,12 +247,21 @@ async function callOpenAIAPI(baseUrl, apiKey, model, systemPrompt, messages) {
       throw new Error(error.error?.message || `API 请求失败: ${response.status}`);
     }
 
+    // 流式响应
+    if (useStream) {
+      return await handleOpenAIStream(response);
+    }
+
     const data = await response.json();
     return data.choices[0].message.content;
   }
 
-  // 使用 Vercel Function 代理
-  const response = await fetch('/api/chat', {
+  // 使用 Vercel Function 代理（本地开发使用本地代理服务器）
+  const apiUrl = window.location.hostname === 'localhost'
+    ? 'http://localhost:3001/api/chat'
+    : '/api/chat';
+
+  const response = await fetch(apiUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -163,8 +294,8 @@ export async function callClaudeVision(role, imageBase64, mimeType, contextMessa
   // 合并内置提示词和用户提示词
   const finalSystemPrompt = mergeSystemPrompts(systemPrompt);
 
-  // 统一使用 Vercel Function
-  const apiUrl = '/api/chat';
+  // 检查是否使用直接调用
+  const useDirect = localStorage.getItem('useDirectAPI') === 'true';
 
   // 图片消息放在最后一条 user 消息里
   const imageUserMessage = {
@@ -181,7 +312,37 @@ export async function callClaudeVision(role, imageBase64, mimeType, contextMessa
   if (apiFormat === 'anthropic') {
     const messages = [...contextMessages, imageUserMessage];
 
-    const response = await fetch(apiUrl, {
+    // 直接调用
+    if (useDirect && baseUrl) {
+      const url = baseUrl.endsWith('/messages') ? baseUrl :
+                  baseUrl.endsWith('/v1') ? `${baseUrl}/messages` :
+                  `${baseUrl}/v1/messages`;
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
+          model: model || 'claude-3-5-sonnet-20241022',
+          max_tokens: 4096,
+          system: finalSystemPrompt || '',
+          messages
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error?.message || `API 请求失败: ${response.status}`);
+      }
+      const data = await response.json();
+      return data.content[0].text;
+    }
+
+    // 使用 Vercel Function
+    const response = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
