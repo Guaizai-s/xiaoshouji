@@ -255,9 +255,10 @@ const generateReply = async () => {
     if (!useStream) {
       // 检测语音标记 [语音:文本内容]
       const voiceMatch = response.match(/\[语音[:：]([^\]]+)\]/);
+      const voiceText = voiceMatch ? voiceMatch[1].trim() : '';
+
       if (voiceMatch) {
         try {
-          const voiceText = voiceMatch[1].trim();
           const voiceSettings = role.value?.chatSettings || {};
           audioUrl = await textToSpeech(voiceText, {
             voiceId: voiceSettings.minimaxVoiceId,
@@ -271,10 +272,6 @@ const generateReply = async () => {
 
       // 移除语音标记，只保留文本
       const cleanResponse = response.replace(/\[语音[:：][^\]]+\]/g, '').trim();
-
-      // 提取语音文本用于转录显示
-      const voiceMatch = response.match(/\[语音[:：]([^\]]+)\]/);
-      const voiceText = voiceMatch ? voiceMatch[1].trim() : '';
 
       // 确定最终内容：优先使用cleanResponse，如果为空且有语音则使用语音文本
       const finalContent = cleanResponse || voiceText;
