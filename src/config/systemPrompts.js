@@ -22,5 +22,20 @@ export function mergeSystemPrompts(userPrompt = '') {
     return builtinPrompts;
   }
 
+  // 检查用户提示词是否以"# 系统时间信息"开头，如果是，则将时间信息提到最前面
+  if (userPrompt.startsWith('# 系统时间信息')) {
+    const timeBlockEnd = userPrompt.indexOf('\n\n');
+    if (timeBlockEnd > 0) {
+      const timeBlock = userPrompt.substring(0, timeBlockEnd);
+      const restPrompt = userPrompt.substring(timeBlockEnd + 2).trim();
+
+      if (restPrompt) {
+        return `${timeBlock}\n\n${builtinPrompts}\n\n---\n\n${restPrompt}`;
+      } else {
+        return `${timeBlock}\n\n${builtinPrompts}`;
+      }
+    }
+  }
+
   return `${builtinPrompts}\n\n---\n\n${userPrompt}`;
 }

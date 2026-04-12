@@ -40,7 +40,7 @@
 
         <div class="wx-form-group">
           <label class="wx-form-label">API 方案</label>
-          <select v-model="formData.apiProfileId" class="wx-form-select">
+          <select v-model.number="formData.apiProfileId" class="wx-form-select">
             <option :value="null">使用全局配置</option>
             <option v-for="p in apiProfiles" :key="p.id" :value="p.id">{{ p.name }}</option>
           </select>
@@ -117,9 +117,12 @@ const handleAvatarChange = (event) => {
 const save = async () => {
   if (!isValid.value) { alert('请填写角色名称'); return; }
   try {
+    const apiProfileId = formData.value.apiProfileId === null ? null : parseInt(formData.value.apiProfileId);
+    console.log('保存角色，apiProfileId:', apiProfileId, '类型:', typeof apiProfileId);
+
     await roleService.update(roleId, {
       name: formData.value.name.trim(),
-      apiProfileId: formData.value.apiProfileId,
+      apiProfileId: apiProfileId,
       avatar: avatarPreview.value || null,
       systemPrompt: formData.value.systemPrompt.trim() || null
     });

@@ -133,23 +133,23 @@
       <div class="panel">
         <div
           class="list-item"
-          @click="settings.apiProfileId = null"
+          @click="apiProfileId = null"
         >
           <span class="item-label">使用全局配置</span>
           <div class="item-right">
-            <svg v-if="!settings.apiProfileId" width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 9l4.5 4.5L15 4.5" stroke="#07c160" stroke-width="2.5" stroke-linecap="round"/></svg>
+            <svg v-if="!apiProfileId" width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 9l4.5 4.5L15 4.5" stroke="#07c160" stroke-width="2.5" stroke-linecap="round"/></svg>
           </div>
         </div>
         <div
           v-for="p in apiProfiles"
           :key="p.id"
           class="list-item"
-          @click="settings.apiProfileId = p.id"
+          @click="apiProfileId = p.id"
         >
           <span class="item-label">{{ p.name }}</span>
           <div class="item-right">
             <span class="item-value">{{ p.model || '' }}</span>
-            <svg v-if="settings.apiProfileId === p.id" width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 9l4.5 4.5L15 4.5" stroke="#07c160" stroke-width="2.5" stroke-linecap="round"/></svg>
+            <svg v-if="apiProfileId === p.id" width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 9l4.5 4.5L15 4.5" stroke="#07c160" stroke-width="2.5" stroke-linecap="round"/></svg>
           </div>
         </div>
         <div v-if="apiProfiles.length === 0" class="empty-hint">暂无方案，请先在「设置 → API 方案」中创建</div>
@@ -158,13 +158,36 @@
 
     <!-- ===== Minimax 音色 ===== -->
     <div v-show="currentView === 'minimax'" class="page-content">
+      <div class="group-label">TTS 模型</div>
+      <div class="panel panel-form">
+        <div class="form-row">
+          <label class="form-label">模型</label>
+          <select class="form-select" v-model="settings.minimaxModel">
+            <option v-for="model in ttsModels" :key="model.id" :value="model.id">
+              {{ model.name }}
+            </option>
+          </select>
+        </div>
+      </div>
+      <button v-if="!ttsModelsLoaded" class="action-btn" @click="loadTTSModels" :disabled="ttsModelsLoading" style="margin: 16px 16px 0;">
+        {{ ttsModelsLoading ? '加载中...' : '拉取官方模型列表' }}
+      </button>
+
       <div class="group-label">角色专属音色配置</div>
       <div class="panel panel-form">
         <div class="form-row">
           <label class="form-label">Voice ID</label>
-          <input class="form-input" v-model="settings.minimaxVoiceId" placeholder="克隆音色 ID，留空用默认" />
+          <select class="form-select" v-model="settings.minimaxVoiceId">
+            <option value="">使用默认音色</option>
+            <option v-for="voice in voiceModels" :key="voice.voice_id" :value="voice.voice_id">
+              {{ voice.name }} ({{ voice.description }})
+            </option>
+          </select>
         </div>
       </div>
+      <button v-if="!voiceModelsLoaded" class="action-btn" @click="loadVoiceModels" :disabled="voiceModelsLoading" style="margin: 16px 16px 0;">
+        {{ voiceModelsLoading ? '加载中...' : '拉取官方音色列表' }}
+      </button>
       <div class="group-label">语速调节</div>
       <div class="panel">
         <div class="list-item no-click">
@@ -293,7 +316,8 @@
 <script setup>
 import { ref, computed, reactive, watch, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { roleService, conversationService, apiProfileService, personaService, stickerService, stickerLibraryService } from '../services/db';
+import { roleService, conversationService, apiProfileService, personaService, stickerLibraryService } from '../services/db';
+import { getVoiceModels, getTTSModels } from '../services/minimax';
 
 const route = useRoute();
 const router = useRouter();
@@ -312,7 +336,14 @@ const saveMsg = ref('');
 const bgInput = ref(null);
 const avatarInput = ref(null);
 const roleEditData = ref({ name: '', avatar: '', systemPrompt: '' });
-const defaultAvatar = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="48" height="48"%3E%3Crect fill="%23ddd" width="48" height="48" rx="4"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="24"%3E🤖%3C/text%3E%3C/svg%3E';
+
+// 语音模型相关
+const voiceModels = ref([]);
+const voiceModelsLoaded = ref(false);
+const voiceModelsLoading = ref(false);
+const ttsModels = ref([]);
+const ttsModelsLoaded = ref(false);
+const ttsModelsLoading = ref(false);
 
 const viewTitle = computed(() => {
   const map = { main: '聊天信息', api: 'API 方案', minimax: 'Minimax 音色', memory: '记忆设置', roleEdit: '编辑角色', persona: '用户人设', stickers: '表情包' };
@@ -320,8 +351,8 @@ const viewTitle = computed(() => {
 });
 
 const selectedProfileName = computed(() => {
-  if (!settings.apiProfileId) return '全局配置';
-  const p = apiProfiles.value.find(p => p.id === settings.apiProfileId);
+  if (!apiProfileId.value) return '全局配置';
+  const p = apiProfiles.value.find(p => p.id === apiProfileId.value);
   return p ? p.name : '全局配置';
 });
 
@@ -349,14 +380,17 @@ const settings = reactive({
   triggerTimeout: false,
   triggerTimeoutValue: '5',
   minimaxVoiceId: '',
+  minimaxModel: 'speech-01',
   minimaxSpeed: 1.0,
   minimaxPitch: 0,
-  apiProfileId: null,
   longTermMemory: '',
   coreMemory: '',
   selectedPersonaId: null,
   linkedStickerIds: []
 });
+
+// API 方案 ID 单独管理（保存到 role.apiProfileId，而不是 chatSettings）
+const apiProfileId = ref(null);
 
 const goBack = () => {
   if (currentView.value !== 'main') { currentView.value = 'main'; return; }
@@ -417,9 +451,42 @@ const selectLibrary = (libraryId) => {
   settings.linkedLibraryId = libraryId;
 };
 
+const loadVoiceModels = async () => {
+  if (voiceModelsLoading.value) return;
+  voiceModelsLoading.value = true;
+  try {
+    voiceModels.value = await getVoiceModels();
+    voiceModelsLoaded.value = true;
+    saveMsg.value = '音色列表加载成功';
+  } catch (error) {
+    alert('加载失败: ' + error.message);
+  } finally {
+    voiceModelsLoading.value = false;
+    setTimeout(() => { saveMsg.value = ''; }, 1500);
+  }
+};
+
+const loadTTSModels = async () => {
+  if (ttsModelsLoading.value) return;
+  ttsModelsLoading.value = true;
+  try {
+    ttsModels.value = await getTTSModels();
+    ttsModelsLoaded.value = true;
+    saveMsg.value = '模型列表加载成功';
+  } catch (error) {
+    alert('加载失败: ' + error.message);
+  } finally {
+    ttsModelsLoading.value = false;
+    setTimeout(() => { saveMsg.value = ''; }, 1500);
+  }
+};
+
 const saveSettings = async () => {
   if (!role.value) return;
-  await roleService.update(role.value.id, { chatSettings: JSON.parse(JSON.stringify(settings)) });
+  await roleService.update(role.value.id, {
+    chatSettings: JSON.parse(JSON.stringify(settings)),
+    apiProfileId: apiProfileId.value  // 单独保存 API 方案 ID
+  });
   // 同步会话的 isTop / isMuted
   if (convId) {
     await conversationService.update(convId, { isTop: settings.isTop, isMuted: settings.isMuted });
@@ -429,6 +496,7 @@ const saveSettings = async () => {
 };
 
 watch(settings, saveSettings, { deep: true });
+watch(apiProfileId, saveSettings);  // 监听 API 方案变化
 
 watch(currentView, (newView) => {
   if (newView === 'roleEdit' && role.value) {
@@ -445,6 +513,12 @@ onMounted(async () => {
   personas.value = await personaService.getAll();
   libraries.value = await stickerLibraryService.getAll();
 
+  // 预加载默认 TTS 模型和音色列表
+  ttsModels.value = await getTTSModels();
+  ttsModelsLoaded.value = true;
+  voiceModels.value = await getVoiceModels();
+  voiceModelsLoaded.value = true;
+
   let rid = roleId;
   if (!rid && convId) {
     const conv = await conversationService.getOrCreate(convId);
@@ -455,6 +529,7 @@ onMounted(async () => {
     if (role.value?.chatSettings) {
       Object.assign(settings, role.value.chatSettings);
     }
+    apiProfileId.value = role.value?.apiProfileId ?? null;
   }
 });
 </script>
@@ -570,7 +645,7 @@ onMounted(async () => {
 .wx-switch:checked::after { transform: translateX(20px); }
 .small-switch { transform: scale(0.85); }
 
-.time-input, .wx-select {
+.time-input, .wx-select, .form-select {
   appearance: none; -webkit-appearance: none; border: none;
   background: transparent; font-size: 14px; color: #8e8e93;
   outline: none; font-family: inherit;
@@ -623,6 +698,29 @@ onMounted(async () => {
 
 .save-btn:active {
   opacity: 0.8;
+}
+
+.action-btn {
+  display: block;
+  width: calc(100% - 32px);
+  margin: 16px 16px;
+  padding: 14px;
+  background: #007aff;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.action-btn:active {
+  opacity: 0.8;
+}
+
+.action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .wx-radio {

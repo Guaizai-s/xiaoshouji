@@ -37,12 +37,7 @@
                 <chevron-right />
               </div>
             </div>
-            <label class="card-item">
-              <div class="item-icon bg-purple-500">🌐</div>
-              <span class="item-label">直接调用API</span>
-              <input type="checkbox" v-model="useDirectAPI" @change="saveDirectAPI" class="wx-switch" />
-            </label>
-            <label class="card-item">
+            <label class="card-item no-border">
               <div class="item-icon bg-blue-500">⚡</div>
               <span class="item-label">流式输出</span>
               <input type="checkbox" v-model="useStreamAPI" @change="saveStreamAPI" class="wx-switch" />
@@ -87,7 +82,11 @@
           <div class="section-label">主题</div>
           <div class="card-group">
             <label class="card-item no-border">
-              <div class="item-icon bg-indigo-500">🌙</div>
+              <div class="item-icon bg-indigo-500 flex items-center justify-center text-white rounded-xl w-10 h-10">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-3 h-3">
+    <path fill-rule="evenodd" d="M9.528 1.718a.75.75 0 01.162.819A8.97 8.97 0 009 6a9 9 0 009 9 8.97 8.97 0 003.463-.69.75.75 0 01.981.98 10.503 10.503 0 01-9.694 6.46c-5.799 0-10.5-4.701-10.5-10.5 0-4.368 2.667-8.112 6.46-9.694a.75.75 0 01.818.162z" clip-rule="evenodd" />
+  </svg>
+</div>
               <span class="item-label">夜间模式</span>
               <input type="checkbox" v-model="isDarkMode" @change="toggleDarkMode" class="wx-switch" />
             </label>
@@ -195,7 +194,7 @@
               </select>
             </div>
           </div>
-          <button class="action-btn mt-8 green" @click="saveProfile">保存</button>
+          <button class="action-btn mt-8" @click="saveProfile">保存</button>
           <button v-if="editingProfile.id" class="action-btn mt-3 red" @click="deleteProfile">删除方案</button>
         </div>
       </div>
@@ -331,7 +330,6 @@ const ChevronRight = ChevRight;
 const apiProfiles  = ref([]);
 const editingProfile = ref({ name:'', apiKey:'', baseUrl:'', model:'' });
 const globalMinimax  = ref({ apiKey:'', groupId:'' });
-const useDirectAPI = ref(false);
 const useStreamAPI = ref(false);
 const wallpaperPreview = ref('');
 const customIcons  = ref({});
@@ -342,7 +340,6 @@ const loadAll = async () => {
   apiProfiles.value = await apiProfileService.getAll();
   const mm = localStorage.getItem('globalMinimax');
   if (mm) globalMinimax.value = JSON.parse(mm);
-  useDirectAPI.value = localStorage.getItem('useDirectAPI') === 'true';
   useStreamAPI.value = localStorage.getItem('useStreamAPI') === 'true';
   isDarkMode.value = localStorage.getItem('darkMode') === 'true';
   if (isDarkMode.value) document.documentElement.setAttribute('data-theme', 'dark');
@@ -384,11 +381,6 @@ const deleteProfile = async () => {
 const saveMinimax = () => {
   localStorage.setItem('globalMinimax', JSON.stringify(globalMinimax.value));
   activePage.value = 'main';
-};
-
-// ---- 直接调用API ----
-const saveDirectAPI = () => {
-  localStorage.setItem('useDirectAPI', useDirectAPI.value ? 'true' : 'false');
 };
 
 // ---- 流式输出 ----

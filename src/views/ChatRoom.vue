@@ -30,8 +30,8 @@ import { useRoute, useRouter } from 'vue-router';
 import NavBar from '../components/NavBar.vue';
 import MessageBubble from '../components/MessageBubble.vue';
 import ChatInput from '../components/ChatInput.vue';
-import { conversationService, messageService, roleService, apiProfileService, personaService, stickerService, stickerLibraryService } from '../services/db';
-import { callClaude, callClaudeVision, fileToBase64 } from '../services/claude';
+import { conversationService, messageService, roleService, apiProfileService, personaService, stickerService } from '../services/db';
+import { callClaude } from '../services/claude';
 import { textToSpeech } from '../services/minimax';
 
 const route = useRoute();
@@ -106,9 +106,13 @@ const loadConversation = async () => {
   conversation.value = await conversationService.getOrCreate(conversationId);
   role.value = await roleService.getById(conversation.value.roleId);
 
+  console.log('1. 原始角色数据:', JSON.parse(JSON.stringify(role.value)));
+
   // 如果角色关联了API方案，获取配置并合并到role对象
   if (role.value?.apiProfileId) {
     const apiProfile = await apiProfileService.getById(role.value.apiProfileId);
+    console.log('2. 加载的API方案:', JSON.parse(JSON.stringify(apiProfile)));
+
     if (apiProfile) {
       role.value = {
         ...role.value,
@@ -117,8 +121,34 @@ const loadConversation = async () => {
         model: apiProfile.model,
         apiFormat: apiProfile.apiFormat
       };
+      console.log('3. 合并后的role.apiKey:', role.value.apiKey);
+      console.log('3. 合并后的role.baseUrl:', role.value.baseUrl);
+      console.log('3. 合并后的role.model:', role.value.model);
+      console.log('3. 合并后的role.apiFormat:', role.value.apiFormat);
+    } else {
+      console.error('❌ 未找到API方案，ID:', role.value.apiProfileId);
+    }
+  } else {
+    // 使用全局默认配置：选择第一个API方案
+    console.warn('⚠️ 角色未关联API方案，尝试使用默认方案');
+    const allProfiles = await apiProfileService.getAll();
+    if (allProfiles.length > 0) {
+      const defaultProfile = allProfiles[0];
+      console.log('2. 使用默认API方案:', JSON.parse(JSON.stringify(defaultProfile)));
+      role.value = {
+        ...role.value,
+        apiKey: defaultProfile.apiKey,
+        baseUrl: defaultProfile.baseUrl,
+        model: defaultProfile.model,
+        apiFormat: defaultProfile.apiFormat
+      };
+      console.log('✅ 已自动使用第一个API方案:', defaultProfile.name);
+    } else {
+      console.error('❌ 没有可用的API方案，请先在设置中创建API方案');
     }
   }
+
+  console.log('4. 最终role配置:', JSON.parse(JSON.stringify(role.value)));
 
   // 加载关联的表情包
   const settings = role.value?.chatSettings || {};
@@ -180,10 +210,42 @@ const generateReply = async () => {
     let enhancedPrompt = role.value.systemPrompt || '';
 
     // 添加时间感知
-    if (role.value?.chatSettings?.isRealTimeOn) {
+    const isRealTimeOn = role.value?.chatSettings?.isRealTimeOn;
+    console.log('时间感知开关状态:', isRealTimeOn);
+    console.log('完整chatSettings:', role.value?.chatSettings);
+
+    if (isRealTimeOn) {
       const now = new Date();
-      const timeStr = `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 ${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
-      enhancedPrompt = `当前时间：${timeStr}\n\n${enhancedPrompt}`;
+      const year = now.getFullYear();
+      const month = now.getMonth() + 1;
+      const date = now.getDate();
+      const hours = now.getHours();
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const weekdays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+      const weekday = weekdays[now.getDay()];
+
+      // 根据 API 格式使用不同的时间提示
+      const apiFormat = role.value?.apiFormat || 'openai';
+      let timeInfo;
+
+      if (apiFormat === 'anthropic') {
+        // Claude 使用温和的表达
+        timeInfo = `# 系统时间信息
+今天是 ${year}年${month}月${date}日 ${weekday}
+当前时间是 ${hours}:${minutes}
+注意：这是真实的系统时间，你可以直接使用这个时间信息回答用户的问题。`;
+      } else {
+        // OpenAI 使用更强硬的指令
+        timeInfo = `# 重要：当前时间信息
+今天是 ${year}年${month}月${date}日 ${weekday}，当前时间是 ${hours}:${minutes}
+
+这是系统提供的真实时间。当用户询问时间相关问题时，你必须使用这个时间信息回答，不要说你无法获取实时信息。`;
+      }
+
+      enhancedPrompt = `${timeInfo}\n\n${enhancedPrompt}`;
+      console.log('✅ 已添加时间信息:', `${year}年${month}月${date}日 ${hours}:${minutes}`);
+    } else {
+      console.log('❌ 时间感知未开启');
     }
 
     // 添加用户人设信息
@@ -235,6 +297,7 @@ const generateReply = async () => {
           const voiceSettings = role.value?.chatSettings || {};
           audioUrl = await textToSpeech(voiceText, {
             voiceId: voiceSettings.minimaxVoiceId,
+            model: voiceSettings.minimaxModel,
             speed: voiceSettings.minimaxSpeed,
             pitch: voiceSettings.minimaxPitch
           });
@@ -262,6 +325,7 @@ const generateReply = async () => {
           const voiceSettings = role.value?.chatSettings || {};
           audioUrl = await textToSpeech(voiceText, {
             voiceId: voiceSettings.minimaxVoiceId,
+            model: voiceSettings.minimaxModel,
             speed: voiceSettings.minimaxSpeed,
             pitch: voiceSettings.minimaxPitch
           });
