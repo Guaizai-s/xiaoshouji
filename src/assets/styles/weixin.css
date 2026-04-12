@@ -15,8 +15,8 @@
 [data-theme="dark"] {
   --wx-bg: #000000;
   --wx-white: #1e1e1e;
-  --wx-text-primary: #eeeeee;
-  --wx-text-secondary: #666666;
+  --wx-text-primary:#eeeeee;
+  --wx-text-secondary:#eeeeee;
   --wx-border: #2c2c2c;
   --wx-bubble-self: #70B673;
   --wx-bubble-other: #303030;
@@ -83,7 +83,7 @@ html, body {
   background-color: var(--wx-bg);
   -webkit-overflow-scrolling: touch;
   padding-top: 44px;
-  padding-bottom: 16px;
+  padding-bottom: 40px;
 }
 
 /* 列表 */
@@ -311,6 +311,8 @@ html, body {
   padding: 8px;
   background-color: var(--wx-white);
   border-top: 1px solid var(--wx-border);
+  width: 100%; /* 确保外层容器宽度固定 */
+  box-sizing: border-box; /* 确保 padding 不会撑开容器 */
 }
 
 .wx-input-btn {
@@ -320,10 +322,13 @@ html, body {
   cursor: pointer;
   background: none;
   border: none;
+  flex-shrink: 0; /* 防止按钮被压缩 */
 }
 
 .wx-input-field {
   flex: 1;
+  min-width: 0; /* 核心修复：打破 input 的默认最小宽度限制 */
+  box-sizing: border-box; /* 核心修复：将内边距和边框计算在宽度内 */
   padding: 8px 12px;
   border: 1px solid var(--wx-border);
   border-radius: 4px;
@@ -331,6 +336,7 @@ html, body {
   outline: none;
   background-color: var(--wx-white);
   margin: 0 8px;
+  color: var(--wx-text-primary);
 }
 
 .wx-input-send {
@@ -342,7 +348,7 @@ html, body {
   font-size: 14px;
   cursor: pointer;
   white-space: nowrap;
-  flex-shrink: 0;
+  flex-shrink: 0; /* 原有代码，写得很好，保持原样 */
 }
 
 .wx-input-send:disabled {
