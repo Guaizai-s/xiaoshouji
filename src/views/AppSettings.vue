@@ -451,7 +451,11 @@ const importData = async (e) => {
     if (data.globalMinimax) localStorage.setItem('globalMinimax', JSON.stringify(data.globalMinimax));
     const Dexie = (await import('dexie')).default;
     const db = new Dexie('XiaoShouJiDB');
+    db.version(1).stores({ roles:'++id,name,createdAt,updatedAt', conversations:'++id,roleId,updatedAt', messages:'++id,conversationId,timestamp' });
     db.version(2).stores({ roles:'++id,name,createdAt,updatedAt', conversations:'++id,roleId,updatedAt,isTop,isMuted', messages:'++id,conversationId,timestamp', apiProfiles:'++id,name,createdAt' });
+    db.version(3).stores({ roles:'++id,name,createdAt,updatedAt', conversations:'++id,roleId,updatedAt,isTop,isMuted', messages:'++id,conversationId,timestamp', apiProfiles:'++id,name,createdAt' });
+    db.version(4).stores({ roles:'++id,name,createdAt,updatedAt', conversations:'++id,roleId,updatedAt,isTop,isMuted', messages:'++id,conversationId,timestamp', apiProfiles:'++id,name,createdAt', userPersonas:'++id,name,createdAt', stickers:'++id,name,createdAt' });
+    db.version(5).stores({ roles:'++id,name,createdAt,updatedAt', conversations:'++id,roleId,updatedAt,isTop,isMuted', messages:'++id,conversationId,timestamp', apiProfiles:'++id,name,createdAt', userPersonas:'++id,name,createdAt', stickers:'++id,name,libraryId,createdAt', stickerLibraries:'++id,name,createdAt' });
     await db.roles.bulkPut(data.roles);
     await db.conversations.bulkPut(data.conversations);
     await db.messages.bulkPut(data.messages);
