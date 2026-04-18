@@ -46,14 +46,17 @@
           </div>
           
           <div class="role-list">
-            <div class="role-card active">
-              <div class="avatar-circle">苏</div>
-              <div class="name">小苏 (你)</div>
+            <div
+              v-for="role in roles"
+              :key="role.id"
+              class="role-card"
+              :class="{ active: selectedRoleId === role.id }"
+              @click="selectedRoleId = role.id"
+            >
+              <div class="avatar-circle" :style="role.avatar ? `background-image:url(${role.avatar});background-size:cover` : ''">{{ role.avatar ? '' : role.name[0] }}</div>
+              <div class="name">{{ role.name }}</div>
             </div>
-            <div class="role-card add-ai">
-              <div class="avatar-circle">+</div>
-              <div class="name">添加 AI 角色</div>
-            </div>
+            <div v-if="roles.length === 0" style="color:#9e938f;font-size:13px;padding:10px 0">暂无可用角色，请先在联系人中添加角色并配置 API</div>
           </div>
           
           <button class="launch-btn" @click="startGame">确认并进入游戏</button>
@@ -64,8 +67,9 @@
 </template>
 
 <script setup>
-import { ref, h } from 'vue';
+import { ref, h, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { roleService, apiProfileService } from '../services/db.js';
 
 const router = useRouter();
 
@@ -85,6 +89,19 @@ const gameList = ref([
 
 const showRoleSelect = ref(false);
 const selectedGame = ref(null);
+const roles = ref([]);
+const selectedRoleId = ref(null);
+
+onMounted(async () => {
+  const allRoles = await roleService.getAll();
+  // 只保留有 apiProfileId 的角色（能调用 API 的）
+  const withProfile = await Promise.all(allRoles.map(async r => {
+    if (!r.apiProfileId) return null;
+    const profile = await apiProfileService.getById(r.apiProfileId);
+    return profile ? { ...r, apiKey: profile.apiKey, baseUrl: profile.baseUrl, model: profile.model, apiFormat: profile.apiFormat } : null;
+  }));
+  roles.value = withProfile.filter(Boolean);
+});
 
 const openRoleSelect = (game) => {
   selectedGame.value = game;
@@ -92,8 +109,14 @@ const openRoleSelect = (game) => {
 };
 
 const startGame = () => {
-  alert(`正在加载 ${selectedGame.value.name} 场景...`);
+  if (!selectedRoleId.value) { alert('请选择一个 AI 角色'); return; }
+  const role = roles.value.find(r => r.id === selectedRoleId.value);
   showRoleSelect.value = false;
+  if (selectedGame.value?.id === 'gomoku') {
+    router.push({ path: '/games/gomoku', query: { roleId: role.id } });
+  } else {
+    alert(`${selectedGame.value?.name} 暂未开放`);
+  }
 };
 </script>
 

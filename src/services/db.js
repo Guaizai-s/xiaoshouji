@@ -47,6 +47,18 @@ db.version(5).stores({
   stickerLibraries: '++id, name, createdAt'
 });
 
+// v6: 新增 assets 表，用于存储桌面图片（壁纸、头像、挂件等）
+db.version(6).stores({
+  roles: '++id, name, createdAt, updatedAt',
+  conversations: '++id, roleId, updatedAt, isTop, isMuted',
+  messages: '++id, conversationId, timestamp',
+  apiProfiles: '++id, name, createdAt',
+  userPersonas: '++id, name, createdAt',
+  stickers: '++id, name, libraryId, createdAt',
+  stickerLibraries: '++id, name, createdAt',
+  assets: 'key'
+});
+
 // 角色管理
 export const roleService = {
   // 创建角色
@@ -297,6 +309,20 @@ export const stickerLibraryService = {
     // 删除库时同时删除库中的所有表情包
     await db.stickers.where('libraryId').equals(id).delete();
     await db.stickerLibraries.delete(id);
+  }
+};
+
+// 桌面资源（图片）管理
+export const assetService = {
+  async get(key) {
+    const row = await db.assets.get(key);
+    return row ? row.value : null;
+  },
+  async set(key, value) {
+    await db.assets.put({ key, value });
+  },
+  async remove(key) {
+    await db.assets.delete(key);
   }
 };
 

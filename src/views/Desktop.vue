@@ -119,6 +119,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, h } from 'vue';
 import { useRouter } from 'vue-router';
+import { assetService } from '../services/db.js';
 
 const router = useRouter();
 
@@ -134,14 +135,26 @@ const editingQuote = ref(false);
 const avatarInput = ref(null);
 const widgetInput = ref(null);
 
-onMounted(() => {
+const ASSET_KEYS = ['desktopWallpaper', 'desktop_avatar', 'desktop_widget',
+  ...['chat','forum','search','date','diary','games','read','gacha','settings','wechat','regex','world'].map(id => `icon_${id}`)];
+
+onMounted(async () => {
   timer = setInterval(() => { now.value = new Date(); }, 1000);
-  wallpaper.value   = localStorage.getItem('desktopWallpaper') || '';
-  heroAvatar.value  = localStorage.getItem('desktop_avatar') || '';
-  widgetImage.value = localStorage.getItem('desktop_widget') || '';
+
+  // 迁移旧 localStorage 图片数据到 Dexie
+  for (const key of ASSET_KEYS) {
+    const old = localStorage.getItem(key);
+    if (old) { await assetService.set(key, old); localStorage.removeItem(key); }
+  }
+
+  wallpaper.value   = await assetService.get('desktopWallpaper') || '';
+  heroAvatar.value  = await assetService.get('desktop_avatar') || '';
+  widgetImage.value = await assetService.get('desktop_widget') || '';
   quoteText.value   = localStorage.getItem('desktop_quote') || '';
   const icons = {};
-  ['chat', 'forum', 'search', 'date', 'diary', 'games', 'read', 'gacha', 'settings', 'wechat', 'regex', 'world'].forEach(id => { icons[id] = localStorage.getItem(`icon_${id}`) || ''; });
+  for (const id of ['chat','forum','search','date','diary','games','read','gacha','settings','wechat','regex','world']) {
+    icons[id] = await assetService.get(`icon_${id}`) || '';
+  }
   customIcons.value = icons;
 });
 onUnmounted(() => { clearInterval(timer); });
@@ -165,14 +178,28 @@ const go = (path) => {
 const onAvatarUpload = (e) => {
   const file = e.target.files?.[0]; if (!file) return;
   const reader = new FileReader();
-  reader.onload = ev => { heroAvatar.value = ev.target.result; localStorage.setItem('desktop_avatar', ev.target.result); };
+  reader.onload = ev => { heroAvatar.value = ev.target.result; assetService.set('desktop_avatar', ev.target.result); };
   reader.readAsDataURL(file);
 };
 
 const onWidgetUpload = (e) => {
   const file = e.target.files?.[0]; if (!file) return;
   const reader = new FileReader();
-  reader.onload = ev => { widgetImage.value = ev.target.result; localStorage.setItem('desktop_widget', ev.target.result); };
+  reader.onload = ev => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const max = 400;
+      const scale = Math.min(1, max / Math.max(img.width, img.height));
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      const data = canvas.toDataURL('image/jpeg', 0.7);
+      widgetImage.value = data;
+      assetService.set('desktop_widget', data);
+    };
+    img.src = ev.target.result;
+  };
   reader.readAsDataURL(file);
 };
 
