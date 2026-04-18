@@ -301,13 +301,12 @@ const generateReply = async () => {
             speed: voiceSettings.minimaxSpeed,
             pitch: voiceSettings.minimaxPitch
           });
-          // 更新第一条消息添加audioUrl
+          // 删除流式创建的所有文字气泡，重建一条带audioUrl的消息
           const msgs = await messageService.getByConversation(conversationId);
-          const lastAssistantMsg = msgs.filter(m => m.role === 'assistant').pop();
-          if (lastAssistantMsg) {
-            await messageService.update(lastAssistantMsg.id, { audioUrl });
-            await loadMessages();
-          }
+          const streamMsgs = msgs.filter(m => m.role === 'assistant');
+          for (const m of streamMsgs) await messageService.delete(m.id);
+          await messageService.create(conversationId, 'assistant', voiceText, 'text', audioUrl);
+          await loadMessages();
         } catch (error) {
           console.warn('语音生成失败:', error.message);
         }
@@ -334,25 +333,26 @@ const generateReply = async () => {
         }
       }
 
-      // 移除语音标记，只保留文本
-      const cleanResponse = response.replace(/\[语音[:：][^\]]+\]/g, '').trim();
-
-      // 确定最终内容：优先使用cleanResponse，如果为空且有语音则使用语音文本
-      const finalContent = cleanResponse || voiceText;
-
-      // 只有在有内容或有语音时才创建消息
-      if (finalContent || audioUrl) {
-        // 按换行拆分，逐条延迟存入
-        const parts = finalContent.split('\n').filter(p => p.trim());
-
-        if (parts.length <= 1) {
-          await messageService.create(conversationId, 'assistant', finalContent, 'text', audioUrl);
+      if (voiceMatch) {
+        // 语音回复：只创建一条带audioUrl的消息
+        if (voiceText || audioUrl) {
+          await messageService.create(conversationId, 'assistant', voiceText, 'text', audioUrl);
           await loadMessages();
-        } else {
-          for (let i = 0; i < parts.length; i++) {
-            if (i > 0) await sleep(500);
-            await messageService.create(conversationId, 'assistant', parts[i], 'text', i === 0 ? audioUrl : null);
+        }
+      } else {
+        // 纯文字回复：移除语音标记，按换行拆分
+        const cleanResponse = response.replace(/\[语音[:：][^\]]+\]/g, '').trim();
+        if (cleanResponse) {
+          const parts = cleanResponse.split('\n').filter(p => p.trim());
+          if (parts.length <= 1) {
+            await messageService.create(conversationId, 'assistant', cleanResponse, 'text', null);
             await loadMessages();
+          } else {
+            for (let i = 0; i < parts.length; i++) {
+              if (i > 0) await sleep(500);
+              await messageService.create(conversationId, 'assistant', parts[i], 'text', null);
+              await loadMessages();
+            }
           }
         }
       }

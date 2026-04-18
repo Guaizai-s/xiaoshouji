@@ -42,8 +42,8 @@
     </template>
     <!-- 单条消息 -->
     <template v-else>
-      <!-- 文本气泡 -->
-      <div v-if="message.content" class="wx-message" :class="{ self: message.role === 'user' }">
+      <!-- 文本气泡（有audioUrl时不渲染文字气泡） -->
+      <div v-if="message.content && !message.audioUrl" class="wx-message" :class="{ self: message.role === 'user' }">
         <img
           class="wx-message-avatar"
           :src="avatar"

@@ -70,7 +70,12 @@ const routes = [
     path: '/stickers',
     name: 'StickerManage',
     component: () => import('../views/StickerManage.vue')
-  }
+  },
+  {
+  path: '/games',
+  name: 'Games',
+  component: () => import('../views/Games.vue') 
+}
 ];
 
 const router = createRouter({
