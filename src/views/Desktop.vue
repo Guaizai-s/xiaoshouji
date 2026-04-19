@@ -1,5 +1,5 @@
 <template>
-  <div class="desktop" :style="wallpaper ? `background-image:url(${wallpaper});background-size:cover;background-position:center` : ''">
+  <div class="desktop" :class="currentTheme" :style="wallpaper ? `background-image:url(${wallpaper});background-size:cover;background-position:center` : ''">
     <div class="status-bar">
       <span class="status-time">{{ currentTime.split(' ')[0] }}</span>
       <div class="status-icons">
@@ -35,21 +35,30 @@
         <div class="grid-2x2">
           <div class="app-cell" @click="go('/chats')">
             <div class="small-card">
-              <img v-if="customIcons.wechat" :src="customIcons.wechat" class="custom-icon" />
+              <img v-if="customIcons.chat" :src="customIcons.chat" class="custom-icon" />
               <component v-else :is="MsgIcon" />
             </div>
             <span class="card-label">微信</span>
           </div>
           <div class="app-cell">
-            <div class="small-card"><component :is="ForumIcon" /></div>
+            <div class="small-card">
+              <img v-if="customIcons.forum" :src="customIcons.forum" class="custom-icon" />
+              <component v-else :is="ForumIcon" />
+            </div>
             <span class="card-label">论坛</span>
           </div>
           <div class="app-cell">
-            <div class="small-card"><component :is="SearchIcon" /></div>
+            <div class="small-card">
+              <img v-if="customIcons.search" :src="customIcons.search" class="custom-icon" />
+              <component v-else :is="SearchIcon" />
+            </div>
             <span class="card-label">查手机</span>
           </div>
           <div class="app-cell">
-            <div class="small-card"><component :is="DateIcon" /></div>
+            <div class="small-card">
+              <img v-if="customIcons.date" :src="customIcons.date" class="custom-icon" />
+              <component v-else :is="DateIcon" />
+            </div>
             <span class="card-label">约会</span>
           </div>
         </div>
@@ -75,12 +84,15 @@
             <span class="card-label">游戏</span>
           </div>
           <div class="app-cell">
-            <div class="small-card"><component :is="ReadIcon" /></div>
+            <div class="small-card">
+              <img v-if="customIcons.read" :src="customIcons.read" class="custom-icon" />
+              <component v-else :is="ReadIcon" />
+            </div>
             <span class="card-label">阅读</span>
           </div>
           <div class="app-cell">
             <div class="small-card">
-              <img v-if="customIcons.ledger" :src="customIcons.ledger" class="custom-icon" />
+              <img v-if="customIcons.gacha" :src="customIcons.gacha" class="custom-icon" />
               <component v-else :is="GachaIcon" />
             </div>
             <span class="card-label">账本</span>
@@ -127,6 +139,7 @@ const now = ref(new Date());
 let timer;
 
 const wallpaper = ref('');
+const currentTheme = ref(localStorage.getItem('systemTheme') || 'theme-minimal');
 const heroAvatar = ref('');
 const widgetImage = ref('');
 const quoteText = ref('');
@@ -234,12 +247,12 @@ const WorldIcon = mkIcon(['M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.9
 
 <style scoped>
 .desktop {
-  --bg-color: #f5f4ed;       /* 整体背景：米白 */
-  --card-bg: #faf9f5;        /* 卡片底色：亮象牙白 */
-  --accent-color: #d97757;   /* 强调色：陶土红 */
-  --text-main: #5c504d;      /* 主文本：暖深灰 */
-  --text-sub: #9e938f;       /* 次文本：浅暖灰 */
-  --shadow-color: rgba(217, 119, 87, 0.06); /* 环境光微弱阴影 */
+  --bg-color: #f5f4ed;
+  --card-bg: #faf9f5;
+  --accent-color: #d97757;
+  --text-main: #5c504d;
+  --text-sub: #9e938f;
+  --shadow-color: rgba(217, 119, 87, 0.06);
 
   width: 100%;
   height: 100dvh;
@@ -250,6 +263,24 @@ const WorldIcon = mkIcon(['M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.9
   font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", sans-serif;
   overflow: hidden;
   position: relative;
+}
+
+.desktop.theme-nordic {
+  --bg-color: #f0f4f8;
+  --card-bg: #ffffff;
+  --accent-color: #6b8ea5;
+  --text-main: #2c3e50;
+  --text-sub: #7f8c8d;
+  --shadow-color: rgba(107, 142, 165, 0.08);
+}
+
+.desktop.theme-data {
+  --bg-color: #1e2024;
+  --card-bg: #2a2d34;
+  --accent-color: #40d1af;
+  --text-main: #e0e6ed;
+  --text-sub: #8892b0;
+  --shadow-color: rgba(0, 0, 0, 0.3);
 }
 
 /* 状态栏 */
@@ -461,6 +492,12 @@ const WorldIcon = mkIcon(['M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.9
   /* 增加一点毛玻璃效果 */
   background: rgba(250, 249, 245, 0.85);
   backdrop-filter: blur(16px);
+}
+.desktop.theme-nordic .dock {
+  background: rgba(255, 255, 255, 0.85);
+}
+.desktop.theme-data .dock {
+  background: rgba(58, 62, 72, 0.85);
 }
 .dock-item {
   display: flex;

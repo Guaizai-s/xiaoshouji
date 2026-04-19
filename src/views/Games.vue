@@ -1,5 +1,5 @@
 <template>
-  <div class="games-page">
+  <div class="games-page" :class="currentTheme">
     <div class="nav-bar">
       <div class="nav-back" @click="router.back()">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M15 18l-6-6 6-6"/></svg>
@@ -9,30 +9,26 @@
 
     <div class="game-list-container">
       <div class="game-list">
-        <div 
-          v-for="(game, index) in gameList" 
+        <div
+          v-for="(game, index) in gameList"
           :key="game.id"
-          class="game-card-wrapper"
-          :style="{ top: `${index * 40}px`, zIndex: index }"
+          class="game-card animate-bounce-in"
+          :style="{ '--delay': `${index * 0.12}s` }"
+          @click="openRoleSelect(game)"
         >
-          <div class="game-card animate-bounce-in" :style="{ '--delay': `${index * 0.12}s` }" @click="openRoleSelect(game)">
-            <div class="game-icon-box">
-              <component :is="game.iconComp" class="game-icon-svg" />
-            </div>
-            
-            <div class="game-info">
-              <div class="game-name">{{ game.name }}</div>
-              <div class="game-status">
-                <span class="tag">{{ game.desc }}</span>
-                <div class="go-btn">
-                  开始 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg>
-                </div>
+          <div class="game-icon-box">
+            <component :is="game.iconComp" class="game-icon-svg" />
+          </div>
+          <div class="game-info">
+            <div class="game-name">{{ game.name }}</div>
+            <div class="game-status">
+              <span class="tag">{{ game.desc }}</span>
+              <div class="go-btn">
+                开始 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M9 18l6-6-6-6"/></svg>
               </div>
             </div>
           </div>
         </div>
-        
-        <div class="footer-spacer"></div>
       </div>
     </div>
 
@@ -44,7 +40,6 @@
             <h3>选择对战角色</h3>
             <span class="sub">{{ selectedGame?.name }}</span>
           </div>
-          
           <div class="role-list">
             <div
               v-for="role in roles"
@@ -58,7 +53,6 @@
             </div>
             <div v-if="roles.length === 0" style="color:#9e938f;font-size:13px;padding:10px 0">暂无可用角色，请先在联系人中添加角色并配置 API</div>
           </div>
-          
           <button class="launch-btn" @click="startGame">确认并进入游戏</button>
         </div>
       </div>
@@ -72,8 +66,8 @@ import { useRouter } from 'vue-router';
 import { roleService, apiProfileService } from '../services/db.js';
 
 const router = useRouter();
+const currentTheme = ref(localStorage.getItem('systemTheme') || 'theme-minimal');
 
-// 图标工厂
 const mkIcon = (paths) => ({
   render() {
     return h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2.2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, paths.map(d => h('path', { d })));
@@ -94,7 +88,6 @@ const selectedRoleId = ref(null);
 
 onMounted(async () => {
   const allRoles = await roleService.getAll();
-  // 只保留有 apiProfileId 的角色（能调用 API 的）
   const withProfile = await Promise.all(allRoles.map(async r => {
     if (!r.apiProfileId) return null;
     const profile = await apiProfileService.getById(r.apiProfileId);
@@ -127,13 +120,29 @@ const startGame = () => {
   --accent: #d97757;
   --text: #5c504d;
   --sub: #9e938f;
-  
+
   width: 100%;
   height: 100dvh;
   background: var(--bg);
   color: var(--text);
   display: flex;
   flex-direction: column;
+}
+
+.games-page.theme-nordic {
+  --bg: #f0f4f8;
+  --card: #ffffff;
+  --accent: #6b8ea5;
+  --text: #2c3e50;
+  --sub: #7f8c8d;
+}
+
+.games-page.theme-data {
+  --bg: #1e2024;
+  --card: #2a2d34;
+  --accent: #40d1af;
+  --text: #e0e6ed;
+  --sub: #8892b0;
 }
 
 .nav-bar {
@@ -145,26 +154,19 @@ const startGame = () => {
   z-index: 100;
 }
 .nav-back { color: var(--accent); cursor: pointer; }
-.nav-title { font-weight: 600; font-size: 17px; }
 
-/* 核心滚动区域 */
 .game-list-container {
   flex: 1;
   overflow-y: auto;
-  -webkit-overflow-scrolling: touch; 
-  padding: 10px 20px 0; 
+  -webkit-overflow-scrolling: touch;
+  padding: 10px 20px 20px;
+}
 .game-list-container::-webkit-scrollbar { display: none; }
-}
-.game-list {
-  display: block; 
-  position: relative;
-}
 
-/* 堆叠外壳：利用 sticky */
-.game-card-wrapper {
-  position: sticky;
-  margin-bottom: 20px; /* 卡片之间的初始间距 */
-  margin-top: -15px;
+.game-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .game-card {
@@ -176,11 +178,12 @@ const startGame = () => {
   gap: 18px;
   box-shadow: 0 10px 30px rgba(217, 119, 87, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.6);
-  transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.2s;
+  cursor: pointer;
 }
 
 .game-card:active {
-  transform: scale(0.95);
+  transform: scale(0.96);
   background: #fff;
 }
 
@@ -190,6 +193,7 @@ const startGame = () => {
   border-radius: 18px;
   display: flex; align-items: center; justify-content: center;
   color: var(--accent);
+  flex-shrink: 0;
 }
 .game-icon-svg { width: 30px; height: 30px; }
 
@@ -215,11 +219,6 @@ const startGame = () => {
   display: flex; align-items: center; gap: 4px;
 }
 
-footer-spacer {
-  height: 80vh; 
-  pointer-events: none;
-}
-/* 进场弹跳动画 */
 .animate-bounce-in {
   animation: bounceIn 0.8s cubic-bezier(0.17, 0.89, 0.32, 1.28) both;
   animation-delay: var(--delay);
@@ -229,7 +228,6 @@ footer-spacer {
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* 角色抽屉样式 */
 .drawer-overlay {
   position: absolute;
   inset: 0;
@@ -265,14 +263,12 @@ footer-spacer {
   background: #e8e6dc; display: flex; align-items: center; justify-content: center;
   font-weight: 700; font-size: 20px;
 }
-.add-ai .avatar-circle { background: var(--accent); color: white; }
 
 .launch-btn {
   width: 100%; padding: 18px; border-radius: 20px; border: none;
   background: var(--accent); color: white; font-weight: 700; font-size: 17px;
 }
 
-/* 抽屉动效 */
 .drawer-enter-active, .drawer-leave-active { transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); }
 .drawer-enter-from, .drawer-leave-to { transform: translateY(100%); opacity: 0; }
 </style>

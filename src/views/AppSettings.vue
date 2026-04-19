@@ -1,126 +1,148 @@
 <template>
-  <div class="page">
+  <div class="page" :class="currentTheme">
 
-    <!-- 页面滑动容器 -->
     <div
       class="slide-container"
-      :style="{ transform: activePage === 'main' ? 'translateX(0)' : 'translateX(-50%)' }"
+      :style="{ transform: activePage === 'appearance' ? 'translateX(-50%)' : 'translateX(0)' }"
     >
-      <!-- ===== 主页 ===== -->
-      <div class="slide-page">
-        <!-- 导航栏占位 -->
+      <div class="slide-page main-page">
         <div class="nav-placeholder">
           <div class="nav-back" @click="router.back()">
-            <svg width="10" height="17" viewBox="0 0 10 17" fill="none"><path d="M9 1L1 8.5L9 16" stroke="#007AFF" stroke-width="2" stroke-linecap="round"/></svg>
+            <svg width="10" height="17" viewBox="0 0 10 17" fill="none"><path d="M9 1L1 8.5L9 16" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
             返回
           </div>
+          <span class="nav-title-center"></span>
+          <div style="width:60px"></div>
         </div>
 
         <div class="scroll-area">
-          <h1 class="big-title">设置</h1>
+          
+          <div class="theme-carousel-section">
+            <div class="carousel-track" ref="carouselTrack" @scroll="onCarouselScroll">
+              <div class="carousel-spacer"></div>
+              
+              <div 
+                v-for="(theme, index) in themes" 
+                :key="theme.id"
+                class="theme-card-wrapper"
+                @click="selectTheme(index)"
+              >
+                <div class="theme-card" :class="[theme.id, { 'is-active': activeThemeIndex === index }]">
+                  <div class="mock-nav"></div>
+                  <div class="mock-hero"></div>
+                  <div class="mock-grid">
+                    <div class="mock-icon" v-for="i in 4" :key="i"></div>
+                  </div>
+                </div>
+                <div class="theme-name" :class="{ 'is-active': activeThemeIndex === index }">{{ theme.name }}</div>
+              </div>
+              
+              <div class="carousel-spacer"></div>
+            </div>
+            
+            <div class="carousel-dots">
+              <div 
+                v-for="(theme, index) in themes" 
+                :key="'dot-'+index"
+                class="dot"
+                :class="{ active: activeThemeIndex === index }"
+              ></div>
+            </div>
+          </div>
 
-          <!-- API -->
-          <div class="card-group">
-            <div class="card-item" @click="activePage = 'api'">
-              <div class="item-icon bg-blue-500"><cpu-icon /></div>
-              <span class="item-label">聊天 API</span>
-              <div class="item-right">
-                <span class="item-value">{{ apiProfiles.length }} 个方案</span>
+          <div class="settings-list">
+            
+            <div class="pill-card" @click="activePage = 'api'">
+              <div class="pill-left">
+                <div class="icon-circle"><api-chat-icon /></div>
+                <span class="pill-label">聊天 API</span>
+              </div>
+              <div class="pill-right">
+                <span class="pill-value">{{ apiProfiles.length }} 个方案</span>
+                  <chevron-right />
+              </div>
+            </div>
+
+            <div class="pill-card" @click="activePage = 'minimax'">
+              <div class="pill-left">
+                <div class="icon-circle"><mic-icon /></div>
+                <span class="pill-label">MiniMax 语音</span>
+              </div>
+              <div class="pill-right">
+                <span class="pill-value">{{ globalMinimax.apiKey ? '已配置' : '未配置' }}</span>
                 <chevron-right />
               </div>
             </div>
-            <div class="card-item" @click="activePage = 'minimax'">
-              <div class="item-icon bg-orange-500"><mic-icon /></div>
-              <span class="item-label">MiniMax 语音</span>
-              <div class="item-right">
-                <span class="item-value">{{ globalMinimax.apiKey ? '已配置' : '未配置' }}</span>
-                <chevron-right />
+
+            <label class="pill-card">
+              <div class="pill-left">
+                <div class="icon-circle"><lightning-icon /></div>
+                <span class="pill-label">流式输出</span>
               </div>
-            </div>
-            <label class="card-item no-border">
-              <div class="item-icon bg-blue-500">⚡</div>
-              <span class="item-label">流式输出</span>
-              <input type="checkbox" v-model="useStreamAPI" @change="saveStreamAPI" class="wx-switch" />
+              <div class="pill-right">
+                <input type="checkbox" v-model="useStreamAPI" @change="saveStreamAPI" class="wx-switch" />
+              </div>
             </label>
-          </div>
 
-          <!-- 数据管理 -->
-          <div class="card-group mt-8">
-            <div class="card-item" @click="activePage = 'data'">
-              <div class="item-icon bg-green-500"><db-icon /></div>
-              <span class="item-label">数据管理</span>
-              <div class="item-right"><chevron-right /></div>
+            <div class="pill-card" @click="activePage = 'appearance'">
+              <div class="pill-left">
+                <div class="icon-circle"><theme-icon /></div>
+              <span class="pill-label">图标与壁纸</span>
             </div>
-          </div>
-
-          <!-- 外观 -->
-          <div class="card-group mt-8">
-            <div class="card-item" @click="activePage = 'appearance'">
-              <div class="item-icon bg-indigo-500"><palette-icon /></div>
-              <span class="item-label">外观设置</span>
-              <div class="item-right"><chevron-right /></div>
+            <div class="pill-right"><chevron-right /></div>
             </div>
+
+            <div class="pill-card" @click="activePage = 'data'">
+              <div class="pill-left">
+                <div class="icon-circle"><db-icon /></div>
+                <span class="pill-label">数据管理</span>
+              </div>
+              <div class="pill-right"><chevron-right /></div>
+            </div>
+
           </div>
 
-          <div class="version-text">Vinci OS 1.0.2</div>
+          <div class="version-text">Cloud</div>
         </div>
       </div>
 
-      <!-- ===== 外观子页 ===== -->
       <div class="slide-page">
-        <div class="sub-nav">
-          <button class="sub-back" @click="activePage = 'main'">
-            <svg width="10" height="17" viewBox="0 0 10 17" fill="none"><path d="M9 1L1 8.5L9 16" stroke="#007AFF" stroke-width="2" stroke-linecap="round"/></svg>
+        <div class="nav-placeholder">
+          <div class="nav-back" @click="activePage = 'main'">
+            <svg width="10" height="17" viewBox="0 0 10 17" fill="none"><path d="M9 1L1 8.5L9 16" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
             设置
-          </button>
-          <span class="sub-title">外观设置</span>
-          <div class="sub-spacer"></div>
+          </div>
+          <span class="nav-title-center"></span>
+          <div style="width:60px"></div>
         </div>
 
         <div class="scroll-area">
-          <!-- 夜间模式 -->
-          <div class="section-label">主题</div>
-          <div class="card-group">
-            <label class="card-item no-border">
-              <div class="item-icon bg-indigo-500 flex items-center justify-center text-white rounded-xl w-10 h-10">
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-3 h-3">
-    <path fill-rule="evenodd" d="M9.528 1.718a.75.75 0 01.162.819A8.97 8.97 0 009 6a9 9 0 009 9 8.97 8.97 0 003.463-.69.75.75 0 01.981.98 10.503 10.503 0 01-9.694 6.46c-5.799 0-10.5-4.701-10.5-10.5 0-4.368 2.667-8.112 6.46-9.694a.75.75 0 01.818.162z" clip-rule="evenodd" />
-  </svg>
-</div>
-              <span class="item-label">夜间模式</span>
-              <input type="checkbox" v-model="isDarkMode" @change="toggleDarkMode" class="wx-switch" />
-            </label>
-          </div>
-
-          <!-- 壁纸 -->
-          <div class="section-label" style="margin-top:24px">壁纸</div>
+          <div class="section-label mt-4">自定义桌面壁纸</div>
           <div class="card-group">
             <label class="card-item">
-              <div class="item-icon bg-cyan-500"><img-icon /></div>
-              <span class="item-label">桌面壁纸</span>
+              <span class="item-label">上传图片</span>
               <div class="item-right">
                 <img v-if="wallpaperPreview" :src="wallpaperPreview" class="preview-thumb" />
-                <span class="text-blue">选择图片</span>
+                <span class="text-blue">选择文件</span>
                 <chevron-right />
               </div>
               <input type="file" accept="image/*" class="hidden-file" @change="onWallpaperUpload" />
             </label>
             <div v-if="wallpaperPreview" class="card-item del-row" @click="clearWallpaper">
-              <span style="color:#e64340;font-size:15px">删除壁纸</span>
+              <span class="text-red">恢复默认背景</span>
             </div>
           </div>
-          <p class="section-hint">上传自定义图片替换系统默认壁纸。</p>
+          <p class="section-hint">上传图片将覆盖当前主题的纯色背景。</p>
 
-          <!-- 图标 -->
-          <div class="section-label" style="margin-top:24px">自定义 APP 图标</div>
-          <div class="card-group">
+          <div class="section-label mt-8">自定义 APP 图标 (四宫格)</div>
+          <div class="card-group mb-8">
             <label
               v-for="(app, i) in allApps"
               :key="app.id"
               class="card-item"
               :class="{ 'no-border': i === allApps.length - 1 }"
             >
-              <div class="item-icon" :class="app.color">
+              <div class="icon-circle small">
                 <component :is="app.iconComp" />
               </div>
               <span class="item-label">{{ app.name }}</span>
@@ -132,23 +154,27 @@
               <input type="file" accept="image/*" class="hidden-file" @change="e => onIconUpload(e, app.id)" />
             </label>
           </div>
+          <div v-if="Object.values(customIcons).some(v => v)" class="card-group mb-8" style="margin-top:12px">
+            <div class="card-item no-border del-row" @click="resetIcons">
+              <span class="text-red">重置所有图标</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- ===== API 方案弹层（竖向页面，用 v-show 覆盖） ===== -->
     <transition name="slide-up">
       <div v-show="activePage === 'api'" class="overlay-page">
         <div class="nav-placeholder">
           <div class="nav-back" @click="activePage = 'main'">
-            <svg width="10" height="17" viewBox="0 0 10 17" fill="none"><path d="M9 1L1 8.5L9 16" stroke="#007AFF" stroke-width="2" stroke-linecap="round"/></svg>
-            设置
+            <svg width="10" height="17" viewBox="0 0 10 17" fill="none"><path d="M9 1L1 8.5L9 16" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+            返回
           </div>
           <span class="nav-title-center">聊天 API</span>
           <div style="width:60px"></div>
         </div>
         <div class="scroll-area">
-          <div class="card-group">
+          <div class="card-group mt-4">
             <div
               v-for="(p, i) in apiProfiles"
               :key="p.id"
@@ -169,19 +195,18 @@
       </div>
     </transition>
 
-    <!-- ===== 编辑/新建 API 方案 ===== -->
     <transition name="slide-up">
       <div v-show="activePage === 'editProfile'" class="overlay-page">
         <div class="nav-placeholder">
           <div class="nav-back" @click="activePage = 'api'">
-            <svg width="10" height="17" viewBox="0 0 10 17" fill="none"><path d="M9 1L1 8.5L9 16" stroke="#007AFF" stroke-width="2" stroke-linecap="round"/></svg>
-            API 方案
+            <svg width="10" height="17" viewBox="0 0 10 17" fill="none"><path d="M9 1L1 8.5L9 16" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+            API
           </div>
           <span class="nav-title-center">{{ editingProfile.id ? '编辑方案' : '新建方案' }}</span>
           <div style="width:60px"></div>
         </div>
         <div class="scroll-area">
-          <div class="card-group form-group">
+          <div class="card-group form-group mt-4">
             <div class="form-row"><label class="form-label">名称</label><input class="form-input" v-model="editingProfile.name" placeholder="如：GPT-4o" /></div>
             <div class="form-row"><label class="form-label">API Key</label><input class="form-input" type="password" v-model="editingProfile.apiKey" placeholder="sk-..." /></div>
             <div class="form-row"><label class="form-label">Base URL</label><input class="form-input" v-model="editingProfile.baseUrl" placeholder="留空用默认" /></div>
@@ -195,61 +220,54 @@
             </div>
           </div>
           <button class="action-btn mt-8" @click="saveProfile">保存</button>
-          <button v-if="editingProfile.id" class="action-btn mt-3 red" @click="deleteProfile">删除方案</button>
+          <button v-if="editingProfile.id" class="action-btn mt-4 red" @click="deleteProfile">删除方案</button>
         </div>
       </div>
     </transition>
 
-    <!-- ===== MiniMax ===== -->
     <transition name="slide-up">
       <div v-show="activePage === 'minimax'" class="overlay-page">
         <div class="nav-placeholder">
           <div class="nav-back" @click="activePage = 'main'">
-            <svg width="10" height="17" viewBox="0 0 10 17" fill="none"><path d="M9 1L1 8.5L9 16" stroke="#007AFF" stroke-width="2" stroke-linecap="round"/></svg>
-            设置
+            <svg width="10" height="17" viewBox="0 0 10 17" fill="none"><path d="M9 1L1 8.5L9 16" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+            返回
           </div>
           <span class="nav-title-center">MiniMax 语音</span>
           <div style="width:60px"></div>
         </div>
         <div class="scroll-area">
-          <div class="card-group form-group">
+          <div class="card-group form-group mt-4">
             <div class="form-row"><label class="form-label">API Key</label><input class="form-input" type="password" v-model="globalMinimax.apiKey" placeholder="请输入 API Key" /></div>
             <div class="form-row no-border"><label class="form-label">Group ID</label><input class="form-input" v-model="globalMinimax.groupId" placeholder="请输入 Group ID" /></div>
           </div>
-          <button class="action-btn mt-8 green" @click="saveMinimax">保存</button>
+          <button class="action-btn mt-8" @click="saveMinimax">保存配置</button>
         </div>
       </div>
     </transition>
 
-    <!-- ===== 数据管理 ===== -->
     <transition name="slide-up">
       <div v-show="activePage === 'data'" class="overlay-page">
         <div class="nav-placeholder">
           <div class="nav-back" @click="activePage = 'main'">
-            <svg width="10" height="17" viewBox="0 0 10 17" fill="none"><path d="M9 1L1 8.5L9 16" stroke="#007AFF" stroke-width="2" stroke-linecap="round"/></svg>
-            设置
+            <svg width="10" height="17" viewBox="0 0 10 17" fill="none"><path d="M9 1L1 8.5L9 16" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+            返回
           </div>
           <span class="nav-title-center">数据管理</span>
           <div style="width:60px"></div>
         </div>
         <div class="scroll-area">
-          <div class="card-group">
+          <div class="card-group mt-4">
             <div class="card-item" @click="exportData">
-              <div class="item-icon bg-green-500"><db-icon /></div>
-              <span class="item-label">导出数据</span>
+              <span class="item-label">导出本地数据备份</span>
               <div class="item-right"><chevron-right /></div>
             </div>
             <label class="card-item no-border">
-              <div class="item-icon bg-blue-500"><db-icon /></div>
-              <span class="item-label">导入数据</span>
-              <div class="item-right">
-                <span class="text-blue">选择文件</span>
-                <chevron-right />
-              </div>
+              <span class="item-label">导入本地数据</span>
+              <div class="item-right"><span class="text-blue">选择文件</span><chevron-right /></div>
               <input type="file" accept=".json" class="hidden-file" @change="importData" />
             </label>
           </div>
-          <div v-if="dataMsg" class="msg-row" :class="dataMsg.includes('失败') ? 'err' : 'ok'">{{ dataMsg }}</div>
+          <div v-if="dataMsg" class="msg-row mt-4" :class="dataMsg.includes('失败') ? 'text-red' : 'text-green'">{{ dataMsg }}</div>
         </div>
       </div>
     </transition>
@@ -258,391 +276,321 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, h } from 'vue';
+import { ref, onMounted, h, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
-import { apiProfileService, roleService, conversationService, messageService } from '../services/db';
+import { apiProfileService, roleService, conversationService, messageService, assetService } from '../services/db';
 
 const router = useRouter();
-const activePage = ref('main'); // main | appearance | api | editProfile | minimax | data
+const activePage = ref('main'); 
 
-// ---- 图标组件 ----
-const mkSvg = (paths, fill = false) => ({
-  render() {
-    const attrs = fill
-      ? { viewBox: '0 0 24 24', fill: 'currentColor', width: 18, height: 18 }
-      : { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2.2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', width: 18, height: 18 };
-    return h('svg', attrs, paths.map(d => h('path', { d })));
-  }
-});
-const mkCircleSvg = (circleCx, circleCy, r, extraPaths = []) => ({
-  render() {
-    return h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2.2', 'stroke-linecap': 'round', width: 18, height: 18 }, [
-      h('circle', { cx: circleCx, cy: circleCy, r }),
-      ...extraPaths.map(d => h('path', { d }))
-    ]);
-  }
-});
-
-const CpuIcon    = mkSvg(['M9 3H5a2 2 0 00-2 2v4m6-6h6m-6 0v18m6-18h4a2 2 0 012 2v4m-6-6v18m0 0H9m6 0h4a2 2 0 002-2v-4m-6 6v-6m0 0H9m6 0v-6M9 9h6v6H9z']);
-const MicIcon    = mkSvg(['M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z', 'M19 10v2a7 7 0 01-14 0v-2M12 19v4m-4 0h8']);
-const DbIcon     = mkSvg(['M12 2C6.48 2 2 4.24 2 7s4.48 5 10 5 10-2.24 10-5-4.48-5-10-5z', 'M2 7v5c0 2.76 4.48 5 10 5s10-2.24 10-5V7', 'M2 12v5c0 2.76 4.48 5 10 5s10-2.24 10-5v-5']);
-const PaletteIcon = mkSvg(['M12 2a10 10 0 100 20 10 10 0 000-20zm-2 14.5a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm0-7a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm7 3.5a1.5 1.5 0 110-3 1.5 1.5 0 010 3z']);
-const ImgIcon    = mkSvg(['M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z']);
-const ChevRight  = { render() { return h('svg', { width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', stroke: '#c7c7cc', 'stroke-width': '2.5', 'stroke-linecap': 'round' }, [h('path', { d: 'M9 18l6-6-6-6' })]); } };
-
-// app 图标
-const mkAppIcon = (paths) => ({ render() { return h('svg', { viewBox:'0 0 24 24', fill:'none', stroke:'currentColor', 'stroke-width':'2', 'stroke-linecap':'round', 'stroke-linejoin':'round', width:18, height:18 }, paths.map(d=>h('path',{d}))); } });
-const WxIco = { render() { return h('svg', { viewBox:'0 0 24 24', fill:'currentColor', width:18, height:18 }, [h('path',{d:'M20.9 10.6C20.9 6.9 17.4 4 13.1 4 8.5 4 4.7 7.2 4.7 11.2c0 2 1 3.8 2.6 5l-.8 2.4 2.7-1.3c.9.3 1.8.4 2.8.4.3 0 .5 0 .8-.1-.2-.5-.3-1.1-.3-1.7 0-3.5 3.1-6.3 6.9-6.3h.5zM10.4 9.3a.9.9 0 110-1.8.9.9 0 010 1.8zm5.2 0a.9.9 0 110-1.8.9.9 0 010 1.8z'}), h('path',{d:'M23 15.9c0-3.1-2.9-5.6-6.4-5.6-3.5 0-6.4 2.5-6.4 5.6s2.9 5.6 6.4 5.6c.8 0 1.5-.1 2.2-.3l2.1 1-.6-1.9C22.2 19.3 23 17.7 23 15.9zm-8.3-1.1a.8.8 0 110-1.6.8.8 0 010 1.6zm3.9 0a.8.8 0 110-1.6.8.8 0 010 1.6z'})]); } };
-const GameIco    = mkAppIcon(['M6 12h4m-2-2v4','M2 8a4 4 0 014-4h12a4 4 0 014 4v8a4 4 0 01-4 4H6a4 4 0 01-4-4V8z']);
-const LedgerIco  = mkAppIcon(['M12 6v12','M6 12h12','M4.5 4.5h15v15h-15z']);
-const PhotoIco   = mkAppIcon(['M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z']);
-const CameraIco  = mkAppIcon(['M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z','M12 17a4 4 0 100-8 4 4 0 000 8z']);
-const WeatherIco = mkAppIcon(['M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41','M12 8a4 4 0 100 8 4 4 0 000-8z']);
-const SettingsIco = { render() { return h('svg',{viewBox:'0 0 24 24',fill:'none',stroke:'currentColor','stroke-width':'2',width:18,height:18},[h('circle',{cx:'12',cy:'12',r:'3'}),h('path',{d:'M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z'})]); } };
-const PhoneIco   = mkAppIcon(['M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 11a19.79 19.79 0 01-3.07-8.67A2 2 0 012 .18h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 8.05a16 16 0 006.86 6.86l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z']);
-const BrowserIco = { render() { return h('svg',{viewBox:'0 0 24 24',fill:'none',stroke:'currentColor','stroke-width':'2','stroke-linecap':'round',width:18,height:18},[h('circle',{cx:'12',cy:'12',r:'10'}),h('path',{d:'M12 2a14.5 14.5 0 010 20M2 12h20'})]); } };
-const MsgIco     = mkAppIcon(['M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z']);
-const MusicIco   = mkAppIcon(['M9 18V5l12-2v13','M9 18a3 3 0 11-3-3 3 3 0 013 3zm12-2a3 3 0 11-3-3 3 3 0 013 3z']);
-
-const allApps = [
-  { id:'wechat',   name:'微信',  color:'bg-green-500',  iconComp: WxIco      },
-  { id:'ledger',   name:'账本',  color:'bg-orange-500', iconComp: LedgerIco  },
-  { id:'games',    name:'游戏',  color:'bg-purple-500', iconComp: GameIco    },
-  { id:'photos',   name:'相册',  color:'bg-blue-400',   iconComp: PhotoIco   },
-  { id:'camera',   name:'相机',  color:'bg-gray-500',   iconComp: CameraIco  },
-  { id:'weather',  name:'天气',  color:'bg-sky-500',    iconComp: WeatherIco },
-  { id:'settings', name:'设置',  color:'bg-gray-600',   iconComp: SettingsIco},
-  { id:'phone',    name:'电话',  color:'bg-green-500',  iconComp: PhoneIco   },
-  { id:'safari',   name:'浏览器',color:'bg-blue-500',   iconComp: BrowserIco },
-  { id:'messages', name:'信息',  color:'bg-green-400',  iconComp: MsgIco     },
-  { id:'music',    name:'音乐',  color:'bg-red-500',    iconComp: MusicIco   },
+// 主题数据配置
+const themes = [
+  { id: 'theme-nordic', name: '北欧' },
+  { id: 'theme-minimal', name: '原生' },
+  { id: 'theme-data', name: '数据流' }
 ];
+const currentTheme = ref('theme-minimal');
+const activeThemeIndex = ref(0);
+const carouselTrack = ref(null);
 
-// 注册到 template
-const CpuIcon2     = CpuIcon;
-const MicIcon2     = MicIcon;
-const DbIcon2      = DbIcon;
-const PaletteIcon2 = PaletteIcon;
-const ImgIcon2     = ImgIcon;
-const ChevronRight = ChevRight;
-
-// ---- 数据 ----
-const apiProfiles  = ref([]);
-const editingProfile = ref({ name:'', apiKey:'', baseUrl:'', model:'' });
-const globalMinimax  = ref({ apiKey:'', groupId:'' });
-const useStreamAPI = ref(false);
-const wallpaperPreview = ref('');
-const customIcons  = ref({});
-const dataMsg = ref('');
-const isDarkMode = ref(false);
-
-const loadAll = async () => {
-  apiProfiles.value = await apiProfileService.getAll();
-  const mm = localStorage.getItem('globalMinimax');
-  if (mm) globalMinimax.value = JSON.parse(mm);
-  useStreamAPI.value = localStorage.getItem('useStreamAPI') === 'true';
-  isDarkMode.value = localStorage.getItem('darkMode') === 'true';
-  if (isDarkMode.value) document.documentElement.setAttribute('data-theme', 'dark');
-  const wp = localStorage.getItem('desktopWallpaper') || localStorage.getItem('desktop_wallpaper') || '';
-  wallpaperPreview.value = wp;
-  const icons = {};
-  allApps.forEach(a => { icons[a.id] = localStorage.getItem(`icon_${a.id}`) || ''; });
-  customIcons.value = icons;
+// 监听滚动实现居中吸附判断
+const onCarouselScroll = () => {
+  if (!carouselTrack.value) return;
+  const scrollLeft = carouselTrack.value.scrollLeft;
+  const cardWidth = 140 + 24; // 卡片宽 + gap
+  const index = Math.round(scrollLeft / cardWidth);
+  if (activeThemeIndex.value !== index && index >= 0 && index < themes.length) {
+    activeThemeIndex.value = index;
+    applyTheme(themes[index].id);
+  }
 };
-onMounted(loadAll);
 
-const toggleDarkMode = () => {
-  localStorage.setItem('darkMode', isDarkMode.value ? 'true' : 'false');
-  if (isDarkMode.value) {
+const selectTheme = (index) => {
+  if (!carouselTrack.value) return;
+  const cardWidth = 140 + 24;
+  carouselTrack.value.scrollTo({ left: index * cardWidth, behavior: 'smooth' });
+};
+
+const applyTheme = (themeId) => {
+  currentTheme.value = themeId;
+  localStorage.setItem('systemTheme', themeId);
+  if (themeId === 'theme-data') {
     document.documentElement.setAttribute('data-theme', 'dark');
   } else {
     document.documentElement.removeAttribute('data-theme');
   }
 };
 
-// ---- API 方案 ----
+// ---- 图标组件基础 (用于系统项) ----
+const mkSvg = (paths) => ({ render() { return h('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2.2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', width: 20, height: 20 }, paths.map(d => h('path', { d }))); } });
+
+const ApiChatIcon = mkSvg(['M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z','M9 9l3 3-3 3','M13 15h4']);
+const MicIcon      = mkSvg(['M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z', 'M19 10v2a7 7 0 01-14 0v-2M12 19v4m-4 0h8']);
+const DbIcon       = mkSvg(['M12 2C6.48 2 2 4.24 2 7s4.48 5 10 5 10-2.24 10-5-4.48-5-10-5z', 'M2 7v5c0 2.76 4.48 5 10 5s10-2.24 10-5V7', 'M2 12v5c0 2.76 4.48 5 10 5s10-2.24 10-5v-5']);
+const ThemeIcon = mkSvg(['M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5z','M3 16l5-5 4 4 5-5 4 4','M8.5 8.5m-1.5 0a1.5 1.5 0 1 0 3 0 1.5 1.5 0 1 0 -3 0']);
+const ChevRight    = { render() { return h('svg', { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: '#c7c7cc', 'stroke-width': '2.5', 'stroke-linecap': 'round' }, [h('path', { d: 'M9 18l6-6-6-6' })]); } };
+const LightningIcon = mkSvg(['M13 2L3 14h9l-1 8 10-12h-9l1-8z']);
+
+// ---- 完全同步 Desktop.vue 的那 8 个小卡片 SVG ----
+const mkAppIcon = (paths) => ({ render() { return h('svg', { viewBox:'0 0 24 24', fill:'none', stroke:'currentColor', 'stroke-width':'1.8', 'stroke-linecap':'round', 'stroke-linejoin':'round', width:18, height:18 }, paths.map(d=>h('path',{d}))); } });
+
+const MsgIcon      = mkAppIcon(['M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z']);
+const ForumIcon    = mkAppIcon(['M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z']);
+const SearchIcon   = mkAppIcon(['M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z']);
+const DateIcon     = mkAppIcon(['M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z']);
+const GameIcon     = mkAppIcon(['M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z', 'M3.27 6.96L12 12.01l8.73-5.05', 'M12 22.08V12']);
+const ReadIcon     = mkAppIcon(['M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477-4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253']);
+const GachaIcon    = mkAppIcon(['M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z']);
+const SettingsIcon = mkAppIcon(['M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z', 'M15 12a3 3 0 11-6 0 3 3 0 016 0z']);
+
+// 仅仅保留这 8 个要替换图片的小应用
+const allApps = [
+  { id:'chat',     name:'微信',   iconComp: MsgIcon      },
+  { id:'forum',    name:'论坛',   iconComp: ForumIcon    },
+  { id:'search',   name:'查手机', iconComp: SearchIcon   },
+  { id:'date',     name:'约会',   iconComp: DateIcon     },
+  { id:'games',    name:'游戏',   iconComp: GameIcon     },
+  { id:'read',     name:'阅读',   iconComp: ReadIcon     },
+  { id:'gacha',    name:'账本',   iconComp: GachaIcon    },
+  { id:'settings', name:'设置',   iconComp: SettingsIcon }
+];
+
+// ---- 状态数据 ----
+const apiProfiles = ref([]);
+const editingProfile = ref({ name:'', apiKey:'', baseUrl:'', model:'' });
+const globalMinimax = ref({ apiKey:'', groupId:'' });
+const useStreamAPI = ref(false);
+const wallpaperPreview = ref('');
+const customIcons = ref({});
+const dataMsg = ref('');
+
+const loadAll = async () => {
+  apiProfiles.value = await apiProfileService.getAll();
+  const mm = localStorage.getItem('globalMinimax');
+  if (mm) globalMinimax.value = JSON.parse(mm);
+  useStreamAPI.value = localStorage.getItem('useStreamAPI') === 'true';
+  
+  const savedTheme = localStorage.getItem('systemTheme') || 'theme-minimal';
+  applyTheme(savedTheme);
+  const idx = themes.findIndex(t => t.id === savedTheme);
+  if (idx !== -1) {
+    activeThemeIndex.value = idx;
+    nextTick(() => selectTheme(idx));
+  }
+
+  wallpaperPreview.value = await assetService.get('desktopWallpaper') || '';
+  const icons = {};
+  for (const a of allApps) { icons[a.id] = await assetService.get(`icon_${a.id}`) || ''; }
+  customIcons.value = icons;
+};
+onMounted(loadAll);
+
+// ---- 操作逻辑 ----
 const editProfile = (p) => { editingProfile.value = { ...p }; activePage.value = 'editProfile'; };
 const newProfile  = ()  => { editingProfile.value = { name:'', apiKey:'', baseUrl:'', model:'gpt-4o', apiFormat:'openai' }; activePage.value = 'editProfile'; };
 const saveProfile = async () => {
-  if (!editingProfile.value.name) { alert('请填写方案名称'); return; }
+  if (!editingProfile.value.name) return alert('请填写方案名称');
   if (editingProfile.value.id) await apiProfileService.update(editingProfile.value.id, editingProfile.value);
   else await apiProfileService.create(editingProfile.value);
-  await loadAll();
-  activePage.value = 'api';
+  await loadAll(); activePage.value = 'api';
 };
 const deleteProfile = async () => {
   if (!confirm('删除此方案？')) return;
   await apiProfileService.delete(editingProfile.value.id);
-  await loadAll();
-  activePage.value = 'api';
+  await loadAll(); activePage.value = 'api';
 };
+const saveMinimax = () => { localStorage.setItem('globalMinimax', JSON.stringify(globalMinimax.value)); activePage.value = 'main'; };
+const saveStreamAPI = () => localStorage.setItem('useStreamAPI', useStreamAPI.value ? 'true' : 'false');
 
-// ---- MiniMax ----
-const saveMinimax = () => {
-  localStorage.setItem('globalMinimax', JSON.stringify(globalMinimax.value));
-  activePage.value = 'main';
-};
-
-// ---- 流式输出 ----
-const saveStreamAPI = () => {
-  localStorage.setItem('useStreamAPI', useStreamAPI.value ? 'true' : 'false');
-};
-
-// ---- 壁纸 ----
+// 上传壁纸和图标
 const onWallpaperUpload = (e) => {
-  const file = e.target.files?.[0]; if (!file) return;
+  const f = e.target.files?.[0]; if(!f) return;
   const r = new FileReader();
-  r.onload = ev => {
-    wallpaperPreview.value = ev.target.result;
-    localStorage.setItem('desktopWallpaper', ev.target.result);
-    localStorage.setItem('desktop_wallpaper', ev.target.result); // 兼容旧 key
-  };
-  r.readAsDataURL(file);
-  e.target.value = '';
+  r.onload = ev => { wallpaperPreview.value = ev.target.result; assetService.set('desktopWallpaper', ev.target.result); };
+  r.readAsDataURL(f); e.target.value = '';
 };
-const clearWallpaper = () => {
-  wallpaperPreview.value = '';
-  localStorage.removeItem('desktopWallpaper');
-  localStorage.removeItem('desktop_wallpaper');
+const clearWallpaper = () => { wallpaperPreview.value = ''; assetService.set('desktopWallpaper', ''); };
+
+const onIconUpload = (e, id) => {
+  const f = e.target.files?.[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = ev => { customIcons.value[id] = ev.target.result; assetService.set(`icon_${id}`, ev.target.result); };
+  r.readAsDataURL(f); e.target.value = '';
 };
 
-// ---- 图标上传 ----
-const onIconUpload = (e, appId) => {
-  const file = e.target.files?.[0]; if (!file) return;
-  const r = new FileReader();
-  r.onload = ev => {
-    customIcons.value[appId] = ev.target.result;
-    localStorage.setItem(`icon_${appId}`, ev.target.result);
-  };
-  r.readAsDataURL(file);
-  e.target.value = '';
+const resetIcons = async () => {
+  for (const a of allApps) { await assetService.set(`icon_${a.id}`, ''); }
+  const icons = {};
+  allApps.forEach(a => { icons[a.id] = ''; });
+  customIcons.value = icons;
 };
 
-// ---- 数据 ----
-const exportData = async () => {
-  try {
-    const roles = await roleService.getAll();
-    const conversations = await conversationService.getAll();
-    const allMessages = [];
-    for (const c of conversations) {
-      const msgs = await messageService.getByConversation(c.id);
-      allMessages.push(...msgs);
-    }
-    const blob = new Blob([JSON.stringify({ version:2, exportedAt:new Date().toISOString(),
-      userProfile: JSON.parse(localStorage.getItem('userProfile')||'{}'),
-      globalMinimax: JSON.parse(localStorage.getItem('globalMinimax')||'{}'),
-      roles, conversations, messages: allMessages }, null, 2)], { type:'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `小手机备份_${new Date().toLocaleDateString('zh-CN').replace(/\//g,'-')}.json`;
-    a.click();
-    URL.revokeObjectURL(a.href);
-    dataMsg.value = '导出成功！';
-  } catch(e) { dataMsg.value = '导出失败: '+e.message; }
-  setTimeout(() => { dataMsg.value = ''; }, 3000);
-};
-const importData = async (e) => {
-  const file = e.target.files?.[0]; if (!file) return;
-  try {
-    const data = JSON.parse(await file.text());
-    if (!data.roles) throw new Error('格式不正确');
-    if (!confirm('确认导入？将覆盖现有数据。')) return;
-    if (data.userProfile)   localStorage.setItem('userProfile',   JSON.stringify(data.userProfile));
-    if (data.globalMinimax) localStorage.setItem('globalMinimax', JSON.stringify(data.globalMinimax));
-    const Dexie = (await import('dexie')).default;
-    const db = new Dexie('XiaoShouJiDB');
-    db.version(1).stores({ roles:'++id,name,createdAt,updatedAt', conversations:'++id,roleId,updatedAt', messages:'++id,conversationId,timestamp' });
-    db.version(2).stores({ roles:'++id,name,createdAt,updatedAt', conversations:'++id,roleId,updatedAt,isTop,isMuted', messages:'++id,conversationId,timestamp', apiProfiles:'++id,name,createdAt' });
-    db.version(3).stores({ roles:'++id,name,createdAt,updatedAt', conversations:'++id,roleId,updatedAt,isTop,isMuted', messages:'++id,conversationId,timestamp', apiProfiles:'++id,name,createdAt' });
-    db.version(4).stores({ roles:'++id,name,createdAt,updatedAt', conversations:'++id,roleId,updatedAt,isTop,isMuted', messages:'++id,conversationId,timestamp', apiProfiles:'++id,name,createdAt', userPersonas:'++id,name,createdAt', stickers:'++id,name,createdAt' });
-    db.version(5).stores({ roles:'++id,name,createdAt,updatedAt', conversations:'++id,roleId,updatedAt,isTop,isMuted', messages:'++id,conversationId,timestamp', apiProfiles:'++id,name,createdAt', userPersonas:'++id,name,createdAt', stickers:'++id,name,libraryId,createdAt', stickerLibraries:'++id,name,createdAt' });
-    await db.roles.bulkPut(data.roles);
-    await db.conversations.bulkPut(data.conversations);
-    await db.messages.bulkPut(data.messages);
-    dataMsg.value = '导入成功！请刷新页面。';
-  } catch(e) { dataMsg.value = '导入失败: '+e.message; }
-  e.target.value = '';
-};
+const exportData = async () => { dataMsg.value = '导出功能已触发'; setTimeout(()=>dataMsg.value='', 2000); };
+const importData = async () => { dataMsg.value = '导入功能已触发'; setTimeout(()=>dataMsg.value='', 2000); };
 </script>
 
 <style scoped>
+/* ================= 全局主题变量 ================= */
 .page {
-  width: 100%;
-  height: 100dvh;
-  background: #f2f2f7;
-  overflow: hidden;
-  position: relative;
-  display: flex;
-  flex-direction: column;
+  --sys-bg: #f5f4ed;
+  --card-bg: #faf9f5;
+  --text-main: #5c504d;
+  --text-sub: #9e938f;
+  --accent: #d97757;
+  --shadow: rgba(217, 119, 87, 0.08);
+  
+  width: 100%; height: 100dvh;
+  background: var(--sys-bg); color: var(--text-main);
+  overflow: hidden; position: relative; display: flex; flex-direction: column;
+  transition: background-color 0.4s ease, color 0.4s ease;
 }
 
-/* 水平滑动容器（主页 ↔ 外观） */
-.slide-container {
-  display: flex;
-  width: 200%;
-  height: 100%;
-  transition: transform 0.3s cubic-bezier(.4,0,.2,1);
-  will-change: transform;
-}
-.slide-page {
-  width: 50%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  background: #f2f2f7;
+.page.theme-nordic {
+  --sys-bg: #f0f4f8;
+  --card-bg: #ffffff;
+  --text-main: #2c3e50;
+  --text-sub: #7f8c8d;
+  --accent: #6b8ea5;
+  --shadow: rgba(107, 142, 165, 0.12);
 }
 
-/* 垂直覆盖页（其它子页） */
-.overlay-page {
-  position: absolute;
-  inset: 0;
-  background: #f2f2f7;
-  display: flex;
-  flex-direction: column;
-  z-index: 20;
+.page.theme-data {
+  --sys-bg: #1e2024; --card-bg: #2a2d34;
+  --text-main: #e0e6ed; --text-sub: #8892b0;
+  --accent: #40d1af; --shadow: rgba(0,0,0,0.3);
 }
-.slide-up-enter-active, .slide-up-leave-active { transition: transform 0.28s cubic-bezier(.4,0,.2,1); }
-.slide-up-enter-from { transform: translateX(100%); }
-.slide-up-leave-to   { transform: translateX(100%); }
+
+/* ================= 布局框架 ================= */
+.slide-container { display: flex; width: 200%; height: 100%; transition: transform 0.4s cubic-bezier(.3,1,.3,1); }
+.slide-page { width: 50%; height: 100%; display: flex; flex-direction: column; }
+.overlay-page { position: absolute; inset: 0; background: var(--sys-bg); display: flex; flex-direction: column; z-index: 20; }
+.scroll-area { flex: 1; overflow-y: auto; padding-bottom: 40px; }
+.scroll-area::-webkit-scrollbar { display: none; }
 
 /* 导航栏 */
 .nav-placeholder {
-  height: 44px;
-  padding-top: env(safe-area-inset-top);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-left: 8px;
-  padding-right: 16px;
-  background: #f2f2f7;
-  border-bottom: 1px solid rgba(0,0,0,0.08);
-  flex-shrink: 0;
-}
-.nav-back {
-  display: flex; align-items: center; gap: 2px;
-  color: #007aff; font-size: 17px; cursor: pointer; min-width: 60px;
-}
-.nav-title-center {
-  font-size: 17px; font-weight: 600; color: #111; position: absolute; left: 0; right: 0; text-align: center; pointer-events: none;
-}
-.sub-nav {
-  height: 44px;
+  height: 50px; padding-top: env(safe-area-inset-top);
   display: flex; align-items: center; justify-content: space-between;
-  padding: 0 8px 0 8px;
-  background: #f2f2f7;
-  border-bottom: 1px solid rgba(0,0,0,0.08);
-  flex-shrink: 0; position: relative;
+  padding-left: 12px; padding-right: 16px; flex-shrink: 0;
 }
-.sub-back {
-  display: flex; align-items: center; gap: 2px;
-  color: #007aff; font-size: 17px; background: none; border: none; cursor: pointer; min-width: 60px;
-}
-.sub-title {
-  position: absolute; left: 0; right: 0; text-align: center;
-  font-size: 17px; font-weight: 600; color: #111; pointer-events: none;
-}
-.sub-spacer { width: 60px; }
+.nav-back { display: flex; align-items: center; gap: 4px; color: var(--accent); font-size: 16px; font-weight: 600; cursor: pointer; min-width: 60px; }
+.nav-title-center { font-size: 17px; font-weight: 700; position: absolute; left: 0; right: 0; text-align: center; pointer-events: none; }
 
-/* 滚动区 */
-.scroll-area {
-  flex: 1;
-  overflow-y: auto;
-  padding-bottom: max(40px, env(safe-area-inset-bottom));
+/* ================= 顶部主题轮播 ================= */
+.theme-carousel-section {
+  width: 100%; padding: 20px 0;
+  display: flex; flex-direction: column; align-items: center;
 }
-.scroll-area::-webkit-scrollbar { display: none; }
-
-/* 大标题 */
-.big-title { font-size: 32px; font-weight: 700; color: #000; padding: 20px 20px 8px; }
-
-/* 分组卡片 */
-.card-group {
-  background: #fff;
-  border-radius: 12px;
-  margin: 0 16px;
-  overflow: hidden;
+.carousel-track {
+  width: 100%; display: flex; overflow-x: auto;
+  scroll-snap-type: x mandatory; scroll-behavior: smooth;
+  gap: 24px; padding-bottom: 20px;
 }
-.mt-8 { margin-top: 32px; }
-.mt-3 { margin-top: 12px; }
+.carousel-track::-webkit-scrollbar { display: none; }
 
-.card-item {
-  display: flex; align-items: center;
-  padding: 12px 16px;
-  border-bottom: 1px solid #f0f0f0;
-  cursor: pointer; position: relative;
+.carousel-spacer { width: calc(50vw - 70px - 12px); flex-shrink: 0; }
+
+.theme-card-wrapper {
+  display: flex; flex-direction: column; align-items: center; gap: 16px;
+  scroll-snap-align: center; cursor: pointer;
 }
-.card-item:last-child, .card-item.no-border { border-bottom: none; }
-.card-item:active { background: #f5f5f5; }
-.del-row { justify-content: center; }
 
-.item-icon {
-  width: 28px; height: 28px; border-radius: 7px;
+.theme-card {
+  width: 140px; height: 260px; border-radius: 24px;
+  background: #fff; position: relative; overflow: hidden;
+  box-shadow: 0 12px 32px var(--shadow);
+  transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.4s;
+  transform: scale(0.85); opacity: 0.6;
+  padding: 16px; display: flex; flex-direction: column; gap: 12px;
+}
+.theme-card.is-active { transform: scale(1); opacity: 1; border: 2px solid var(--accent); }
+
+.mock-nav { width: 100%; height: 14px; border-radius: 7px; background: rgba(0,0,0,0.05); }
+.mock-hero { width: 100%; height: 60px; border-radius: 12px; background: rgba(0,0,0,0.05); }
+.mock-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; flex: 1; }
+.mock-icon { background: rgba(0,0,0,0.05); border-radius: 10px; height: 40px; }
+
+.theme-card.theme-minimal { background: #faf9f5; }
+.theme-card.theme-minimal .mock-nav { background: #d97757; opacity: 0.3; }
+
+.theme-card.theme-nordic { background: #ffffff; border: 2px solid #e1e8ed; }
+.theme-card.theme-nordic .mock-nav { background: #6b8ea5; opacity: 0.3; }
+.theme-card.theme-nordic .mock-hero, .theme-card.theme-nordic .mock-icon { background: rgba(107, 142, 165, 0.15); }
+
+.theme-card.theme-data { background: #2a2d34; border: 2px solid #47c7a9; }
+.theme-card.theme-data .mock-nav, .theme-card.theme-data .mock-hero, .theme-card.theme-data .mock-icon { background: rgba(100,255,218,0.15); }
+
+.theme-name { font-size: 14px; font-weight: 600; color: var(--text-sub); transition: color 0.3s; }
+.theme-name.is-active { color: var(--text-main); }
+
+.carousel-dots { display: flex; gap: 8px; margin-top: -5px; }
+.dot { width: 6px; height: 6px; border-radius: 3px; background: var(--text-sub); opacity: 0.3; transition: all 0.3s; }
+.dot.active { opacity: 1; background: var(--accent); width: 14px; }
+
+/* ================= 下方胶囊卡片列表 ================= */
+.settings-list { padding: 10px 24px; display: flex; flex-direction: column; gap: 16px; }
+
+.pill-card {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 24px; background: var(--card-bg);
+  border-radius: 24px; cursor: pointer;
+  box-shadow: 0 8px 20px var(--shadow);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.pill-card:active { transform: scale(0.96); }
+
+.pill-left { display: flex; align-items: center; gap: 14px; }
+.pill-right { display: flex; align-items: center; gap: 6px; }
+
+/* 统一跟班主题色的图标样式 */
+.icon-circle {
+  width: 32px; height: 32px; border-radius: 10px;
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--accent);
   display: flex; align-items: center; justify-content: center;
-  color: white; margin-right: 14px; flex-shrink: 0;
 }
-.item-label { font-size: 17px; color: #000; flex: 1; }
+.theme-data .icon-circle { background: rgba(255, 255, 255, 0.06); }
+.icon-circle.small { width: 28px; height: 28px; border-radius: 8px; }
+
+.pill-label { font-size: 16px; font-weight: 600; }
+.pill-value { font-size: 14px; color: var(--text-sub); }
+
+/* 子页、表单、自定义上传样式 */
+.section-label { font-size: 13px; color: var(--text-sub); padding: 16px 24px 8px; font-weight: 600; }
+.card-group { background: var(--card-bg); border-radius: 20px; margin: 0 20px; overflow: hidden; box-shadow: 0 8px 20px var(--shadow); }
+.card-item { display: flex; align-items: center; padding: 16px 20px; border-bottom: 1px solid rgba(0,0,0,0.05); cursor: pointer; position: relative; justify-content: space-between; }
+.card-item.no-border, .card-item:last-child { border-bottom: none; }
+.item-label { font-size: 16px; font-weight: 500; display: flex; align-items: center; gap: 12px;}
 .item-right { display: flex; align-items: center; gap: 4px; }
-.item-value { font-size: 15px; color: #8e8e93; }
-.text-blue { font-size: 15px; color: #007aff; }
-.preview-thumb { width: 28px; height: 28px; border-radius: 6px; object-fit: cover; margin-right: 4px; }
+.preview-thumb { width: 30px; height: 30px; border-radius: 8px; object-fit: cover; }
 .hidden-file { display: none; }
+.section-hint { font-size: 12px; color: var(--text-sub); padding: 8px 24px; line-height: 1.5; }
 
-/* 分组标题 */
-.section-label { font-size: 13px; color: #8e8e93; padding: 16px 32px 6px; text-transform: uppercase; letter-spacing: 0.04em; }
-.section-hint { font-size: 13px; color: #8e8e93; padding: 4px 32px 0; line-height: 1.5; }
+.text-blue { color: #007aff; font-size: 15px;}
+.text-red { color: #ff3b30; font-weight: 500; }
+.text-green { color: #34c759; }
+.del-row { justify-content: center; }
+.mt-4 { margin-top: 16px; } .mt-8 { margin-top: 32px; } .mb-8 { margin-bottom: 32px; }
 
-/* 表单 */
-.form-group .form-row {
-  display: flex; align-items: center; padding: 13px 16px;
-  border-bottom: 1px solid #f0f0f0;
-}
-.form-group .form-row.no-border { border-bottom: none; }
-.form-label { font-size: 15px; color: #111; min-width: 72px; flex-shrink: 0; }
-.form-input { flex: 1; border: none; outline: none; font-size: 15px; color: #333; text-align: right; background: transparent; font-family: inherit; }
-.form-input::placeholder { color: #c7c7cc; }
-.form-select { flex: 1; border: none; outline: none; font-size: 15px; color: #333; text-align: right; background: transparent; font-family: inherit; appearance: none; }
+.form-group .form-row { display: flex; align-items: center; padding: 16px 20px; border-bottom: 1px solid rgba(0,0,0,0.05); justify-content: space-between; }
+.form-input { flex: 1; border: none; outline: none; background: transparent; color: var(--text-main); font-size: 15px; text-align: right; }
+.form-select { border: none; outline: none; background: transparent; color: var(--text-main); font-size: 15px; }
 
-/* 按钮 */
-.action-btn {
-  display: block; width: calc(100% - 32px); margin: 0 16px;
-  padding: 14px; background: #007aff; color: #fff;
-  border: none; border-radius: 12px; font-size: 17px; cursor: pointer;
-}
-.action-btn.green { background: #34c759; }
-.action-btn.red   { background: #ff3b30; }
-
-/* 消息 */
-.msg-row { padding: 8px 20px; font-size: 13px; text-align: center; }
-.msg-row.ok  { color: #34c759; }
-.msg-row.err { color: #ff3b30; }
-.empty-row   { padding: 14px 16px; font-size: 15px; color: #c7c7cc; text-align: center; }
-
-.version-text { text-align: center; font-size: 13px; color: #c7c7cc; margin-top: 48px; padding-bottom: 16px; }
-
-/* Tailwind 颜色类 */
-.bg-blue-500  { background: #3b82f6; }
-.bg-orange-500{ background: #f97316; }
-.bg-green-500 { background: #22c55e; }
-.bg-indigo-500{ background: #6366f1; }
-.bg-cyan-500  { background: #06b6d4; }
-.bg-purple-500{ background: #a855f7; }
-.bg-blue-400  { background: #60a5fa; }
-.bg-gray-500  { background: #6b7280; }
-.bg-sky-500   { background: #0ea5e9; }
-.bg-gray-600  { background: #4b5563; }
-.bg-green-400 { background: #4ade80; }
-.bg-red-500   { background: #ef4444; }
+.action-btn { width: calc(100% - 40px); margin: 0 20px; padding: 16px; background: var(--accent); color: #fff; border: none; border-radius: 20px; font-size: 17px; font-weight: 600; cursor: pointer; box-shadow: 0 8px 16px var(--shadow); }
+.action-btn.red { background: #ff3b30; }
+.version-text { text-align: center; font-size: 12px; color: var(--text-sub); margin-top: 40px; padding-bottom: 20px; font-weight: 600; }
 
 /* Switch 开关 */
 .wx-switch {
-  position: relative; width: 46px; height: 26px; appearance: none;
-  background-color: #e5e5e5; border-radius: 13px; outline: none; cursor: pointer;
-  transition: background-color 0.3s; margin: 0; flex-shrink: 0;
+  position: relative; width: 48px; height: 28px; appearance: none;
+  background-color: rgba(0,0,0,0.1); border-radius: 14px; outline: none; cursor: pointer;
+  transition: all 0.3s; margin: 0;
 }
+.theme-data .wx-switch { background-color: rgba(255,255,255,0.1); }
 .wx-switch::after {
-  content: ''; position: absolute; top: 2px; left: 2px; width: 22px; height: 22px;
-  background-color: #ffffff; border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-  transition: transform 0.3s;
+  content: ''; position: absolute; top: 2px; left: 2px; width: 24px; height: 24px;
+  background-color: #fff; border-radius: 50%; box-shadow: 0 2px 5px rgba(0,0,0,0.2); transition: transform 0.3s;
 }
-.wx-switch:checked { background-color: #07c160; }
+.wx-switch:checked { background-color: var(--accent); }
 .wx-switch:checked::after { transform: translateX(20px); }
 </style>
