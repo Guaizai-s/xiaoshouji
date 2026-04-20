@@ -9,7 +9,6 @@
         <div class="nav-placeholder">
           <div class="nav-back" @click="router.back()">
             <svg width="10" height="17" viewBox="0 0 10 17" fill="none"><path d="M9 1L1 8.5L9 16" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
-            返回
           </div>
           <span class="nav-title-center"></span>
           <div style="width:60px"></div>
@@ -110,7 +109,6 @@
         <div class="nav-placeholder">
           <div class="nav-back" @click="activePage = 'main'">
             <svg width="10" height="17" viewBox="0 0 10 17" fill="none"><path d="M9 1L1 8.5L9 16" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
-            设置
           </div>
           <span class="nav-title-center"></span>
           <div style="width:60px"></div>
@@ -168,7 +166,6 @@
         <div class="nav-placeholder">
           <div class="nav-back" @click="activePage = 'main'">
             <svg width="10" height="17" viewBox="0 0 10 17" fill="none"><path d="M9 1L1 8.5L9 16" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
-            返回
           </div>
           <span class="nav-title-center">聊天 API</span>
           <div style="width:60px"></div>
@@ -200,7 +197,6 @@
         <div class="nav-placeholder">
           <div class="nav-back" @click="activePage = 'api'">
             <svg width="10" height="17" viewBox="0 0 10 17" fill="none"><path d="M9 1L1 8.5L9 16" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
-            API
           </div>
           <span class="nav-title-center">{{ editingProfile.id ? '编辑方案' : '新建方案' }}</span>
           <div style="width:60px"></div>
@@ -230,7 +226,6 @@
         <div class="nav-placeholder">
           <div class="nav-back" @click="activePage = 'main'">
             <svg width="10" height="17" viewBox="0 0 10 17" fill="none"><path d="M9 1L1 8.5L9 16" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
-            返回
           </div>
           <span class="nav-title-center">MiniMax 语音</span>
           <div style="width:60px"></div>
@@ -250,7 +245,6 @@
         <div class="nav-placeholder">
           <div class="nav-back" @click="activePage = 'main'">
             <svg width="10" height="17" viewBox="0 0 10 17" fill="none"><path d="M9 1L1 8.5L9 16" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
-            返回
           </div>
           <span class="nav-title-center">数据管理</span>
           <div style="width:60px"></div>

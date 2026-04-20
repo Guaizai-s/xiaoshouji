@@ -153,6 +153,23 @@ export const conversationService = {
   async delete(id) {
     await db.messages.where('conversationId').equals(id).delete();
     await db.conversations.delete(id);
+  },
+
+  // 获取或创建短信专用会话（source:'sms'）
+  async getOrCreateSms(roleId) {
+    let conv = await db.conversations.where('roleId').equals(roleId).filter(c => c.source === 'sms').first();
+    if (!conv) {
+      const id = await db.conversations.add({ roleId, source: 'sms', lastMessage: '', unread: 0, updatedAt: Date.now() });
+      conv = await db.conversations.get(id);
+    }
+    return conv;
+  },
+
+  // 获取所有短信会话（按更新时间排序，关联角色）
+  async getAllSms() {
+    const convs = await db.conversations.filter(c => c.source === 'sms').toArray();
+    convs.sort((a, b) => b.updatedAt - a.updatedAt);
+    return Promise.all(convs.map(async c => ({ ...c, role: await db.roles.get(c.roleId) })));
   }
 };
 

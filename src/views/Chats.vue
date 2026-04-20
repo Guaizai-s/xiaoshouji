@@ -63,7 +63,7 @@ onMounted(async () => {
 });
 
 const loadConversations = async () => {
-  conversations.value = await conversationService.getAll();
+  conversations.value = (await conversationService.getAll()).filter(c => !c.source);
 };
 
 const openChat = (conv) => {

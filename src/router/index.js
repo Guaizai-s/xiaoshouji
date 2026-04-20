@@ -80,6 +80,26 @@ const routes = [
     path: '/games/gomoku',
     name: 'Gomoku',
     component: () => import('../views/Gomoku.vue')
+  },
+  {
+    path: '/messages',
+    name: 'MessageHome',
+    component: () => import('../views/MessageHome.vue')
+  },
+  {
+    path: '/messages/:id',
+    name: 'MessageRoom',
+    component: () => import('../views/MessageRoom.vue')
+  },
+  {
+    path: '/messages/details/:id',
+    name: 'MessageDetails',
+    component: () => import('../views/MessageDetails.vue')
+  },
+  {
+    path: '/messages/profile',
+    name: 'MessageProfile',
+    component: () => import('../views/MessageProfile.vue')
   }
 ];
 

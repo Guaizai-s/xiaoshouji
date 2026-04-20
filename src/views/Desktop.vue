@@ -111,7 +111,7 @@
 
     <div class="dock-container animate-enter" style="--delay: 0.4s">
       <div class="dock">
-        <div class="dock-item" @click="go('/chats')">
+        <div class="dock-item" @click="go('/messages')">
           <component :is="WechatIcon" class="icon-svg" />
           <span>短信</span>
         </div>

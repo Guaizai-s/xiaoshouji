@@ -617,7 +617,7 @@ onMounted(async () => {
   border-top: 1px solid #f0f0f0;
 }
 .wx-slider {
-  -webkit-appearance: none; width: 100%; background: transparent; margin: 8px 0;
+  -webkit-appearance: none; appearance: none; width: 100%; background: transparent; margin: 8px 0;
 }
 .wx-slider::-webkit-slider-runnable-track {
   height: 4px; background: #e0e0e0; border-radius: 2px;
