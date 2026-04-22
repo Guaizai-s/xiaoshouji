@@ -149,6 +149,11 @@ export const conversationService = {
     await db.conversations.update(id, { unread: 0 });
   },
 
+  // 按 ID 获取会话
+  async getById(id) {
+    return await db.conversations.get(id);
+  },
+
   // 删除会话
   async delete(id) {
     await db.messages.where('conversationId').equals(id).delete();

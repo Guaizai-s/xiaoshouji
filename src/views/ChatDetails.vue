@@ -160,34 +160,34 @@
     <div v-show="currentView === 'minimax'" class="page-content">
       <div class="group-label">TTS 模型</div>
       <div class="panel panel-form">
-        <div class="form-row">
-          <label class="form-label">模型</label>
-          <select class="form-select" v-model="settings.minimaxModel">
-            <option v-for="model in ttsModels" :key="model.id" :value="model.id">
-              {{ model.name }}
-            </option>
-          </select>
+        <div class="form-row" style="position:relative">
+          <label class="form-label">模型 ID</label>
+          <input class="form-input" v-model="settings.minimaxModel" placeholder="如 speech-2.8-hd" />
+          <button class="dropdown-toggle" @click="showModelList = !showModelList">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" :style="{ transform: showModelList ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }">
+              <path d="M1 3.5L6 8.5L11 3.5" stroke="#c7c7cc" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+          </button>
         </div>
+        <transition name="dropdown">
+          <div v-if="showModelList" class="model-dropdown">
+            <div class="model-divider"></div>
+            <div v-for="m in ttsModeList" :key="m.id" class="list-item"
+                 @click="settings.minimaxModel = m.id; showModelList = false">
+              <span class="item-label">{{ m.name }}</span>
+              <svg v-if="settings.minimaxModel === m.id" width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 9l4.5 4.5L15 4.5" stroke="#07c160" stroke-width="2.5" stroke-linecap="round"/></svg>
+            </div>
+          </div>
+        </transition>
       </div>
-      <button v-if="!ttsModelsLoaded" class="action-btn" @click="loadTTSModels" :disabled="ttsModelsLoading" style="margin: 16px 16px 0;">
-        {{ ttsModelsLoading ? '加载中...' : '拉取官方模型列表' }}
-      </button>
 
-      <div class="group-label">角色专属音色配置</div>
+      <div class="group-label">Voice ID</div>
       <div class="panel panel-form">
         <div class="form-row">
           <label class="form-label">Voice ID</label>
-          <select class="form-select" v-model="settings.minimaxVoiceId">
-            <option value="">使用默认音色</option>
-            <option v-for="voice in voiceModels" :key="voice.voice_id" :value="voice.voice_id">
-              {{ voice.name }} ({{ voice.description }})
-            </option>
-          </select>
+          <input class="form-input" v-model="settings.minimaxVoiceId" placeholder="如 male-qn-qingse" />
         </div>
       </div>
-      <button v-if="!voiceModelsLoaded" class="action-btn" @click="loadVoiceModels" :disabled="voiceModelsLoading" style="margin: 16px 16px 0;">
-        {{ voiceModelsLoading ? '加载中...' : '拉取官方音色列表' }}
-      </button>
       <div class="group-label">语速调节</div>
       <div class="panel">
         <div class="list-item no-click">
@@ -195,7 +195,11 @@
         </div>
         <div class="slider-wrap">
           <input type="range" min="0.5" max="2.0" step="0.1" v-model.number="settings.minimaxSpeed" class="wx-slider" />
-          <div class="slider-labels"><span>0.5x 慢</span><span>1.0x 正常</span><span>2.0x 快</span></div>
+         <div class="slider-labels">
+  <span style="left:0%; transform:translateX(0);">0.5x</span>
+  <span style="left:33.3%;">1.0x</span>
+  <span style="left:100%; transform:translateX(-100%);">2.0x 快</span>
+</div>
         </div>
       </div>
       <div class="group-label">音调调节</div>
@@ -205,7 +209,11 @@
         </div>
         <div class="slider-wrap">
           <input type="range" min="-12" max="12" step="1" v-model.number="settings.minimaxPitch" class="wx-slider" />
-          <div class="slider-labels"><span>-12 低沉</span><span>0 原声</span><span>+12 高亢</span></div>
+          <div class="slider-labels">
+  <span style="left:0%; transform:translateX(0);">低沉</span>
+  <span style="left:50%;">原声</span>
+  <span style="left:100%; transform:translateX(-100%);">高亢</span>
+</div>
         </div>
       </div>
       <div class="hint-text">全局 MiniMax API Key 在「设置 → MiniMax 语音」中配置。</div>
@@ -317,7 +325,6 @@
 import { ref, computed, reactive, watch, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { roleService, conversationService, apiProfileService, personaService, stickerLibraryService } from '../services/db';
-import { getVoiceModels, getTTSModels } from '../services/minimax';
 
 const route = useRoute();
 const router = useRouter();
@@ -336,14 +343,18 @@ const saveMsg = ref('');
 const bgInput = ref(null);
 const avatarInput = ref(null);
 const roleEditData = ref({ name: '', avatar: '', systemPrompt: '' });
+const showModelList = ref(false);
 
-// 语音模型相关
-const voiceModels = ref([]);
-const voiceModelsLoaded = ref(false);
-const voiceModelsLoading = ref(false);
-const ttsModels = ref([]);
-const ttsModelsLoaded = ref(false);
-const ttsModelsLoading = ref(false);
+const ttsModeList = [
+  { id: 'speech-2.8-hd',    name: 'Speech-2.8 HD',    desc: '最新一代 · 最高质量' },
+  { id: 'speech-2.8-turbo', name: 'Speech-2.8 Turbo', desc: '最新一代 · 低延迟' },
+  { id: 'speech-2.6-hd',    name: 'Speech-2.6 HD',    desc: '旗舰 · 高质量' },
+  { id: 'speech-2.6-turbo', name: 'Speech-2.6 Turbo', desc: '旗舰 · 速度优先' },
+  { id: 'speech-02-hd',     name: 'Speech-02 HD',     desc: '稳定 · 高质量' },
+  { id: 'speech-02-turbo',  name: 'Speech-02 Turbo',  desc: '稳定 · 速度优先' },
+  { id: 'speech-01-hd',     name: 'Speech-01 HD',     desc: '旧版 · 高质量' },
+  { id: 'speech-01-turbo',  name: 'Speech-01 Turbo',  desc: '旧版 · 速度优先' },
+];
 
 const viewTitle = computed(() => {
   const map = { main: '聊天信息', api: 'API 方案', minimax: 'Minimax 音色', memory: '记忆设置', roleEdit: '编辑角色', persona: '用户人设', stickers: '表情包' };
@@ -381,7 +392,7 @@ const settings = reactive({
   triggerTimeoutValue: '5',
   minimaxVoiceId: '',
   minimaxModel: 'speech-01',
-  minimaxSpeed: 1.0,
+  minimaxSpeed: 1.2,
   minimaxPitch: 0,
   longTermMemory: '',
   coreMemory: '',
@@ -451,36 +462,6 @@ const selectLibrary = (libraryId) => {
   settings.linkedLibraryId = libraryId;
 };
 
-const loadVoiceModels = async () => {
-  if (voiceModelsLoading.value) return;
-  voiceModelsLoading.value = true;
-  try {
-    voiceModels.value = await getVoiceModels();
-    voiceModelsLoaded.value = true;
-    saveMsg.value = '音色列表加载成功';
-  } catch (error) {
-    alert('加载失败: ' + error.message);
-  } finally {
-    voiceModelsLoading.value = false;
-    setTimeout(() => { saveMsg.value = ''; }, 1500);
-  }
-};
-
-const loadTTSModels = async () => {
-  if (ttsModelsLoading.value) return;
-  ttsModelsLoading.value = true;
-  try {
-    ttsModels.value = await getTTSModels();
-    ttsModelsLoaded.value = true;
-    saveMsg.value = '模型列表加载成功';
-  } catch (error) {
-    alert('加载失败: ' + error.message);
-  } finally {
-    ttsModelsLoading.value = false;
-    setTimeout(() => { saveMsg.value = ''; }, 1500);
-  }
-};
-
 const saveSettings = async () => {
   if (!role.value) return;
   await roleService.update(role.value.id, {
@@ -512,12 +493,6 @@ onMounted(async () => {
   apiProfiles.value = await apiProfileService.getAll();
   personas.value = await personaService.getAll();
   libraries.value = await stickerLibraryService.getAll();
-
-  // 预加载默认 TTS 模型和音色列表
-  ttsModels.value = await getTTSModels();
-  ttsModelsLoaded.value = true;
-  voiceModels.value = await getVoiceModels();
-  voiceModelsLoaded.value = true;
 
   let rid = roleId;
   if (!rid && convId) {
@@ -626,7 +601,8 @@ onMounted(async () => {
   -webkit-appearance: none; width: 24px; height: 24px; border-radius: 50%;
   background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.25); margin-top: -10px; cursor: pointer;
 }
-.slider-labels { display: flex; justify-content: space-between; font-size: 11px; color: #c7c7cc; }
+.slider-labels { position: relative; height: 16px; font-size: 11px; color: #c7c7cc; }
+.slider-labels span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
 .hint-text { padding: 4px 16px 10px; font-size: 12px; color: #8e8e93; line-height: 1.5; }
 
 .wx-switch {
@@ -662,6 +638,21 @@ onMounted(async () => {
   color: #333; text-align: right; background: transparent; font-family: inherit;
 }
 .form-input::placeholder { color: #c7c7cc; }
+.dropdown-toggle {
+  background: none; border: none; padding: 4px 0 4px 8px; cursor: pointer; display: flex; align-items: center;
+}
+.model-divider { height: 1px; background: #f0f0f0; margin: 0 16px; }
+.model-dropdown { overflow: hidden; }
+.dropdown-enter-active { animation: dropdown-in 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94) both; }
+.dropdown-leave-active { animation: dropdown-out 0.18s cubic-bezier(0.55, 0, 1, 0.45) both; }
+@keyframes dropdown-in {
+  from { opacity: 0; transform: translateY(-6px); max-height: 0; }
+  to   { opacity: 1; transform: translateY(0);    max-height: 600px; }
+}
+@keyframes dropdown-out {
+  from { opacity: 1; transform: translateY(0);    max-height: 600px; }
+  to   { opacity: 0; transform: translateY(-6px); max-height: 0; }
+}
 .textarea-row { align-items: flex-start; padding: 12px 16px; }
 .form-textarea {
   width: 100%; border: none; outline: none; font-size: 14px;

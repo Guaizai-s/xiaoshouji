@@ -9,6 +9,20 @@
       </div>
 
       <div v-else class="wx-messages">
+        <div v-if="hasMore" class="load-more-wrapper">
+          <button
+            class="load-more-btn"
+            :class="{ 'is-loading': isLoadingMore }"
+            :disabled="isLoadingMore"
+            @click="handleLoadMore"
+          >
+            <svg class="loading-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <circle cx="12" cy="12" r="10" stroke-opacity="0.2" />
+              <path d="M12 2a10 10 0 0 1 10 10" />
+            </svg>
+            <span class="btn-text">{{ isLoadingMore ? '加载中...' : '查看更早的消息' }}</span>
+          </button>
+        </div>
         <message-bubble
           v-for="message in messages"
           :key="message.id"
@@ -30,7 +44,7 @@ import { useRoute, useRouter } from 'vue-router';
 import NavBar from '../components/NavBar.vue';
 import MessageBubble from '../components/MessageBubble.vue';
 import ChatInput from '../components/ChatInput.vue';
-import { conversationService, messageService, roleService, apiProfileService, personaService, stickerService } from '../services/db';
+import { conversationService, messageService, roleService, apiProfileService, personaService, stickerService, assetService } from '../services/db';
 import { callClaude } from '../services/claude';
 import { textToSpeech } from '../services/minimax';
 
@@ -47,7 +61,13 @@ const onHeart = () => {
 
 const conversation = ref(null);
 const role = ref(null);
-const messages = ref([]);
+const allMessages = ref([]);
+const displayOffset = ref(0);
+const PAGE_SIZE = 30;
+let messagesPaginated = false;
+
+const messages = computed(() => allMessages.value.slice(displayOffset.value));
+const hasMore = computed(() => displayOffset.value > 0);
 const isTyping = ref(false);
 const isLoading = ref(true);
 const messagesContainer = ref(null);
@@ -96,14 +116,19 @@ onMounted(async () => {
   scrollToBottom();
 });
 
-watch(messages, () => {
+const lastMessageId = computed(() => {
+  const msgs = messages.value;
+  return msgs.length > 0 ? msgs[msgs.length - 1].id : null;
+});
+
+watch(lastMessageId, () => {
   nextTick(() => {
     scrollToBottom();
   });
 });
 
 const loadConversation = async () => {
-  conversation.value = await conversationService.getOrCreate(conversationId);
+  conversation.value = await conversationService.getById(conversationId);
   role.value = await roleService.getById(conversation.value.roleId);
 
   console.log('1. 原始角色数据:', JSON.parse(JSON.stringify(role.value)));
@@ -130,7 +155,7 @@ const loadConversation = async () => {
     }
   } else {
     // 使用全局默认配置：选择第一个API方案
-    console.warn('⚠️ 角色未关联API方案，尝试使用默认方案');
+    console.warn('角色未关联API方案，尝试使用默认方案');
     const allProfiles = await apiProfileService.getAll();
     if (allProfiles.length > 0) {
       const defaultProfile = allProfiles[0];
@@ -161,8 +186,32 @@ const loadConversation = async () => {
 };
 
 const loadMessages = async () => {
-  messages.value = await messageService.getByConversation(conversationId);
+  allMessages.value = await messageService.getByConversation(conversationId);
+  if (!messagesPaginated) {
+    displayOffset.value = Math.max(0, allMessages.value.length - PAGE_SIZE);
+    messagesPaginated = true;
+  }
   isLoading.value = false;
+};
+
+const loadMore = async () => {
+  const container = messagesContainer.value;
+  const scrollHeightBefore = container.scrollHeight;
+  displayOffset.value = Math.max(0, displayOffset.value - PAGE_SIZE);
+  await nextTick();
+  container.scrollTop += container.scrollHeight - scrollHeightBefore;
+};
+
+const isLoadingMore = ref(false);
+
+const handleLoadMore = async () => {
+  if (isLoadingMore.value) return;
+  isLoadingMore.value = true;
+  try {
+    await loadMore();
+  } finally {
+    isLoadingMore.value = false;
+  }
 };
 
 const chatInputRef = ref(null);
@@ -198,13 +247,39 @@ const generateReply = async () => {
 
     const contextLength = role.value?.chatSettings?.contextLength || 15;
     const contextMessages = await messageService.getContext(conversationId, contextLength);
-    const apiMessages = contextMessages.map(msg => {
-      // 如果是语音消息，恢复语音标记格式
+
+    // 找到上下文中最后一条图片消息的索引（该条发真实图像，其余用占位符）
+    let lastImageIndex = -1;
+    for (let i = contextMessages.length - 1; i >= 0; i--) {
+      if (contextMessages[i].type === 'image') { lastImageIndex = i; break; }
+    }
+    const apiFormat = role.value?.apiFormat || 'openai';
+
+    const apiMessages = await Promise.all(contextMessages.map(async (msg, index) => {
+      if (msg.type === 'image') {
+        if (index === lastImageIndex) {
+          const content = msg.content || '';
+          const match = content.match(/^\[IMAGE:(.+)\]$/);
+          const dataUrl = match
+            ? await assetService.get(match[1])
+            : content.startsWith('data:') ? content : null;
+          if (dataUrl) {
+            const mimeType = dataUrl.split(';')[0].split(':')[1] || 'image/jpeg';
+            const base64 = dataUrl.split(',')[1];
+            if (apiFormat === 'anthropic') {
+              return { role: msg.role, content: [{ type: 'image', source: { type: 'base64', media_type: mimeType, data: base64 } }] };
+            } else {
+              return { role: msg.role, content: [{ type: 'image_url', image_url: { url: dataUrl } }] };
+            }
+          }
+        }
+        return { role: msg.role, content: '[图片]' };
+      }
       if (msg.audioUrl && msg.content) {
         return { role: msg.role, content: `[语音:${msg.content}]` };
       }
       return { role: msg.role, content: msg.content };
-    });
+    }));
 
     // 构建增强的系统提示词
     let enhancedPrompt = role.value.systemPrompt || '';
@@ -365,44 +440,54 @@ const generateReply = async () => {
   }
 };
 
-const sendImageMessage = async (file) => {
+const sendImageMessage = async (file, useOriginal) => {
   try {
-    // 压缩图片
-    const compressedBase64 = await compressImage(file);
-    const dataUrl = `data:${file.type};base64,${compressedBase64}`;
+    const dataUrl = useOriginal
+      ? await readFileAsDataUrl(file)
+      : await compressImage(file, 384, 0.8);
 
-    await messageService.create(conversationId, 'user', dataUrl, 'image');
+    const imageKey = `img_${Date.now()}`;
+    await assetService.set(imageKey, dataUrl);
+    await messageService.create(conversationId, 'user', `[IMAGE:${imageKey}]`, 'image');
     await loadMessages();
   } catch (error) {
     alert('图片发送失败: ' + error.message);
   }
 };
 
+const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = (e) => resolve(e.target.result);
+  reader.onerror = reject;
+  reader.readAsDataURL(file);
+});
+
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-// 压缩图片
-const compressImage = (file, maxWidth = 1200, quality = 0.6) => {
+// 压缩图片：双边限制 + 统一输出 JPEG（PNG 的 quality 参数无效，转 JPEG 才能真正压缩）
+const compressImage = (file, maxSize = 384, quality = 0.8) => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       const img = new Image();
       img.onload = () => {
-        const canvas = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
+        let { width, height } = img;
 
-        if (width > maxWidth) {
-          height = (height * maxWidth) / width;
-          width = maxWidth;
+        if (width > maxSize || height > maxSize) {
+          if (width >= height) {
+            height = Math.round((height * maxSize) / width);
+            width = maxSize;
+          } else {
+            width = Math.round((width * maxSize) / height);
+            height = maxSize;
+          }
         }
 
+        const canvas = document.createElement('canvas');
         canvas.width = width;
         canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-
-        const base64 = canvas.toDataURL(file.type, quality).split(',')[1];
-        resolve(base64);
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
       };
       img.onerror = reject;
       img.src = e.target.result;
@@ -412,3 +497,51 @@ const compressImage = (file, maxWidth = 1200, quality = 0.6) => {
   });
 };
 </script>
+
+<style scoped>
+.load-more-wrapper {
+  display: flex;
+  justify-content: center;
+  padding: 16px 0;
+}
+
+.load-more-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 18px;
+  background-color: #f2f2f7;
+  color: #8e8e93;
+  border: none;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.load-more-btn:active:not(:disabled) {
+  background-color: #e5e5ea;
+  transform: scale(0.96);
+}
+
+.load-more-btn:disabled {
+  cursor: not-allowed;
+}
+
+.loading-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.load-more-btn.is-loading .loading-icon {
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+</style>

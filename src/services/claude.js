@@ -173,8 +173,9 @@ async function callAnthropicAPI(baseUrl, apiKey, model, systemPrompt, messages, 
     throw new Error(error.error?.message || `API 请求失败: ${response.status}`);
   }
 
-  // 流式响应
-  if (useStream) {
+  // 流式响应（useStream=true，或服务端强制返回了 SSE 格式）
+  const isSSE = (response.headers.get('Content-Type') || '').includes('text/event-stream');
+  if (useStream || isSSE) {
     return await handleAnthropicStream(response, onChunk);
   }
 
@@ -218,8 +219,9 @@ async function callOpenAIAPI(baseUrl, apiKey, model, systemPrompt, messages, onC
     throw new Error(error.error?.message || `API 请求失败: ${response.status}`);
   }
 
-  // 流式响应
-  if (useStream) {
+  // 流式响应（useStream=true，或服务端强制返回了 SSE 格式）
+  const isSSE = (response.headers.get('Content-Type') || '').includes('text/event-stream');
+  if (useStream || isSSE) {
     return await handleOpenAIStream(response, onChunk);
   }
 

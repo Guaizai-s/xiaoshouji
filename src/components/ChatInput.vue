@@ -27,7 +27,7 @@
       </button>
       <button
         class="wx-input-send"
-        :disabled="!inputText.trim() && !selectedFile"
+        :disabled="!inputText.trim()"
         @click="onSend"
       >
         发送
@@ -118,6 +118,20 @@
       </div>
     </div>
   </transition>
+
+    <!-- 图片发送选项弹窗 -->
+    <teleport to="body">
+      <div v-if="pendingFile" class="image-options-overlay" @click.self="cancelImageSend">
+        <div class="image-options-sheet">
+          <img :src="pendingPreview" class="image-options-preview" />
+          <div class="image-options-actions">
+            <button class="image-option-btn" @click="confirmImageSend(false)">压缩发送</button>
+            <button class="image-option-btn primary" @click="confirmImageSend(true)">发送原图</button>
+          </div>
+          <button class="image-option-cancel" @click="cancelImageSend">取消</button>
+        </div>
+      </div>
+    </teleport>
   </div>
 </template>
 
@@ -128,16 +142,12 @@ const emit = defineEmits(['send', 'sendImage', 'generate']);
 
 const inputText = ref('');
 const fileInput = ref(null);
-const selectedFile = ref(null);
 const showActionSheet = ref(false);
-const inputField = ref(null);
+const pendingFile = ref(null);
+const pendingPreview = ref('');
 
 const onSend = () => {
-  if (selectedFile.value) {
-    emit('sendImage', selectedFile.value);
-    selectedFile.value = null;
-    inputText.value = '';
-  } else if (inputText.value.trim()) {
+  if (inputText.value.trim()) {
     emit('send', inputText.value.trim());
     inputText.value = '';
   }
@@ -154,10 +164,23 @@ const onImageClick = () => {
 
 const onFileChange = (event) => {
   const file = event.target.files?.[0];
-  if (file) {
-    selectedFile.value = file;
-    inputText.value = `[图片: ${file.name}]`;
-  }
+  if (!file) return;
+  pendingFile.value = file;
+  pendingPreview.value = URL.createObjectURL(file);
+  event.target.value = '';
+};
+
+const confirmImageSend = (useOriginal) => {
+  emit('sendImage', pendingFile.value, useOriginal);
+  URL.revokeObjectURL(pendingPreview.value);
+  pendingFile.value = null;
+  pendingPreview.value = '';
+};
+
+const cancelImageSend = () => {
+  URL.revokeObjectURL(pendingPreview.value);
+  pendingFile.value = null;
+  pendingPreview.value = '';
 };
 
 const closeActionSheet = () => {
@@ -173,6 +196,167 @@ const onPlusClick = () => {
 
 defineExpose({ closeActionSheet });
 </script>
+
+<style scoped>
+.input-container {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: #fff;
+}
+
+.wx-input-plus svg {
+  width: 24px;
+  height: 24px;
+}
+
+.wx-generate-btn {
+  background: none;
+  border: none;
+  padding: 6px;
+  margin-left: 8px;
+  cursor: pointer;
+  color: #576b95;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.wx-generate-btn svg {
+  width: 22px;
+  height: 22px;
+}
+
+.wx-generate-btn:active {
+  opacity: 0.6;
+}
+
+.action-panel {
+  background: #f7f7f7;
+  border-top: 1px solid #e5e5e5;
+  padding: 16px;
+  height: 220px;
+}
+
+.action-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px 16px;
+}
+
+.action-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.action-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  color: #1a1a1a;
+}
+
+.action-icon svg {
+  width: 28px;
+  height: 28px;
+}
+
+.action-item span {
+  font-size: 12px;
+  color: #666;
+}
+
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: all 0.3s ease;
+}
+
+.slide-up-enter-from,
+.slide-up-leave-to {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+/* 图片发送选项弹窗 */
+.image-options-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 2000;
+  display: flex;
+  align-items: flex-end;
+}
+
+.image-options-sheet {
+  width: 100%;
+  background: #f2f2f2;
+  border-radius: 16px 16px 0 0;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.image-options-preview {
+  width: 100%;
+  max-height: 40vh;
+  object-fit: contain;
+  border-radius: 8px;
+  background: #000;
+}
+
+.image-options-actions {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+}
+
+.image-option-btn {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  cursor: pointer;
+  background: #fff;
+  color: #333;
+}
+
+.image-option-btn.primary {
+  background: #07c160;
+  color: #fff;
+}
+
+.image-option-btn:active {
+  opacity: 0.7;
+}
+
+.image-option-cancel {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  cursor: pointer;
+  background: #fff;
+  color: #333;
+  margin-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.image-option-cancel:active {
+  opacity: 0.7;
+}
+</style>
 
 <style scoped>
 .input-container {

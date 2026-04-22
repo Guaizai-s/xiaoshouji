@@ -1,62 +1,88 @@
 <template>
-  <div class="h-screen w-full flex flex-col relative font-sans transition-colors duration-500" :class="t.appBg">
+  <div class="h-screen w-full flex flex-col relative font-sans transition-colors duration-500 page-spring-enter-active" :class="t.appBg">
 
     <div class="h-8 w-full backdrop-blur-md absolute top-0 z-20 transition-colors duration-500" :class="t.headerBg"></div>
 
     <div class="pt-10 pb-3 px-4 flex items-center justify-between backdrop-blur-md z-10 border-b shrink-0 transition-colors duration-500"
          :class="[t.headerBg, t.headerBorder]">
-      <button class="p-2 -ml-2 transition-colors flex items-center" :class="[t.textMuted, `hover:${t.textMain}`]" @click="router.back()">
-        <i class="ph ph-caret-left text-2xl"></i>
-      </button>
+      <div class="flex-1 flex justify-start">
+        <button class="p-2 -ml-2 transition-all duration-200 flex items-center active:scale-90" :class="[t.textMuted, `hover:${t.textMain}`]" @click="router.back()">
+          <i class="ph ph-caret-left text-2xl"></i>
+        </button>
+      </div>
       
-      <div class="flex flex-col items-center">
-        <h1 class="text-[17px] font-semibold tracking-wide transition-colors" :class="t.textMain">{{ role?.name || '...' }}</h1>
+      <div class="flex flex-col items-center flex-[2]">
+        <h1 class="text-[17px] font-semibold tracking-wide transition-colors truncate max-w-full" :class="t.textMain">{{ role?.name || '...' }}</h1>
         <span class="text-[11px] font-medium tracking-wider transition-colors" :class="t.textMuted">在线</span>
       </div>
 
-      <div class="flex items-center gap-3">
+      <div class="flex-1 flex justify-end">
+        <button class="p-2 -mr-2 transition-all duration-200 flex items-center active:scale-90" :class="[t.textMuted, `hover:${t.textMain}`]" @click="router.push(`/chat-details/${roleId}`)">
+          <i class="ph ph-dots-three text-[26px]"></i>
+        </button>
       </div>
     </div>
 
-    <div class="flex-1 overflow-y-auto px-4 py-6 space-y-6 scrollbar-hide">
-      
-      <template v-for="(msg, index) in messages" :key="msg.id">
-        
-        <div v-if="shouldShowTime(index)" class="flex justify-center mt-2 mb-4">
-          <span class="text-[11px] font-medium px-3 py-1 rounded-full transition-colors"
-                :class="[t.textMuted, activeTheme === 'midnight' ? 'bg-white/5' : 'bg-black/5']">
-            {{ formatMessageTime(msg.timestamp) }}
-          </span>
-        </div>
-
-        <div class="flex items-end gap-2" :class="msg.role === 'user' ? 'justify-end' : 'justify-start'">
-          <div v-if="msg.role !== 'user'" class="w-8 h-8 rounded-full overflow-hidden shrink-0 mb-1">
-            <img v-if="showAvatar(index)" :src="role?.avatar" alt="avatar" class="w-full h-full object-cover" />
-            <div v-else class="w-full h-full bg-transparent"></div>
-          </div>
-
-          <div class="flex flex-col max-w-[75%]" :class="msg.role === 'user' ? 'items-end' : 'items-start'">
-            <div class="px-4 py-3 text-[15px] leading-relaxed transition-colors duration-500"
-                 :class="[
-                   msg.role === 'user'
-                     ? `${t.myBubble} rounded-[1.25rem] rounded-br-sm`
-                     : `${t.otherBubble} rounded-[1.25rem] rounded-bl-sm`
-                 ]">
-              {{ msg.content }}
-            </div>
-            <span class="text-[10px] mt-1 px-1 transition-colors duration-500" :class="t.textMuted">
-              {{ new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}
+    <div class="flex-1 overflow-y-auto px-4 py-6 scrollbar-hide">
+      <transition-group name="msg-spring" tag="div" class="flex flex-col space-y-6">
+        <div v-for="(msg, index) in messages" :key="msg.id">
+          
+          <div v-if="shouldShowTime(index)" class="flex justify-center mt-2 mb-4">
+            <span class="text-[11px] font-medium px-3 py-1 rounded-full transition-colors"
+                  :class="[t.textMuted, activeTheme === 'midnight' ? 'bg-white/5' : 'bg-black/5']">
+              {{ formatMessageTime(msg.timestamp) }}
             </span>
           </div>
+
+          <div class="flex items-end gap-2" :class="msg.role === 'user' ? 'justify-end' : 'justify-start'">
+            <div v-if="msg.role !== 'user'" class="w-8 h-8 rounded-full overflow-hidden shrink-0 mb-1">
+              <img v-if="showAvatar(index)" :src="role?.avatar" alt="avatar" class="w-full h-full object-cover" />
+              <div v-else class="w-full h-full bg-transparent"></div>
+            </div>
+
+            <div class="flex flex-col max-w-[75%]" :class="msg.role === 'user' ? 'items-end' : 'items-start'">
+              
+              <div v-if="msg.audioUrl" 
+                   @click="togglePlay(msg)"
+                   class="flex items-center gap-2.5 px-4 py-2.5 shadow-sm cursor-pointer transition-all duration-300 active:scale-95"
+                   :class="[
+                     msg.role === 'user' ? `${t.myBubble} rounded-[1.25rem] rounded-br-sm` : `${t.otherBubble} rounded-[1.25rem] rounded-bl-sm`
+                   ]">
+                
+                <i class="ph-fill transition-all" :class="activeAudioId === msg.id ? 'ph-pause-circle text-[22px]' : 'ph-play-circle text-[22px]'"></i>
+                
+                <div class="flex items-center gap-[3px] h-4 mx-1">
+                  <span class="w-[3px] rounded-full bg-current transition-all duration-200" :class="activeAudioId === msg.id ? 'wave-anim-1' : 'h-1.5'"></span>
+                  <span class="w-[3px] rounded-full bg-current transition-all duration-200" :class="activeAudioId === msg.id ? 'wave-anim-2' : 'h-3'"></span>
+                  <span class="w-[3px] rounded-full bg-current transition-all duration-200" :class="activeAudioId === msg.id ? 'wave-anim-3' : 'h-2'"></span>
+                  <span class="w-[3px] rounded-full bg-current transition-all duration-200" :class="activeAudioId === msg.id ? 'wave-anim-4' : 'h-3.5'"></span>
+                  <span class="w-[3px] rounded-full bg-current transition-all duration-200" :class="activeAudioId === msg.id ? 'wave-anim-2' : 'h-2'"></span>
+                </div>
+                
+                <span class="text-[13px] font-medium tracking-wide">语音</span>
+              </div>
+
+              <div v-else class="px-4 py-3 text-[15px] leading-relaxed transition-colors duration-500 shadow-sm"
+                   :class="[
+                     msg.role === 'user' ? `${t.myBubble} rounded-[1.25rem] rounded-br-sm` : `${t.otherBubble} rounded-[1.25rem] rounded-bl-sm`
+                   ]">
+                {{ msg.content }}
+              </div>
+              
+              <span class="text-[10px] mt-1 px-1 transition-colors duration-500" :class="t.textMuted">
+                {{ new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}
+              </span>
+            </div>
+          </div>
         </div>
-      </template>
+      </transition-group>
       
       <div ref="messagesEndRef" class="h-2"></div>
     </div>
 
     <div class="px-4 py-3 border-t shrink-0 safe-area-pb transition-colors duration-500" :class="[t.inputAreaBg, t.headerBorder]">
       <div class="flex items-center gap-3">
-        <button class="w-9 h-9 flex items-center justify-center rounded-full transition-all shrink-0" 
+        <button class="w-9 h-9 flex items-center justify-center rounded-full transition-all duration-300 active:scale-90 shrink-0" 
                 :class="[t.textMuted, t.iconBtnBg]">
           <i class="ph ph-plus text-xl"></i>
         </button>
@@ -71,20 +97,20 @@
             v-model="inputText"
             @keypress.enter="handleSend"
           />
-          <button class="ml-2 transition-colors flex items-center" :class="[t.textMuted, `hover:${t.textMain}`]">
+          <button class="ml-2 transition-all duration-200 active:scale-90 flex items-center" :class="[t.textMuted, `hover:${t.textMain}`]">
             <i class="ph ph-smiley text-xl"></i>
           </button>
         </div>
 
         <button v-if="inputText.trim()"
                 @click="handleSend"
-                class="w-9 h-9 flex items-center justify-center rounded-full transition-colors shrink-0 shadow-sm"
+                class="w-9 h-9 flex items-center justify-center rounded-full transition-all duration-300 active:scale-[0.85] shrink-0 shadow-sm"
                 :class="t.sendBtn">
           <i class="ph-fill ph-paper-plane-tilt text-lg ml-0.5"></i>
         </button>
         
         <button v-else 
-                class="w-9 h-9 flex items-center justify-center rounded-full transition-all shrink-0"
+                class="w-9 h-9 flex items-center justify-center rounded-full transition-all duration-300 active:scale-90 shrink-0"
                 :class="[t.textMuted, t.iconBtnBg]">
           <i class="ph ph-microphone text-xl"></i>
         </button>
@@ -95,10 +121,11 @@
 </template>
 
 <script setup>
-import { ref, watch, nextTick, onMounted } from 'vue';
+import { ref, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { roleService, conversationService, messageService, apiProfileService } from '../services/db.js';
 import { callClaude } from '../services/claude.js';
+import { textToSpeech } from '../services/minimax.js'; // 引入语音服务
 import { useTheme } from '../composables/useTheme.js';
 
 const route = useRoute();
@@ -108,24 +135,53 @@ const roleId = parseInt(route.params.id);
 const role = ref(null);
 const messages = ref([]);
 const inputText = ref('');
-// 引入 activeTheme，用于判断夜间模式调整时间标签背景
 const { t, activeTheme } = useTheme();
-// 定义滚动锚点 ref
 const messagesEndRef = ref(null);
 
 const showAvatar = (index) => index === 0 || messages.value[index - 1].role === 'user';
-
 const isTyping = ref(false);
 let convId = null;
 
-// ================= 时间分割线逻辑 =================
+// ================= 语音播放控制 =================
+const activeAudioId = ref(null);
+let currentAudioPlayer = null;
+
+const togglePlay = (msg) => {
+  if (!msg.audioUrl) return;
+
+  if (activeAudioId.value === msg.id) {
+    // 暂停当前播放
+    if (currentAudioPlayer) currentAudioPlayer.pause();
+    activeAudioId.value = null;
+  } else {
+    // 播放新的语音
+    if (currentAudioPlayer) {
+      currentAudioPlayer.pause();
+    }
+    currentAudioPlayer = new Audio(msg.audioUrl);
+    activeAudioId.value = msg.id;
+    currentAudioPlayer.play();
+    
+    // 播放结束恢复静止状态
+    currentAudioPlayer.onended = () => {
+      activeAudioId.value = null;
+    };
+  }
+};
+
+// 离开页面时停止播放
+onUnmounted(() => {
+  if (currentAudioPlayer) {
+    currentAudioPlayer.pause();
+    currentAudioPlayer = null;
+  }
+});
+// ==============================================
+
 const shouldShowTime = (index) => {
-  if (index === 0) return true; // 第一条消息必定显示时间
-  
+  if (index === 0) return true;
   const currentMsgTime = messages.value[index].timestamp;
   const previousMsgTime = messages.value[index - 1].timestamp;
-  
-  // 如果前后两条消息相差超过 5 分钟 (300000 毫秒)，则显示时间
   if (!currentMsgTime || !previousMsgTime) return false;
   return (currentMsgTime - previousMsgTime) > 5 * 60 * 1000;
 };
@@ -134,31 +190,18 @@ const formatMessageTime = (timestamp) => {
   if (!timestamp) return '';
   const date = new Date(timestamp);
   const now = new Date();
-  
-  const isToday = date.getDate() === now.getDate() && 
-                  date.getMonth() === now.getMonth() && 
-                  date.getFullYear() === now.getFullYear();
-  
+  const isToday = date.getDate() === now.getDate() && date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
   let hours = date.getHours();
   const minutes = date.getMinutes().toString().padStart(2, '0');
   const ampm = hours >= 12 ? 'PM' : 'AM';
-  
   hours = hours % 12;
   hours = hours ? hours : 12; 
-  
   const timeStr = `${hours}:${minutes} ${ampm}`;
-  
-  if (isToday) {
-    return `今天 ${timeStr}`;
-  } else {
-    return `${date.getMonth() + 1}月${date.getDate()}日 ${timeStr}`;
-  }
+  return isToday ? `今天 ${timeStr}` : `${date.getMonth() + 1}月${date.getDate()}日 ${timeStr}`;
 };
-// =================================================
 
 onMounted(async () => {
   let r = await roleService.getById(roleId);
-  // 合并 API 配置（与 ChatRoom 保持一致）
   if (r?.apiProfileId) {
     const profile = await apiProfileService.getById(r.apiProfileId);
     if (profile) r = { ...r, apiKey: profile.apiKey, baseUrl: profile.baseUrl, model: profile.model, apiFormat: profile.apiFormat };
@@ -187,24 +230,53 @@ const handleSend = async () => {
   const userMsg = await messageService.create(convId, 'user', text);
   messages.value.push(userMsg);
 
-  // 构建上下文：短信记录 + 微信记录（共享人设，不显示微信消息）
   isTyping.value = true;
   try {
-    // 获取微信会话上下文（同角色，非sms）
     const allConvs = await conversationService.getAll();
     const chatConv = allConvs.find(c => c.roleId === roleId && !c.source);
     const chatCtx = chatConv ? await messageService.getContext(chatConv.id, 10) : [];
     const smsCtx = await messageService.getContext(convId, 10);
 
-    // 合并上下文：微信在前（作为背景），短信在后（当前对话）
     const combined = [
       ...chatCtx.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.content })),
       ...smsCtx.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.content }))
     ];
 
     const reply = await callClaude(role.value, combined);
-    const aiMsg = await messageService.create(convId, 'assistant', reply);
-    messages.value.push(aiMsg);
+    
+    // ================= 移植语音逻辑 =================
+    const voiceMatch = reply.match(/\[语音[:：]([^\]]+)\]/);
+    const voiceText = voiceMatch ? voiceMatch[1].trim() : '';
+    let audioUrl = null;
+
+    if (voiceMatch) {
+      try {
+        const voiceSettings = role.value?.chatSettings || {};
+        // 请求语音接口生成 audioUrl
+        audioUrl = await textToSpeech(voiceText, {
+          voiceId: voiceSettings.minimaxVoiceId,
+          model: voiceSettings.minimaxModel,
+          speed: voiceSettings.minimaxSpeed,
+          pitch: voiceSettings.minimaxPitch
+        });
+      } catch (e) {
+        console.warn('语音生成失败:', e.message);
+      }
+      
+      // 创建一条带有 audioUrl 的消息
+      const aiMsg = await messageService.create(convId, 'assistant', voiceText || '语音消息', 'text', audioUrl);
+      messages.value.push(aiMsg);
+
+    } else {
+      // 纯文本消息，清理可能残留的括号
+      const cleanResponse = reply.replace(/\[语音[:：][^\]]+\]/g, '').trim();
+      if (cleanResponse) {
+        const aiMsg = await messageService.create(convId, 'assistant', cleanResponse, 'text', null);
+        messages.value.push(aiMsg);
+      }
+    }
+    // ==============================================
+
   } catch (e) {
     console.error('AI回复失败:', e);
     const errMsg = { id: Date.now(), role: 'assistant', content: `[回复失败: ${e.message}]`, timestamp: Date.now() };
@@ -216,17 +288,38 @@ const handleSend = async () => {
 </script>
 
 <style scoped>
-/* 隐藏滚动条但保持可滚动 */
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+.safe-area-pb { padding-bottom: calc(0.75rem + env(safe-area-inset-bottom)); }
+
+/* ================= 页面与列表动画 ================= */
+.page-spring-enter-active {
+  animation: page-spring-in 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+@keyframes page-spring-in {
+  0% { opacity: 0; transform: translateY(15px) scale(0.98); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* 适配 iOS 底部安全区 */
-.safe-area-pb {
-  padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
+.msg-spring-enter-active {
+  animation: msg-spring-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.msg-spring-move {
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes msg-spring-in {
+  0% { opacity: 0; transform: translateY(20px) scale(0.9); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ================= 语音波纹动画 ================= */
+.wave-anim-1 { animation: wave 1s infinite ease-in-out; }
+.wave-anim-2 { animation: wave 1s infinite ease-in-out 0.2s; }
+.wave-anim-3 { animation: wave 1s infinite ease-in-out 0.4s; }
+.wave-anim-4 { animation: wave 1s infinite ease-in-out 0.1s; }
+
+@keyframes wave {
+  0%, 100% { height: 6px; }
+  50% { height: 16px; }
 }
 </style>

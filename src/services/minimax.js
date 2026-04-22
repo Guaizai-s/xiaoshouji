@@ -11,40 +11,23 @@ export async function getTTSModels() {
     throw new Error('请先配置 Minimax API Key 和 Group ID');
   }
 
-  try {
-    const url = `https://api.minimax.chat/v1/models?GroupId=${minimax.groupId}`;
+  const url = `https://api.minimax.chat/v1/models?GroupId=${minimax.groupId}`;
 
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${minimax.apiKey}`
-      }
-    });
-
-    if (!response.ok) {
-      console.warn('无法获取模型列表，使用预设列表');
-      return getDefaultTTSModels();
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${minimax.apiKey}`
     }
+  });
 
-    const data = await response.json();
-    // 过滤出 TTS 相关的模型
-    const ttsModels = data.data?.filter(m => m.id.includes('speech') || m.id.includes('tts')) || [];
-    return ttsModels.length > 0 ? ttsModels : getDefaultTTSModels();
-  } catch (error) {
-    console.warn('获取模型列表失败，使用预设列表:', error);
-    return getDefaultTTSModels();
+  if (!response.ok) {
+    throw new Error(`获取模型列表失败: ${response.status}`);
   }
-}
 
-/**
- * 获取预设的 TTS 模型列表
- * @returns {Array} - 预设 TTS 模型
- */
-function getDefaultTTSModels() {
-  return [
-    { id: 'speech-01', name: 'Speech-01', description: 'MiniMax 标准语音合成模型' },
-    { id: 'speech-02', name: 'Speech-02', description: 'MiniMax 高级语音合成模型' }
-  ];
+  const data = await response.json();
+  const models = data.data?.filter(m => m.id.includes('speech') || m.id.includes('tts')) || [];
+  if (models.length === 0) throw new Error('未获取到 TTS 模型，请检查 API Key 和 Group ID');
+  return models;
 }
 
 /**

@@ -71,27 +71,28 @@
     <div v-if="showActionMenu" @click="showActionMenu = false" class="absolute inset-0 z-20"></div>
 
     <!-- 弹出的操作容器 (给角色发送信息) -->
-    <div v-show="showActionMenu"
-         class="absolute bottom-[5.5rem] right-6 w-56 rounded-[1.5rem] p-3 shadow-[0_12px_40px_rgba(0,0,0,0.12)] border z-30 backdrop-blur-xl transition-all duration-300 origin-bottom-right"
-         :class="[t.tabBg, t.headerBorder]">
-      <div class="px-2 pb-2 mb-2 border-b" :class="t.headerBorder">
-        <span class="text-[13px] font-semibold tracking-wide" :class="t.textMain">新建对话</span>
+<transition name="spring-pop">
+      <div v-show="showActionMenu"
+           class="absolute bottom-[5.5rem] right-6 w-56 rounded-[1.5rem] p-3 shadow-[0_12px_40px_rgba(0,0,0,0.12)] border z-30 backdrop-blur-xl origin-bottom-right"
+           :class="[t.tabBg, t.headerBorder]">
+        <div class="px-2 pb-2 mb-2 border-b" :class="t.headerBorder">
+          <span class="text-[13px] font-semibold tracking-wide" :class="t.textMain">新建对话</span>
+        </div>
+        <div class="flex flex-col gap-1 mt-1 max-h-64 overflow-y-auto">
+          <div v-if="roles.length === 0" class="py-4 text-center text-[12px]" :class="t.textMuted">暂无角色</div>
+          <button v-for="role in roles" :key="role.id"
+            class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors"
+            :class="[`hover:${t.searchBg}`]"
+            @click="startMessage(role)">
+            <img v-if="role.avatar" :src="role.avatar" class="w-8 h-8 rounded-full object-cover shrink-0">
+            <div v-else class="w-8 h-8 rounded-full flex items-center justify-center shrink-0" :class="t.searchBg">
+              <i class="ph ph-user text-[16px]" :class="t.textMain"></i>
+            </div>
+            <span class="text-[14px] font-medium truncate" :class="t.textMain">{{ role.name }}</span>
+          </button>
+        </div>
       </div>
-      <div class="flex flex-col gap-1 mt-1 max-h-64 overflow-y-auto">
-        <div v-if="roles.length === 0" class="py-4 text-center text-[12px]" :class="t.textMuted">暂无角色</div>
-        <button v-for="role in roles" :key="role.id"
-          class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors"
-          :class="[`hover:${t.searchBg}`]"
-          @click="startMessage(role)">
-          <img v-if="role.avatar" :src="role.avatar" class="w-8 h-8 rounded-full object-cover shrink-0">
-          <div v-else class="w-8 h-8 rounded-full flex items-center justify-center shrink-0" :class="t.searchBg">
-            <i class="ph ph-user text-[16px]" :class="t.textMain"></i>
-          </div>
-          <span class="text-[14px] font-medium truncate" :class="t.textMain">{{ role.name }}</span>
-        </button>
-      </div>
-    </div>
-
+    </transition>
     <!-- 右下角悬浮加号按钮 (FAB) -->
     <button @click="showActionMenu = !showActionMenu"
             class="absolute bottom-24 right-5 w-14 h-14 rounded-full shadow-[0_8px_20px_rgba(0,0,0,0.15)] flex items-center justify-center z-30 transition-all duration-300 active:scale-95 hover:scale-105"
@@ -100,23 +101,28 @@
     </button>
 
     <!-- 底部导航栏 (Tab Bar) -->
-    <div class="absolute bottom-0 left-0 right-0 pt-4 pb-4 px-6 backdrop-blur-xl border-t transition-colors duration-500 flex justify-between items-center safe-area-pb"
+<div class="absolute bottom-0 left-0 right-0 pt-4 pb-4 px-6 backdrop-blur-xl border-t transition-colors duration-500 flex justify-between items-center safe-area-pb"
          :class="[t.tabBg, t.headerBorder]">
-      <button class="flex flex-col items-center gap-1 transition-colors" :class="t.textMain">
+      
+      <button class="flex flex-col items-center gap-1 transition-all duration-200 active:scale-90" :class="t.textMain">
         <i class="ph-fill ph-chat-circle text-[26px]"></i>
       </button>
-      <button class="flex flex-col items-center gap-1 transition-colors" :class="t.textMuted">
+
+      <button class="flex flex-col items-center gap-1 transition-all duration-200 active:scale-90" :class="t.textMuted">
         <i class="ph ph-users text-[26px]"></i>
       </button>
-      <button class="flex flex-col items-center gap-1 transition-colors" :class="t.textMuted">
+
+      <button class="flex flex-col items-center gap-1 transition-all duration-200 active:scale-90" :class="t.textMuted">
         <i class="ph ph-compass text-[26px]"></i>
       </button>
-      <button class="flex flex-col items-center gap-1 transition-colors" :class="t.textMuted" @click="router.push('/messages/profile')">
+
+      <button class="flex flex-col items-center gap-1 transition-all duration-200 active:scale-90" :class="t.textMuted" @click="router.replace('/messages/profile')">
         <div class="w-7 h-7 rounded-full overflow-hidden border border-current flex items-center justify-center">
           <img v-if="userAvatar" :src="userAvatar" class="w-full h-full object-cover">
           <svg v-else viewBox="0 0 28 28" class="w-full h-full" :class="t.textMuted"><circle cx="14" cy="10" r="5" fill="currentColor"/><path d="M4 24c0-5.5 4.5-9 10-9s10 3.5 10 9" fill="currentColor"/></svg>
         </div>
       </button>
+
     </div>
 
   </div>
@@ -163,5 +169,35 @@ const startMessage = async (role) => {
 /* 适配 iOS 底部安全区 */
 .safe-area-pb {
   padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+}
+/* 弹出框果冻跳动动画 */
+.spring-pop-enter-active {
+  animation: spring-pop-in 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.spring-pop-leave-active {
+  animation: spring-pop-out 0.3s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+@keyframes spring-pop-in {
+  0% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes spring-pop-out {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
 }
 </style>

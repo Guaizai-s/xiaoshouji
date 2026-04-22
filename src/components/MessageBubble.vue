@@ -58,7 +58,7 @@
               <span v-html="parseEmoji(message.content)"></span>
             </template>
             <template v-else-if="message.type === 'image'">
-              <img :src="message.content" alt="image" />
+              <img :src="imageUrl" alt="image" />
             </template>
             <template v-else-if="message.type === 'sticker'">
               <img :src="message.content" alt="sticker" />
@@ -93,7 +93,8 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, onMounted, watch } from 'vue';
+import { assetService } from '../services/db';
 
 const props = defineProps({
   message: {
@@ -117,6 +118,19 @@ const props = defineProps({
 const isPlaying = ref(false);
 const audioElement = ref(null);
 const showTranscript = ref(false);
+const imageUrl = ref('');
+
+const IMAGE_KEY_RE = /^\[IMAGE:(.+)\]$/;
+
+const resolveImage = async () => {
+  if (props.message.type !== 'image') return;
+  const content = props.message.content || '';
+  const match = content.match(IMAGE_KEY_RE);
+  imageUrl.value = match ? (await assetService.get(match[1]) || '') : content;
+};
+
+onMounted(resolveImage);
+watch(() => props.message.content, resolveImage);
 
 const toggleAudio = () => {
   if (!props.message.audioUrl) return;

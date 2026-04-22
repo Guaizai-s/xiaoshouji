@@ -99,27 +99,28 @@
     </div>
 
     <!-- 底部导航栏 (Tab Bar) -->
-    <div class="absolute bottom-0 left-0 right-0 pt-4 pb-4 px-6 backdrop-blur-xl border-t transition-colors duration-500 flex justify-between items-center safe-area-pb"
-         :class="[t.tabBg, t.border]">
-      <!-- 消息 Tab -->
-      <button class="flex flex-col items-center gap-1 transition-colors" :class="t.textMuted" @click="router.push('/messages')">
+<div class="absolute bottom-0 left-0 right-0 pt-4 pb-4 px-6 backdrop-blur-xl border-t transition-colors duration-500 flex justify-between items-center safe-area-pb"
+         :class="[t.tabBg, t.headerBorder]">
+
+      <button class="flex flex-col items-center gap-1 transition-all duration-200 active:scale-90" :class="t.textMuted" @click="router.replace('/messages')">
         <i class="ph ph-chat-circle text-[26px]"></i>
       </button>
-      <!-- 联系人 Tab -->
-      <button class="flex flex-col items-center gap-1 transition-colors" :class="t.textMuted">
+
+      <button class="flex flex-col items-center gap-1 transition-all duration-200 active:scale-90" :class="t.textMuted">
         <i class="ph ph-users text-[26px]"></i>
       </button>
-      <!-- 发现 Tab -->
-      <button class="flex flex-col items-center gap-1 transition-colors" :class="t.textMuted">
+
+      <button class="flex flex-col items-center gap-1 transition-all duration-200 active:scale-90" :class="t.textMuted">
         <i class="ph ph-compass text-[26px]"></i>
       </button>
-      <!-- 个人主页 Tab (当前激活，头像外圈加粗高亮) -->
-      <button class="flex flex-col items-center gap-1 transition-colors" :class="t.textMain">
-        <div class="w-7 h-7 rounded-full overflow-hidden border-2 flex items-center justify-center transition-colors" :class="[t.switchBg.replace('!', ''), t.iconBg]">
+
+      <button class="flex flex-col items-center gap-1 transition-all duration-200 active:scale-90" :class="t.textMain">
+        <div class="w-7 h-7 rounded-full overflow-hidden border border-current flex items-center justify-center">
           <img v-if="user.avatar" :src="user.avatar" class="w-full h-full object-cover">
-          <i v-else class="ph-fill ph-user text-[18px]" :class="t.textMain"></i>
+          <svg v-else viewBox="0 0 28 28" class="w-full h-full"><circle cx="14" cy="10" r="5" fill="currentColor"/><path d="M4 24c0-5.5 4.5-9 10-9s10 3.5 10 9" fill="currentColor"/></svg>
         </div>
       </button>
+
     </div>
 
   </div>
