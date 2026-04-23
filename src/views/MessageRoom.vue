@@ -59,7 +59,7 @@
                   <span class="w-[3px] rounded-full bg-current transition-all duration-200" :class="activeAudioId === msg.id ? 'wave-anim-2' : 'h-2'"></span>
                 </div>
                 
-                <span class="text-[13px] font-medium tracking-wide">语音</span>
+                <span class="text-[13px] font-medium tracking-wide"></span>
               </div>
 
               <div v-else class="px-4 py-3 text-[15px] leading-relaxed transition-colors duration-500 shadow-sm"

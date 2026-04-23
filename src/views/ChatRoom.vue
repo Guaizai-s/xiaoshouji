@@ -499,6 +499,27 @@ const compressImage = (file, maxSize = 384, quality = 0.8) => {
 </script>
 
 <style scoped>
+/* 锁定整个页面的高度，禁止整体滚动 */
+.wx-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+/* 确保顶部导航栏和底部输入框不会被挤压变形 */
+:deep(.nav-bar),
+:deep(.wx-input-bar),
+:deep(.chat-input-wrapper) {
+  flex-shrink: 0;
+}
+
+.wx-content {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
 .load-more-wrapper {
   display: flex;
   justify-content: center;

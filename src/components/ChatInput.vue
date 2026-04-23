@@ -25,13 +25,14 @@
           <path stroke-linecap="round" stroke-linejoin="round" d="M5 3l3.057-3L20 12 8.057 24 5 21l9-9-9-9z"/>
         </svg>
       </button>
-      <button
-        class="wx-input-send"
-        :disabled="!inputText.trim()"
-        @click="onSend"
-      >
-        发送
-      </button>
+     <button
+  class="wx-input-send"
+  :disabled="!inputText.trim()"
+  @mousedown.prevent="onSend"
+  @touchend.prevent="onSend"
+>
+  发送
+</button>
     </div>
 
     <!-- 功能面板 -->
@@ -125,8 +126,8 @@
         <div class="image-options-sheet">
           <img :src="pendingPreview" class="image-options-preview" />
           <div class="image-options-actions">
-            <button class="image-option-btn" @click="confirmImageSend(false)">压缩发送</button>
-            <button class="image-option-btn primary" @click="confirmImageSend(true)">发送原图</button>
+            <button class="image-option-btn" @click="confirmImageSend(false)">压缩</button>
+            <button class="image-option-btn primary" @click="confirmImageSend(true)">原图</button>
           </div>
           <button class="image-option-cancel" @click="cancelImageSend">取消</button>
         </div>
