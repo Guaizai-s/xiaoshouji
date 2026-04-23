@@ -14,7 +14,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { apiKey, groupId, text, voiceId, speed, pitch } = req.body;
+    const { apiKey, groupId, text, voiceId, speed, pitch, model } = req.body;
 
     if (!apiKey || !groupId) {
       return res.status(400).json({ error: '缺少 API Key 或 Group ID' });
@@ -28,13 +28,13 @@ export default async function handler(req, res) {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`
       },
-      body: JSON.stringify({
-        text,
-        model: 'speech-01',
-        voice_id: voiceId || 'male-qn-qingse',
-        speed: speed || 1.0,
-        pitch: pitch || 0
-      })
+     body: JSON.stringify({
+      text,
+      model: model || 'speech-01-hd',
+      voice_id: voiceId || 'male-qn-qingse',
+      speed: speed || 1.0,
+      pitch: pitch || 0
+})
     });
 
     if (!response.ok) {
