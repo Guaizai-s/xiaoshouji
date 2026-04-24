@@ -67,7 +67,18 @@ export async function textToSpeech(text, voiceSettings = {}) {
     throw new Error('请先配置 Minimax API Key 和 Group ID');
   }
 
-  const url = `https://api.minimax.chat/v1/text_to_speech?GroupId=${minimax.groupId}`;
+  const url = `https://api.minimax.chat/v1/t2a_v2?GroupId=${minimax.groupId}`;
+
+  const requestBody = {
+    model: voiceSettings.model || 'speech-02-hd',
+    text,
+    stream: false,
+    voice_setting: {
+      voice_id: voiceSettings.voiceId || 'male-qn-qingse',
+      speed: voiceSettings.speed || 1.0,
+      pitch: voiceSettings.pitch || 0,
+    }
+  };
 
   const response = await fetch(url, {
     method: 'POST',
@@ -75,20 +86,22 @@ export async function textToSpeech(text, voiceSettings = {}) {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${minimax.apiKey}`
     },
-    body: JSON.stringify({
-      text,
-      voice_id: voiceSettings.voiceId || 'male-qn-qingse',
-      speed: voiceSettings.speed || 1.0,
-      pitch: voiceSettings.pitch || 0,
-      model: voiceSettings.model || 'speech-01'
-    })
+    body: JSON.stringify(requestBody)
   });
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    throw new Error(error.error || `TTS 请求失败: ${response.status}`);
+    throw new Error(error.base_resp?.status_msg || `TTS 请求失败: ${response.status}`);
   }
 
-  const blob = await response.blob();
-  return URL.createObjectURL(blob);
+  const data = await response.json();
+  if (data.base_resp?.status_code !== 0) {
+    throw new Error(data.base_resp?.status_msg || 'TTS 失败');
+  }
+
+  // t2a_v2 返回 hex 编码音频
+  const hex = data.data?.audio;
+  if (!hex) throw new Error('未返回音频数据');
+  const bytes = new Uint8Array(hex.match(/.{1,2}/g).map(b => parseInt(b, 16)));
+  return URL.createObjectURL(new Blob([bytes], { type: 'audio/mpeg' }));
 }

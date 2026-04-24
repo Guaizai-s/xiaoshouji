@@ -174,7 +174,9 @@ onUnmounted(() => { clearInterval(timer); });
 
 // 格式化时间为带 AM/PM 的格式 (10:10 AM)
 const currentTime = computed(() => {
-  return now.value.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  const h = now.value.getHours().toString().padStart(2, '0');
+  const m = now.value.getMinutes().toString().padStart(2, '0');
+  return `${h}:${m}`;
 });
 
 // 格式化日期 (4/16 周四)

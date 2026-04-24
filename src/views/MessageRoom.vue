@@ -17,7 +17,7 @@
       </div>
 
       <div class="flex-1 flex justify-end">
-        <button class="p-2 -mr-2 transition-all duration-200 flex items-center active:scale-90" :class="[t.textMuted, `hover:${t.textMain}`]" @click="router.push(`/chat-details/${roleId}`)">
+        <button class="p-2 -mr-2 transition-all duration-200 flex items-center active:scale-90" :class="[t.textMuted, `hover:${t.textMain}`]" @click="router.push(`/messages/details/${roleId}`)">
           <i class="ph ph-dots-three text-[26px]"></i>
         </button>
       </div>

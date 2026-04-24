@@ -31,23 +31,6 @@
             <span class="text-[13px] mt-1 cursor-pointer transition-colors" :class="t.textMuted">编辑角色设定</span>
           </div>
 
-          <!-- 外观设置 -->
-          <div class="text-[12px] font-bold tracking-widest uppercase mb-2 ml-2 transition-colors" :class="t.textMuted">Appearance</div>
-          <div class="rounded-[1.5rem] p-1.5 shadow-sm border transition-colors duration-500 mb-6" :class="[t.cardBg, t.border]">
-            <div @click="currentView = 'theme'" class="flex justify-between items-center px-4 py-3.5 rounded-2xl cursor-pointer transition-colors" :class="[`hover:${t.hoverBg}`]">
-              <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-full flex items-center justify-center transition-colors" :class="t.iconBg">
-                  <i class="ph ph-palette text-[18px]" :class="t.textMain"></i>
-                </div>
-                <span class="text-[15px] font-medium transition-colors" :class="t.textMain">主题风格</span>
-              </div>
-              <div class="flex items-center gap-2">
-                <span class="text-[14px] transition-colors" :class="t.textMuted">{{ themes[activeTheme]?.name || '默认' }}</span>
-                <i class="ph ph-caret-right text-sm" :class="t.textMuted"></i>
-              </div>
-            </div>
-          </div>
-
           <!-- 聊天行为 -->
           <div class="text-[12px] font-bold tracking-widest uppercase mb-2 ml-2 transition-colors" :class="t.textMuted">Chat Behavior</div>
           <div class="rounded-[1.5rem] p-1.5 shadow-sm border transition-colors duration-500 mb-6" :class="[t.cardBg, t.border]">
@@ -134,36 +117,6 @@
           
         </div>
 
-        <!-- ================= 主题设置视图 ================= -->
-        <div v-else-if="currentView === 'theme'" class="absolute inset-0 overflow-y-auto pb-12 px-5 scrollbar-hide">
-          <div class="text-[12px] font-bold tracking-widest uppercase mb-2 ml-2 mt-6 transition-colors" :class="t.textMuted">Select Theme</div>
-          
-          <div class="rounded-[1.5rem] p-1.5 shadow-sm border transition-colors duration-500 mb-6" :class="[t.cardBg, t.border]">
-            <div v-for="(theme, key) in themes" :key="key" 
-                 @click="activeTheme = key"
-                 class="flex justify-between items-center px-4 py-4 rounded-2xl cursor-pointer transition-all duration-300"
-                 :class="[`hover:${t.hoverBg}`]">
-              
-              <div class="flex items-center gap-4">
-                <div class="w-10 h-10 rounded-full border-2 shadow-sm flex items-center justify-center"
-                     :class="[theme.appBg, theme.id === 'midnight' ? 'border-[#333]' : 'border-stone-200']">
-                  <div class="w-5 h-5 rounded-full" :class="theme.switchBg.replace('!', '')"></div>
-                </div>
-                <div class="flex flex-col">
-                  <span class="text-[15px] font-medium transition-colors" :class="t.textMain">{{ theme.name }}</span>
-                  <span class="text-[12px] transition-colors" :class="t.textMuted">{{ theme.desc }}</span>
-                </div>
-              </div>
-
-              <!-- 选中打勾 -->
-              <div class="w-6 h-6 rounded-full flex items-center justify-center transition-all duration-300"
-                   :class="activeTheme === key ? t.switchBg : 'border-2 ' + t.border">
-                <i v-if="activeTheme === key" class="ph-bold ph-check text-white text-[14px]" :class="activeTheme === 'midnight' ? '!text-[#121212]' : ''"></i>
-              </div>
-            </div>
-          </div>
-        </div>
-
         <!-- ================= 记忆设置视图 ================= -->
         <div v-else-if="currentView === 'memory'" class="absolute inset-0 overflow-y-auto pb-12 px-5 scrollbar-hide">
           <div class="text-[12px] font-bold tracking-widest uppercase mb-2 ml-2 mt-6 transition-colors" :class="t.textMuted">长期记忆 (Long Term)</div>
@@ -199,40 +152,19 @@
 
 <script setup>
 import { ref, computed } from 'vue';
-// import { useRouter } from 'vue-router'; // 实际项目中解除注释
+import { useRouter, useRoute } from 'vue-router';
+import { useTheme } from '../composables/useTheme';
+import { roleService, conversationService } from '../services/db';
+import { onMounted, watch } from 'vue';
 
-// const router = useRouter();
+const router = useRouter();
+const route = useRoute();
+const { activeTheme, themes, t, setTheme } = useTheme();
+
+const roleId = parseInt(route.params.id);
 
 // ================== 视图与主题控制 ==================
 const currentView = ref('main');
-const activeTheme = ref('blanc'); // 后续可以绑定到你的全局配置库 (Pinia 等)
-
-// 核心三色主题设计 Token
-const themes = {
-  blanc: {
-    id: 'blanc', name: 'Blanc 灰白', desc: '清冷高级画廊风',
-    appBg: 'bg-[#F9F9F9]', headerBg: 'bg-[#F9F9F9]/85', cardBg: 'bg-white',
-    textMain: 'text-[#222222]', textMuted: 'text-[#A0A0A0]',
-    border: 'border-[#EAEAEA]', hoverBg: 'bg-[#F4F4F4]', iconBg: 'bg-[#F0F0F0]',
-    switchBg: '!bg-[#222222]' // 强调色
-  },
-  vanilla: {
-    id: 'vanilla', name: 'Vanilla 奶茶', desc: '温暖治愈奶油风',
-    appBg: 'bg-[#F2EEE9]', headerBg: 'bg-[#F2EEE9]/85', cardBg: 'bg-[#FAF8F5]',
-    textMain: 'text-[#4A433E]', textMuted: 'text-[#A39A8F]',
-    border: 'border-[#E2DCD5]', hoverBg: 'bg-[#EAE4DD]', iconBg: 'bg-[#EAE4DD]',
-    switchBg: '!bg-[#B4A79A]' // 强调色
-  },
-  midnight: {
-    id: 'midnight', name: 'Midnight 夜间', desc: '深邃暗夜护眼风',
-    appBg: 'bg-[#121212]', headerBg: 'bg-[#121212]/85', cardBg: 'bg-[#1C1C1C]',
-    textMain: 'text-[#F5F5F5]', textMuted: 'text-[#777777]',
-    border: 'border-[#2A2A2A]', hoverBg: 'bg-[#252525]', iconBg: 'bg-[#2A2A2A]',
-    switchBg: '!bg-[#E0E0E0]' // 强调色
-  }
-};
-
-const t = computed(() => themes[activeTheme.value]);
 
 const sliderColor = computed(() => {
   if (activeTheme.value === 'blanc') return '#222222';
@@ -245,11 +177,8 @@ const viewTitle = computed(() => {
   return map[currentView.value] || '设置';
 });
 
-// ================== 数据状态 (待接入接口) ==================
-const role = ref({
-  name: '',
-  avatar: ''
-});
+// ================== 数据状态 ==================
+const role = ref({ name: '', avatar: '' });
 
 const settings = ref({
   isTop: false,
@@ -260,13 +189,44 @@ const settings = ref({
   coreMemory: ''
 });
 
+let convId = null;
+
+const saveSettings = async () => {
+  if (!role.value?.id) return;
+  await roleService.update(role.value.id, { chatSettings: { ...role.value.chatSettings, ...settings.value } });
+  if (convId) await conversationService.update(convId, { isTop: settings.value.isTop, isMuted: settings.value.isMuted });
+};
+
+watch(settings, saveSettings, { deep: true });
+
+onMounted(async () => {
+  const r = await roleService.getById(roleId);
+  if (r) {
+    role.value = r;
+    const cs = r.chatSettings || {};
+    settings.value = {
+      isTop: cs.isTop ?? false,
+      isMuted: cs.isMuted ?? false,
+      isRealTimeOn: cs.isRealTimeOn ?? true,
+      contextLength: cs.contextLength ?? 15,
+      longTermMemory: cs.longTermMemory || '',
+      coreMemory: cs.coreMemory || ''
+    };
+  }
+  const conv = await conversationService.getOrCreateSms(roleId);
+  if (conv) {
+    convId = conv.id;
+    settings.value.isTop = conv.isTop ?? settings.value.isTop;
+    settings.value.isMuted = conv.isMuted ?? settings.value.isMuted;
+  }
+});
+
 // ================== 方法 ==================
 const goBack = () => {
   if (currentView.value !== 'main') {
     currentView.value = 'main';
   } else {
-    // router.back(); // 实际项目中解除注释
-    console.log('触发路由返回');
+    router.back();
   }
 };
 </script>

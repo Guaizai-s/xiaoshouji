@@ -23,14 +23,15 @@
             <span class="btn-text">{{ isLoadingMore ? '加载中...' : '查看更早的消息' }}</span>
           </button>
         </div>
-        <message-bubble
-          v-for="message in messages"
-          :key="message.id"
-          :message="message"
-          :user-avatar="userAvatar"
-          :role-avatar="role?.avatar || defaultAvatar"
-          :linked-stickers="linkedStickers"
-        />
+        <template v-for="(message, index) in messages" :key="message.id">
+          <div v-if="shouldShowTime(index)" class="wx-time-label">{{ formatMessageTime(message.timestamp) }}</div>
+          <message-bubble
+            :message="message"
+            :user-avatar="userAvatar"
+            :role-avatar="role?.avatar || defaultAvatar"
+            :linked-stickers="linkedStickers"
+          />
+        </template>
       </div>
     </div>
 
@@ -67,6 +68,22 @@ const PAGE_SIZE = 30;
 let messagesPaginated = false;
 
 const messages = computed(() => allMessages.value.slice(displayOffset.value));
+
+const shouldShowTime = (index) => {
+  const all = allMessages.value.slice(displayOffset.value);
+  if (index === 0) return true;
+  return (all[index].timestamp - all[index - 1].timestamp) > 5 * 60 * 1000;
+};
+
+const formatMessageTime = (timestamp) => {
+  if (!timestamp) return '';
+  const date = new Date(timestamp);
+  const now = new Date();
+  const isToday = date.toDateString() === now.toDateString();
+  const h = date.getHours().toString().padStart(2, '0');
+  const m = date.getMinutes().toString().padStart(2, '0');
+  return isToday ? `${h}:${m}` : `${date.getMonth()+1}月${date.getDate()}日 ${h}:${m}`;
+};
 const hasMore = computed(() => displayOffset.value > 0);
 const isTyping = ref(false);
 const isLoading = ref(true);
@@ -506,6 +523,14 @@ const compressImage = (file, maxSize = 384, quality = 0.8) => {
   height: 100vh;
   height: 100dvh;
   overflow: hidden;
+}
+
+.wx-time-label {
+  text-align: center;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.35);
+  margin: 8px 0;
+  pointer-events: none;
 }
 
 /* 确保顶部导航栏和底部输入框不会被挤压变形 */
