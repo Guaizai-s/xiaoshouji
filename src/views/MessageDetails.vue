@@ -415,7 +415,11 @@ const saveApiProfile = async () => {
   await roleService.update(role.value.id, { apiProfileId: apiProfileId.value });
 };
 
-watch(settings, saveSettings, { deep: true });
+let saveTimer = null;
+watch(settings, () => {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveSettings, 400);
+}, { deep: true });
 watch(apiProfileId, saveApiProfile);
 
 watch(currentView, (v) => {

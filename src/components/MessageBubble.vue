@@ -1,91 +1,84 @@
 <template>
   <div class="wx-message-wrapper" :class="{ self: message.role === 'user' }">
-    <!-- 如果是文本消息且包含换行，分割成多个气泡 -->
+    <div v-if="activeMenuId !== null" class="wx-menu-mask" @click.stop="closeMenu" @touchstart.prevent="closeMenu"></div>
+
     <template v-if="message.type === 'text' && messageParts.length > 1">
-      <div
-        v-for="(part, index) in messageParts"
-        :key="index"
-        class="wx-message"
-        :class="{ self: message.role === 'user' }"
-      >
-        <img
-          class="wx-message-avatar"
-          :src="avatar"
-          alt="avatar"
-        />
-        <div class="wx-message-content">
-          <div class="wx-message-bubble text" v-html="parseEmoji(part)"></div>
+      <div v-for="(part, index) in messageParts" :key="index" class="wx-message" :class="{ self: message.role === 'user' }">
+        <img class="wx-message-avatar" :src="avatar" alt="avatar" />
+        <div class="wx-message-content" style="position: relative;">
+          <div v-if="activeMenuId === 'part-' + index" class="wx-context-menu" :class="{ 'is-self': message.role === 'user' }">
+            <div class="menu-item" @click.stop="handleDelete">删除</div>
+          </div>
+          <div
+            class="wx-message-bubble text"
+            v-html="parseEmoji(part)"
+            @mousedown="onPressStart('part-' + index)" @mouseup="onPressEnd" @mouseleave="onPressEnd"
+            @touchstart.passive="onPressStart('part-' + index)" @touchend="onPressEnd" @touchcancel="onPressEnd"
+            @contextmenu.prevent="onContextMenu($event, 'part-' + index)"
+          ></div>
         </div>
       </div>
 
-      <!-- 音频播放器单独气泡 -->
       <div v-if="message.audioUrl" class="wx-message" :class="{ self: message.role === 'user' }">
-        <img
-          class="wx-message-avatar"
-          :src="avatar"
-          alt="avatar"
-        />
-        <div class="wx-message-content">
-          <div class="audio-player" :style="{ width: audioBubbleWidth }" @click="toggleAudio">
+        <img class="wx-message-avatar" :src="avatar" alt="avatar" />
+        <div class="wx-message-content" style="position: relative;">
+          <div v-if="activeMenuId === 'audio-multi'" class="wx-context-menu" :class="{ 'is-self': message.role === 'user' }">
+            <div class="menu-item" @click.stop="handleDelete">删除</div>
+          </div>
+          <div
+            class="audio-player" :style="{ width: audioBubbleWidth }" @click="toggleAudio"
+            @mousedown="onPressStart('audio-multi')" @mouseup="onPressEnd" @mouseleave="onPressEnd"
+            @touchstart.passive="onPressStart('audio-multi')" @touchend="onPressEnd" @touchcancel="onPressEnd"
+            @contextmenu.prevent="onContextMenu($event, 'audio-multi')"
+          >
             <span class="audio-icon">
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M3 8h2v4H3V8zm4-2h2v8H7V6zm4-2h2v12h-2V4z" />
-              </svg>
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><path d="M3 8h2v4H3V8zm4-2h2v8H7V6zm4-2h2v12h-2V4z" /></svg>
             </span>
             <span class="audio-duration">{{ audioDuration }}"</span>
           </div>
-          <div v-if="showTranscript" class="audio-transcript">
-            {{ message.content }}
-          </div>
+          <div v-if="showTranscript" class="audio-transcript">{{ message.content }}</div>
         </div>
       </div>
     </template>
-    <!-- 单条消息 -->
+
     <template v-else>
-      <!-- 文本气泡（有audioUrl时不渲染文字气泡） -->
       <div v-if="message.content && !message.audioUrl" class="wx-message" :class="{ self: message.role === 'user' }">
-        <img
-          class="wx-message-avatar"
-          :src="avatar"
-          alt="avatar"
-        />
-        <div class="wx-message-content">
+        <img class="wx-message-avatar" :src="avatar" alt="avatar" />
+        <div class="wx-message-content" style="position: relative;">
+          <div v-if="activeMenuId === 'single'" class="wx-context-menu" :class="{ 'is-self': message.role === 'user' }">
+            <div class="menu-item" @click.stop="handleDelete">删除</div>
+          </div>
           <div
-            class="wx-message-bubble"
-            :class="message.type"
+            class="wx-message-bubble" :class="message.type"
+            @mousedown="onPressStart('single')" @mouseup="onPressEnd" @mouseleave="onPressEnd"
+            @touchstart.passive="onPressStart('single')" @touchend="onPressEnd" @touchcancel="onPressEnd"
+            @contextmenu.prevent="onContextMenu($event, 'single')"
           >
-            <template v-if="message.type === 'text'">
-              <span v-html="parseEmoji(message.content)"></span>
-            </template>
-            <template v-else-if="message.type === 'image'">
-              <img :src="imageUrl" alt="image" />
-            </template>
-            <template v-else-if="message.type === 'sticker'">
-              <img :src="message.content" alt="sticker" />
-            </template>
+            <template v-if="message.type === 'text'"><span v-html="parseEmoji(message.content)"></span></template>
+            <template v-else-if="message.type === 'image'"><img :src="imageUrl" alt="image" /></template>
+            <template v-else-if="message.type === 'sticker'"><img :src="message.content" alt="sticker" /></template>
           </div>
         </div>
       </div>
 
-      <!-- 音频播放器单独气泡 -->
       <div v-if="message.audioUrl" class="wx-message" :class="{ self: message.role === 'user' }">
-        <img
-          class="wx-message-avatar"
-          :src="avatar"
-          alt="avatar"
-        />
-        <div class="wx-message-content">
-          <div class="audio-player" :style="{ width: audioBubbleWidth }" @click="toggleAudio">
+        <img class="wx-message-avatar" :src="avatar" alt="avatar" />
+        <div class="wx-message-content" style="position: relative;">
+          <div v-if="activeMenuId === 'audio-single'" class="wx-context-menu" :class="{ 'is-self': message.role === 'user' }">
+            <div class="menu-item" @click.stop="handleDelete">删除</div>
+          </div>
+          <div
+            class="audio-player" :style="{ width: audioBubbleWidth }" @click="toggleAudio"
+            @mousedown="onPressStart('audio-single')" @mouseup="onPressEnd" @mouseleave="onPressEnd"
+            @touchstart.passive="onPressStart('audio-single')" @touchend="onPressEnd" @touchcancel="onPressEnd"
+            @contextmenu.prevent="onContextMenu($event, 'audio-single')"
+          >
             <span class="audio-icon">
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M3 8h2v4H3V8zm4-2h2v8H7V6zm4-2h2v12h-2V4z" />
-              </svg>
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><path d="M3 8h2v4H3V8zm4-2h2v8H7V6zm4-2h2v12h-2V4z" /></svg>
             </span>
             <span class="audio-duration">{{ audioDuration }}"</span>
           </div>
-          <div v-if="showTranscript" class="audio-transcript">
-            {{ message.content }}
-          </div>
+          <div v-if="showTranscript" class="audio-transcript">{{ message.content }}</div>
         </div>
       </div>
     </template>
@@ -97,23 +90,24 @@ import { computed, ref, onMounted, watch } from 'vue';
 import { assetService } from '../services/db';
 
 const props = defineProps({
-  message: {
-    type: Object,
-    required: true
-  },
-  userAvatar: {
-    type: String,
-    default: ''
-  },
-  roleAvatar: {
-    type: String,
-    default: ''
-  },
-  linkedStickers: {
-    type: Array,
-    default: () => []
-  }
+  message: { type: Object, required: true },
+  userAvatar: { type: String, default: '' },
+  roleAvatar: { type: String, default: '' },
+  linkedStickers: { type: Array, default: () => [] }
 });
+
+const emit = defineEmits(['delete']);
+
+const activeMenuId = ref(null);
+let pressTimer = null;
+
+const onPressStart = (id) => {
+  pressTimer = setTimeout(() => { activeMenuId.value = id; }, 500);
+};
+const onPressEnd = () => { clearTimeout(pressTimer); };
+const closeMenu = () => { activeMenuId.value = null; };
+const onContextMenu = (e, id) => { activeMenuId.value = id; };
+const handleDelete = () => { emit('delete', props.message.id); closeMenu(); };
 
 const isPlaying = ref(false);
 const audioElement = ref(null);
@@ -134,8 +128,8 @@ watch(() => props.message.content, resolveImage);
 
 const toggleAudio = () => {
   if (!props.message.audioUrl) return;
+  if (activeMenuId.value !== null) return;
 
-  // 切换文字显示
   showTranscript.value = !showTranscript.value;
 
   if (!audioElement.value) {
@@ -152,48 +146,29 @@ const toggleAudio = () => {
   }
 };
 
-const avatar = computed(() => {
-  return props.message.role === 'user' ? props.userAvatar : props.roleAvatar;
-});
+const avatar = computed(() => props.message.role === 'user' ? props.userAvatar : props.roleAvatar);
 
-// 估算音频时长（基于文本长度）
 const audioDuration = computed(() => {
   if (!props.message.audioUrl) return 0;
-  // 中文约3.5字/秒，英文约2.5词/秒
   const text = props.message.content || '';
-  const chineseChars = (text.match(/[\u4e00-\u9fa5]/g) || []).length;
+  const chineseChars = (text.match(/[一-龥]/g) || []).length;
   const englishWords = (text.match(/[a-zA-Z]+/g) || []).length;
-  const duration = Math.ceil(chineseChars / 3.5 + englishWords / 2.5);
-  return Math.max(1, Math.min(duration, 60)); // 最小1秒，最大60秒
+  return Math.max(1, Math.min(Math.ceil(chineseChars / 3.5 + englishWords / 2.5), 60));
 });
 
-// 气泡宽度（根据时长动态变化）
-const audioBubbleWidth = computed(() => {
-  const duration = audioDuration.value;
-  const width = 60 + duration * 3; // 基础60px + 每秒3px
-  return `${Math.min(width, 200)}px`; // 最大200px
-});
+const audioBubbleWidth = computed(() => `${Math.min(60 + audioDuration.value * 3, 200)}px`);
 
-// 分割消息（按换行符）
 const messageParts = computed(() => {
   if (props.message.type !== 'text') return [props.message.content];
-  // 按换行符分割，过滤空行
   return props.message.content.split('\n').filter(part => part.trim());
 });
 
-// 解析表情标签 [表情:xxx] -> 使用用户上传的表情包
 const parseEmoji = (text) => {
   if (!text) return '';
-  // 匹配 [表情:xxx] 或 [表情：xxx] 格式
   return text.replace(/\[表情[：:]\s*([^\]]+)\]/g, (match, emojiName) => {
     const name = emojiName.trim();
-    // 从关联的表情包中查找
     const sticker = props.linkedStickers.find(s => s.name === name);
-    if (sticker && sticker.imageUrl) {
-      return `<img class="emoji-img" src="${sticker.imageUrl}" alt="${name}" />`;
-    }
-    // 如果没找到，显示文本
-    return `[${name}]`;
+    return sticker?.imageUrl ? `<img class="emoji-img" src="${sticker.imageUrl}" alt="${name}" />` : `[${name}]`;
   });
 };
 </script>
@@ -204,28 +179,11 @@ const parseEmoji = (text) => {
   flex-direction: column;
   animation: popIn 0.2s ease-out both;
 }
-
-.wx-message-wrapper.self {
-  align-items: flex-end;
-}
+.wx-message-wrapper.self { align-items: flex-end; }
 
 @keyframes popIn {
   0%   { opacity: 0; transform: translateY(6px); }
   100% { opacity: 1; transform: translateY(0); }
-}
-
-.wx-message-avatar-placeholder {
-  width: 40px;
-  height: 40px;
-  flex-shrink: 0;
-}
-
-.wx-message.self .wx-message-avatar-placeholder {
-  margin-left: 8px;
-}
-
-.wx-message:not(.self) .wx-message-avatar-placeholder {
-  margin-right: 8px;
 }
 
 :deep(.emoji-img) {
@@ -247,22 +205,10 @@ const parseEmoji = (text) => {
   transition: background 0.2s;
   min-width: 60px;
 }
+.audio-player:active, .audio-player:hover { background: rgba(0, 0, 0, 0.08); }
 
-.audio-player:active {
-  background: #f0f0f0;
-}
-
-.audio-icon {
-  display: flex;
-  align-items: center;
-  color: #000;
-}
-
-.audio-duration {
-  font-size: 16px;
-  color: #000;
-  font-weight: 500;
-}
+.audio-icon { display: flex; align-items: center; color: #000; font-size: 14px; }
+.audio-duration { font-size: 16px; color: #000; font-weight: 500; }
 
 .audio-transcript {
   margin-top: 8px;
@@ -275,16 +221,51 @@ const parseEmoji = (text) => {
   word-break: break-word;
 }
 
-.audio-player:hover {
-  background: rgba(0, 0, 0, 0.08);
+/* 微信风悬浮菜单 */
+.wx-menu-mask {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 998;
 }
 
-.audio-icon {
+.wx-context-menu {
+  position: absolute;
+  top: -46px;
+  background-color: #4c4c4c;
+  color: #fff;
+  padding: 0 16px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 38px;
   font-size: 14px;
+  font-weight: 500;
+  z-index: 999;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+  white-space: nowrap;
+  animation: fadeIn 0.15s ease-out;
 }
 
-.audio-text {
-  font-size: 13px;
-  color: #576b95;
+.wx-context-menu::after {
+  content: '';
+  position: absolute;
+  bottom: -5px;
+  width: 0; height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 6px solid #4c4c4c;
+}
+
+.wx-context-menu:not(.is-self) { left: 0; }
+.wx-context-menu:not(.is-self)::after { left: 16px; }
+.wx-context-menu.is-self { right: 0; }
+.wx-context-menu.is-self::after { right: 16px; }
+
+.menu-item { cursor: pointer; padding: 0 4px; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 </style>

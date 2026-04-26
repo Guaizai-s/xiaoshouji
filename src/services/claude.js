@@ -2,6 +2,50 @@
 import { mergeSystemPrompts } from '../config/systemPrompts';
 
 /**
+ * 带有自动重试机制的 fetch
+ */
+async function fetchWithRetry(url, options, maxRetries = 2, baseDelay = 1000) {
+  let attempt = 0;
+  while (attempt <= maxRetries) {
+    // 增加超时控制：60秒超时
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
+    const fetchOptions = { ...options, signal: controller.signal };
+
+    try {
+      const response = await fetch(url, fetchOptions);
+      clearTimeout(timeoutId);
+      
+      // 如果遇到中转服务器常见的 502/503/504 错误，也进行重试
+      if (!response.ok && [502, 503, 504].includes(response.status) && attempt < maxRetries) {
+        console.warn(`服务器返回 ${response.status}，准备重试...`);
+        throw new Error(`Server Error: ${response.status}`);
+      }
+      return response;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      
+      const isNetworkError = error.name === 'TypeError' && error.message.toLowerCase().includes('fetch');
+      const isTimeout = error.name === 'AbortError';
+      
+      if (attempt >= maxRetries) {
+        if (isNetworkError) {
+          throw new Error('网络请求失败 (Failed to fetch)。这通常是因为中转API节点波动、超时或跨域被拦截，请稍后重试。');
+        }
+        if (isTimeout) {
+          throw new Error('网络请求超时 (Timeout)。服务器响应时间过长。');
+        }
+        throw error;
+      }
+      
+      attempt++;
+      console.warn(`请求出现异常(${error.message})，${baseDelay * attempt}ms 后进行第 ${attempt} 次重试...`);
+      await new Promise(resolve => setTimeout(resolve, baseDelay * attempt));
+    }
+  }
+}
+
+/**
  * 处理 Anthropic 流式响应
  */
 async function handleAnthropicStream(response, onChunk) {
@@ -152,7 +196,7 @@ async function callAnthropicAPI(baseUrl, apiKey, model, systemPrompt, messages, 
        `${baseUrl}/v1/messages`)
     : 'https://api.anthropic.com/v1/messages';
 
-  const response = await fetch(url, {
+  const response = await fetchWithRetry(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -201,7 +245,7 @@ async function callOpenAIAPI(baseUrl, apiKey, model, systemPrompt, messages, onC
        `${baseUrl}/v1/chat/completions`)
     : 'https://api.openai.com/v1/chat/completions';
 
-  const response = await fetch(url, {
+  const response = await fetchWithRetry(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -261,7 +305,7 @@ export async function callClaudeVision(role, imageBase64, mimeType, contextMessa
          `${baseUrl}/v1/messages`)
       : 'https://api.anthropic.com/v1/messages';
 
-    const response = await fetch(url, {
+    const response = await fetchWithRetry(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -303,7 +347,7 @@ export async function callClaudeVision(role, imageBase64, mimeType, contextMessa
          `${baseUrl}/v1/chat/completions`)
       : 'https://api.openai.com/v1/chat/completions';
 
-    const response = await fetch(url, {
+    const response = await fetchWithRetry(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

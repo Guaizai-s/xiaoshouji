@@ -202,7 +202,7 @@ const onWidgetUpload = (e) => {
   const reader = new FileReader();
   reader.onload = ev => {
     const img = new Image();
-    img.onload = () => {
+    img.onload = async () => {
       const canvas = document.createElement('canvas');
       const max = 400;
       const scale = Math.min(1, max / Math.max(img.width, img.height));
@@ -211,8 +211,9 @@ const onWidgetUpload = (e) => {
       canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
       const data = canvas.toDataURL('image/jpeg', 0.7);
       widgetImage.value = data;
-      assetService.set('desktop_widget', data);
+      await assetService.set('desktop_widget', data);
     };
+    img.onerror = () => { alert('图片加载失败，请重试'); };
     img.src = ev.target.result;
   };
   reader.readAsDataURL(file);

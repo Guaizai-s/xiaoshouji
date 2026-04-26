@@ -30,6 +30,7 @@
             :user-avatar="userAvatar"
             :role-avatar="role?.avatar || defaultAvatar"
             :linked-stickers="linkedStickers"
+            @delete="deleteMessage"
           />
         </template>
       </div>
@@ -246,6 +247,11 @@ const scrollToBottom = () => {
   if (messagesContainer.value) {
     messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight;
   }
+};
+
+const deleteMessage = async (id) => {
+  await messageService.delete(id);
+  await loadMessages();
 };
 
 const sendTextMessage = async (text) => {
