@@ -346,8 +346,12 @@ const roleEditData = ref({ name: '', avatar: '', systemPrompt: '' });
 const showModelList = ref(false);
 
 const ttsModeList = [
-  { id: 'speech-02-hd',     name: 'Speech-02 HD',     desc: '旗舰 · 高质量' },
-  { id: 'speech-02-turbo',  name: 'Speech-02 Turbo',  desc: '旗舰 · 速度优先' },
+  { id: 'speech-2.8-hd',    name: 'Speech-2.8 HD',    desc: '最新一代 · 最高质量' },
+  { id: 'speech-2.8-turbo', name: 'Speech-2.8 Turbo', desc: '最新一代 · 低延迟' },
+  { id: 'speech-2.6-hd',    name: 'Speech-2.6 HD',    desc: '旗舰 · 高质量' },
+  { id: 'speech-2.6-turbo', name: 'Speech-2.6 Turbo', desc: '旗舰 · 速度优先' },
+  { id: 'speech-02-hd',     name: 'Speech-02 HD',     desc: '稳定 · 高质量' },
+  { id: 'speech-02-turbo',  name: 'Speech-02 Turbo',  desc: '稳定 · 速度优先' },
   { id: 'speech-01-hd',     name: 'Speech-01 HD',     desc: '旧版 · 高质量' },
   { id: 'speech-01-turbo',  name: 'Speech-01 Turbo',  desc: '旧版 · 速度优先' },
 ];

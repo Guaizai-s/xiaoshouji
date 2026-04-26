@@ -93,28 +93,206 @@
             </div>
           </div>
 
-          <!-- API 与其他 (可继续扩展) -->
-          <div class="text-[12px] font-bold tracking-widest uppercase mb-2 ml-2 transition-colors" :class="t.textMuted">Integration</div>
-          <div class="rounded-[1.5rem] p-1.5 shadow-sm border transition-colors duration-500 mb-8" :class="[t.cardBg, t.border]">
-            <div class="flex justify-between items-center px-4 py-3.5 rounded-2xl cursor-pointer transition-colors" :class="[`hover:${t.hoverBg}`]">
-              <span class="text-[15px] font-medium transition-colors" :class="t.textMain">API 方案</span>
+          <!-- 角色设置 -->
+          <div class="text-[12px] font-bold tracking-widest uppercase mb-2 ml-2 transition-colors" :class="t.textMuted">Role</div>
+          <div class="rounded-[1.5rem] p-1.5 shadow-sm border transition-colors duration-500 mb-6" :class="[t.cardBg, t.border]">
+            <div @click="currentView = 'roleEdit'" class="flex justify-between items-center px-4 py-3.5 rounded-2xl cursor-pointer transition-colors" :class="[`hover:${t.hoverBg}`]">
+              <span class="text-[15px] font-medium transition-colors" :class="t.textMain">编辑角色</span>
               <div class="flex items-center gap-2">
-                <span class="text-[14px] transition-colors" :class="t.textMuted">全局配置</span>
+                <span class="text-[14px] transition-colors" :class="t.textMuted">{{ role.name || '...' }}</span>
                 <i class="ph ph-caret-right text-sm" :class="t.textMuted"></i>
               </div>
             </div>
-            
+          </div>
+
+          <!-- API 与其他 -->
+          <div class="text-[12px] font-bold tracking-widest uppercase mb-2 ml-2 transition-colors" :class="t.textMuted">Integration</div>
+          <div class="rounded-[1.5rem] p-1.5 shadow-sm border transition-colors duration-500 mb-6" :class="[t.cardBg, t.border]">
+            <div @click="currentView = 'api'" class="flex justify-between items-center px-4 py-3.5 rounded-2xl cursor-pointer transition-colors" :class="[`hover:${t.hoverBg}`]">
+              <span class="text-[15px] font-medium transition-colors" :class="t.textMain">API 方案</span>
+              <div class="flex items-center gap-2">
+                <span class="text-[14px] transition-colors" :class="t.textMuted">{{ selectedProfileName }}</span>
+                <i class="ph ph-caret-right text-sm" :class="t.textMuted"></i>
+              </div>
+            </div>
             <div class="h-[1px] mx-4 transition-colors" :class="t.border"></div>
-            
-            <div class="flex justify-between items-center px-4 py-3.5 rounded-2xl cursor-pointer transition-colors" :class="[`hover:${t.hoverBg}`]">
+            <div @click="currentView = 'minimax'" class="flex justify-between items-center px-4 py-3.5 rounded-2xl cursor-pointer transition-colors" :class="[`hover:${t.hoverBg}`]">
               <span class="text-[15px] font-medium transition-colors" :class="t.textMain">Minimax 音色</span>
               <div class="flex items-center gap-2">
-                <span class="text-[14px] transition-colors" :class="t.textMuted">未配置</span>
+                <span class="text-[14px] transition-colors" :class="t.textMuted">{{ settings.minimaxVoiceId || '未配置' }}</span>
+                <i class="ph ph-caret-right text-sm" :class="t.textMuted"></i>
+              </div>
+            </div>
+          </div>
+
+          <!-- 主动发消息 -->
+          <div class="text-[12px] font-bold tracking-widest uppercase mb-2 ml-2 transition-colors" :class="t.textMuted">Proactive</div>
+          <div class="rounded-[1.5rem] p-1.5 shadow-sm border transition-colors duration-500 mb-6" :class="[t.cardBg, t.border]">
+            <div class="flex justify-between items-center px-4 py-3.5 rounded-2xl transition-colors" :class="[`hover:${t.hoverBg}`]">
+              <span class="text-[15px] font-medium transition-colors" :class="t.textMain">允许 AI 主动发消息</span>
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" v-model="settings.isProactive" class="sr-only peer">
+                <div class="w-11 h-6 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all transition-colors duration-300" :class="settings.isProactive ? t.switchBg : (activeTheme === 'midnight' ? '!bg-[#333]' : '!bg-[#E5E5E5]')"></div>
+              </label>
+            </div>
+            <template v-if="settings.isProactive">
+              <div class="h-[1px] mx-4 transition-colors" :class="t.border"></div>
+              <div class="flex justify-between items-center px-4 py-3.5 rounded-2xl transition-colors" :class="[`hover:${t.hoverBg}`]">
+                <span class="text-[15px] font-medium transition-colors" :class="t.textMain">定时触发</span>
+                <div class="flex items-center gap-2">
+                  <input v-if="settings.triggerTimer" type="time" v-model="settings.triggerTimerValue" class="bg-transparent outline-none text-[14px] transition-colors" :class="t.textMuted" />
+                  <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" v-model="settings.triggerTimer" class="sr-only peer">
+                    <div class="w-9 h-5 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all transition-colors duration-300" :class="settings.triggerTimer ? t.switchBg : (activeTheme === 'midnight' ? '!bg-[#333]' : '!bg-[#E5E5E5]')"></div>
+                  </label>
+                </div>
+              </div>
+              <div class="h-[1px] mx-4 transition-colors" :class="t.border"></div>
+              <div class="flex justify-between items-center px-4 py-3.5 rounded-2xl transition-colors" :class="[`hover:${t.hoverBg}`]">
+                <span class="text-[15px] font-medium transition-colors" :class="t.textMain">超时未回触发</span>
+                <div class="flex items-center gap-2">
+                  <select v-if="settings.triggerTimeout" v-model="settings.triggerTimeoutValue" class="bg-transparent outline-none text-[14px] transition-colors" :class="t.textMuted">
+                    <option value="1">1小时</option>
+                    <option value="3">3小时</option>
+                    <option value="5">5小时</option>
+                    <option value="12">12小时</option>
+                    <option value="24">24小时</option>
+                  </select>
+                  <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" v-model="settings.triggerTimeout" class="sr-only peer">
+                    <div class="w-9 h-5 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all transition-colors duration-300" :class="settings.triggerTimeout ? t.switchBg : (activeTheme === 'midnight' ? '!bg-[#333]' : '!bg-[#E5E5E5]')"></div>
+                  </label>
+                </div>
+              </div>
+            </template>
+          </div>
+
+          <!-- 用户人设 -->
+          <div class="text-[12px] font-bold tracking-widest uppercase mb-2 ml-2 transition-colors" :class="t.textMuted">Persona</div>
+          <div class="rounded-[1.5rem] p-1.5 shadow-sm border transition-colors duration-500 mb-8" :class="[t.cardBg, t.border]">
+            <div @click="currentView = 'persona'" class="flex justify-between items-center px-4 py-3.5 rounded-2xl cursor-pointer transition-colors" :class="[`hover:${t.hoverBg}`]">
+              <span class="text-[15px] font-medium transition-colors" :class="t.textMain">选择人设卡</span>
+              <div class="flex items-center gap-2">
+                <span class="text-[14px] transition-colors" :class="t.textMuted">{{ selectedPersonaName }}</span>
                 <i class="ph ph-caret-right text-sm" :class="t.textMuted"></i>
               </div>
             </div>
           </div>
           
+        </div>
+
+        <!-- ================= Minimax 音色视图 ================= -->
+        <div v-else-if="currentView === 'minimax'" class="absolute inset-0 overflow-y-auto pb-12 px-5 scrollbar-hide">
+          <div class="text-[12px] font-bold tracking-widest uppercase mb-2 ml-2 mt-6 transition-colors" :class="t.textMuted">TTS 模型</div>
+          <div class="rounded-[1.5rem] p-1.5 shadow-sm border transition-colors duration-500 mb-6" :class="[t.cardBg, t.border]">
+            <div class="flex justify-between items-center px-4 py-3.5 rounded-2xl cursor-pointer transition-colors" :class="[`hover:${t.hoverBg}`]" @click="showModelList = !showModelList">
+              <span class="text-[15px] font-medium transition-colors" :class="t.textMain">模型</span>
+              <div class="flex items-center gap-2">
+                <span class="text-[14px] transition-colors" :class="t.textMuted">{{ settings.minimaxModel }}</span>
+                <i class="ph ph-caret-down text-sm transition-transform" :class="[t.textMuted, showModelList ? 'rotate-180' : '']"></i>
+              </div>
+            </div>
+            <template v-if="showModelList">
+              <div class="h-[1px] mx-4 transition-colors" :class="t.border"></div>
+              <div v-for="m in ttsModeList" :key="m.id"
+                @click="settings.minimaxModel = m.id; showModelList = false"
+                class="flex justify-between items-center px-4 py-3 rounded-2xl cursor-pointer transition-colors" :class="[`hover:${t.hoverBg}`]">
+                <span class="text-[14px] transition-colors" :class="t.textMain">{{ m.name }}</span>
+                <i v-if="settings.minimaxModel === m.id" class="ph ph-check text-sm" :class="t.textMuted"></i>
+              </div>
+            </template>
+          </div>
+
+          <div class="text-[12px] font-bold tracking-widest uppercase mb-2 ml-2 transition-colors" :class="t.textMuted">Voice ID</div>
+          <div class="rounded-[1.5rem] p-4 shadow-sm border transition-colors duration-500 mb-6" :class="[t.cardBg, t.border]">
+            <input v-model="settings.minimaxVoiceId" placeholder="如 male-qn-qingse 或克隆音色ID"
+              class="w-full bg-transparent outline-none text-[15px] transition-colors" :class="t.textMain" />
+          </div>
+
+          <div class="text-[12px] font-bold tracking-widest uppercase mb-2 ml-2 transition-colors" :class="t.textMuted">语速 ({{ Number(settings.minimaxSpeed).toFixed(1) }}x)</div>
+          <div class="rounded-[1.5rem] p-4 shadow-sm border transition-colors duration-500 mb-6" :class="[t.cardBg, t.border]">
+            <input type="range" min="0.5" max="2.0" step="0.1" v-model.number="settings.minimaxSpeed"
+              class="w-full h-1.5 rounded-lg appearance-none cursor-pointer outline-none" :class="t.iconBg"
+              :style="`background: linear-gradient(to right, ${sliderColor} 0%, ${sliderColor} ${(settings.minimaxSpeed - 0.5) / 1.5 * 100}%, transparent ${(settings.minimaxSpeed - 0.5) / 1.5 * 100}%, transparent 100%);`" />
+          </div>
+
+          <div class="text-[12px] font-bold tracking-widest uppercase mb-2 ml-2 transition-colors" :class="t.textMuted">音调 ({{ settings.minimaxPitch > 0 ? '+' : '' }}{{ settings.minimaxPitch }})</div>
+          <div class="rounded-[1.5rem] p-4 shadow-sm border transition-colors duration-500 mb-6" :class="[t.cardBg, t.border]">
+            <input type="range" min="-12" max="12" step="1" v-model.number="settings.minimaxPitch"
+              class="w-full h-1.5 rounded-lg appearance-none cursor-pointer outline-none" :class="t.iconBg"
+              :style="`background: linear-gradient(to right, ${sliderColor} 0%, ${sliderColor} ${(settings.minimaxPitch + 12) / 24 * 100}%, transparent ${(settings.minimaxPitch + 12) / 24 * 100}%, transparent 100%);`" />
+          </div>
+        </div>
+
+        <!-- ================= 角色编辑视图 ================= -->
+        <div v-else-if="currentView === 'roleEdit'" class="absolute inset-0 overflow-y-auto pb-12 px-5 scrollbar-hide">
+          <div class="text-[12px] font-bold tracking-widest uppercase mb-2 ml-2 mt-6 transition-colors" :class="t.textMuted">基本信息</div>
+          <div class="rounded-[1.5rem] p-1.5 shadow-sm border transition-colors duration-500 mb-6" :class="[t.cardBg, t.border]">
+            <div class="flex justify-between items-center px-4 py-3.5 rounded-2xl transition-colors">
+              <span class="text-[15px] font-medium transition-colors" :class="t.textMain">角色名称</span>
+              <input v-model="roleEditData.name" placeholder="请输入角色名称"
+                class="bg-transparent outline-none text-[15px] text-right transition-colors" :class="t.textMuted" />
+            </div>
+            <div class="h-[1px] mx-4 transition-colors" :class="t.border"></div>
+            <div class="flex justify-between items-center px-4 py-3.5 rounded-2xl cursor-pointer transition-colors" :class="[`hover:${t.hoverBg}`]" @click="avatarInput.click()">
+              <span class="text-[15px] font-medium transition-colors" :class="t.textMain">角色头像</span>
+              <div class="flex items-center gap-2">
+                <img v-if="roleEditData.avatar" :src="roleEditData.avatar" class="w-8 h-8 rounded-lg object-cover" />
+                <span class="text-[14px] transition-colors" :class="t.textMuted">选择图片</span>
+              </div>
+              <input ref="avatarInput" type="file" accept="image/*" class="hidden" @change="onAvatarUpload" />
+            </div>
+          </div>
+          <div class="text-[12px] font-bold tracking-widest uppercase mb-2 ml-2 transition-colors" :class="t.textMuted">系统提示词</div>
+          <div class="rounded-[1.5rem] p-4 shadow-sm border transition-colors duration-500 mb-6" :class="[t.cardBg, t.border]">
+            <textarea v-model="roleEditData.systemPrompt" rows="8"
+              placeholder="定义角色的性格、说话风格、背景故事等..."
+              class="w-full bg-transparent outline-none resize-none text-[15px] leading-relaxed transition-colors"
+              :class="t.textMain"></textarea>
+          </div>
+          <button class="w-full py-4 rounded-[1.25rem] font-semibold text-[16px] shadow-sm transition-all active:scale-95"
+                  :class="[t.switchBg, activeTheme === 'midnight' ? '!text-[#121212]' : 'text-white']"
+                  @click="saveRoleEdit">保存角色</button>
+        </div>
+
+        <!-- ================= API 方案视图 ================= -->
+        <div v-else-if="currentView === 'api'" class="absolute inset-0 overflow-y-auto pb-12 px-5 scrollbar-hide">
+          <div class="text-[12px] font-bold tracking-widest uppercase mb-2 ml-2 mt-6 transition-colors" :class="t.textMuted">选择 API 方案</div>
+          <div class="rounded-[1.5rem] p-1.5 shadow-sm border transition-colors duration-500 mb-6" :class="[t.cardBg, t.border]">
+            <div @click="apiProfileId = null" class="flex justify-between items-center px-4 py-3.5 rounded-2xl cursor-pointer transition-colors" :class="[`hover:${t.hoverBg}`]">
+              <span class="text-[15px] font-medium transition-colors" :class="t.textMain">使用全局配置</span>
+              <i v-if="!apiProfileId" class="ph ph-check text-lg" :class="t.switchBg.replace('!bg-', 'text-').replace('bg-', 'text-')"></i>
+            </div>
+            <div v-for="p in apiProfiles" :key="p.id" @click="apiProfileId = p.id"
+              class="flex justify-between items-center px-4 py-3.5 rounded-2xl cursor-pointer transition-colors" :class="[`hover:${t.hoverBg}`]">
+              <div>
+                <div class="text-[15px] font-medium transition-colors" :class="t.textMain">{{ p.name }}</div>
+                <div class="text-[13px] transition-colors" :class="t.textMuted">{{ p.model }}</div>
+              </div>
+              <i v-if="apiProfileId === p.id" class="ph ph-check text-lg" :class="t.switchBg.replace('!bg-', 'text-').replace('bg-', 'text-')"></i>
+            </div>
+            <div v-if="apiProfiles.length === 0" class="px-4 py-3.5 text-[14px] transition-colors" :class="t.textMuted">暂无方案，请先在「设置 → API 方案」中创建</div>
+          </div>
+        </div>
+
+        <!-- ================= 人设卡视图 ================= -->
+        <div v-else-if="currentView === 'persona'" class="absolute inset-0 overflow-y-auto pb-12 px-5 scrollbar-hide">
+          <div class="text-[12px] font-bold tracking-widest uppercase mb-2 ml-2 mt-6 transition-colors" :class="t.textMuted">选择用户人设卡</div>
+          <div class="rounded-[1.5rem] p-1.5 shadow-sm border transition-colors duration-500 mb-6" :class="[t.cardBg, t.border]">
+            <div @click="settings.selectedPersonaId = null" class="flex justify-between items-center px-4 py-3.5 rounded-2xl cursor-pointer transition-colors" :class="[`hover:${t.hoverBg}`]">
+              <span class="text-[15px] font-medium transition-colors" :class="t.textMain">不使用人设</span>
+              <i v-if="!settings.selectedPersonaId" class="ph ph-check text-lg" :class="t.switchBg.replace('!bg-', 'text-').replace('bg-', 'text-')"></i>
+            </div>
+            <div v-for="p in personas" :key="p.id" @click="settings.selectedPersonaId = p.id"
+              class="flex justify-between items-center px-4 py-3.5 rounded-2xl cursor-pointer transition-colors" :class="[`hover:${t.hoverBg}`]">
+              <div>
+                <div class="text-[15px] font-medium transition-colors" :class="t.textMain">{{ p.name }}</div>
+                <div v-if="p.description" class="text-[13px] transition-colors" :class="t.textMuted">{{ p.description }}</div>
+              </div>
+              <i v-if="settings.selectedPersonaId === p.id" class="ph ph-check text-lg" :class="t.switchBg.replace('!bg-', 'text-').replace('bg-', 'text-')"></i>
+            </div>
+            <div v-if="personas.length === 0" class="px-4 py-3.5 text-[14px] transition-colors" :class="t.textMuted">暂无人设卡</div>
+          </div>
         </div>
 
         <!-- ================= 记忆设置视图 ================= -->
@@ -151,20 +329,35 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useTheme } from '../composables/useTheme';
-import { roleService, conversationService } from '../services/db';
-import { onMounted, watch } from 'vue';
+import { roleService, conversationService, apiProfileService, personaService } from '../services/db';
 
 const router = useRouter();
 const route = useRoute();
-const { activeTheme, themes, t, setTheme } = useTheme();
+const { activeTheme, t } = useTheme();
 
 const roleId = parseInt(route.params.id);
-
-// ================== 视图与主题控制 ==================
 const currentView = ref('main');
+const showModelList = ref(false);
+const role = ref({ name: '', avatar: '' });
+const apiProfiles = ref([]);
+const personas = ref([]);
+const apiProfileId = ref(null);
+const avatarInput = ref(null);
+const roleEditData = ref({ name: '', avatar: '', systemPrompt: '' });
+
+const ttsModeList = [
+  { id: 'speech-2.8-hd',    name: 'Speech-2.8 HD' },
+  { id: 'speech-2.8-turbo', name: 'Speech-2.8 Turbo' },
+  { id: 'speech-2.6-hd',    name: 'Speech-2.6 HD' },
+  { id: 'speech-2.6-turbo', name: 'Speech-2.6 Turbo' },
+  { id: 'speech-02-hd',     name: 'Speech-02 HD' },
+  { id: 'speech-02-turbo',  name: 'Speech-02 Turbo' },
+  { id: 'speech-01-hd',     name: 'Speech-01 HD' },
+  { id: 'speech-01-turbo',  name: 'Speech-01 Turbo' },
+];
 
 const sliderColor = computed(() => {
   if (activeTheme.value === 'blanc') return '#222222';
@@ -173,12 +366,21 @@ const sliderColor = computed(() => {
 });
 
 const viewTitle = computed(() => {
-  const map = { main: '详细信息', theme: '主题风格', memory: '记忆设置' };
+  const map = { main: '详细信息', memory: '记忆设置', minimax: 'Minimax 音色', roleEdit: '编辑角色', api: 'API 方案', persona: '用户人设' };
   return map[currentView.value] || '设置';
 });
 
-// ================== 数据状态 ==================
-const role = ref({ name: '', avatar: '' });
+const selectedProfileName = computed(() => {
+  if (!apiProfileId.value) return '全局配置';
+  const p = apiProfiles.value.find(p => p.id === apiProfileId.value);
+  return p ? p.name : '全局配置';
+});
+
+const selectedPersonaName = computed(() => {
+  if (!settings.value.selectedPersonaId) return '未选择';
+  const p = personas.value.find(p => p.id === settings.value.selectedPersonaId);
+  return p ? p.name : '未选择';
+});
 
 const settings = ref({
   isTop: false,
@@ -186,23 +388,48 @@ const settings = ref({
   isRealTimeOn: true,
   contextLength: 15,
   longTermMemory: '',
-  coreMemory: ''
+  coreMemory: '',
+  minimaxVoiceId: '',
+  minimaxModel: 'speech-02-hd',
+  minimaxSpeed: 1.2,
+  minimaxPitch: 0,
+  isProactive: false,
+  triggerTimer: false,
+  triggerTimerValue: '08:00',
+  triggerTimeout: false,
+  triggerTimeoutValue: '5',
+  selectedPersonaId: null,
 });
 
 let convId = null;
+let initialized = false;
 
 const saveSettings = async () => {
-  if (!role.value?.id) return;
+  if (!role.value?.id || !initialized) return;
   await roleService.update(role.value.id, { chatSettings: { ...role.value.chatSettings, ...settings.value } });
   if (convId) await conversationService.update(convId, { isTop: settings.value.isTop, isMuted: settings.value.isMuted });
 };
 
+const saveApiProfile = async () => {
+  if (!role.value?.id || !initialized) return;
+  await roleService.update(role.value.id, { apiProfileId: apiProfileId.value });
+};
+
 watch(settings, saveSettings, { deep: true });
+watch(apiProfileId, saveApiProfile);
+
+watch(currentView, (v) => {
+  if (v === 'roleEdit' && role.value) {
+    roleEditData.value = { name: role.value.name || '', avatar: role.value.avatar || '', systemPrompt: role.value.systemPrompt || '' };
+  }
+});
 
 onMounted(async () => {
+  [apiProfiles.value, personas.value] = await Promise.all([apiProfileService.getAll(), personaService.getAll()]);
   const r = await roleService.getById(roleId);
   if (r) {
     role.value = r;
+    apiProfileId.value = r.apiProfileId ?? null;
     const cs = r.chatSettings || {};
     settings.value = {
       isTop: cs.isTop ?? false,
@@ -210,7 +437,17 @@ onMounted(async () => {
       isRealTimeOn: cs.isRealTimeOn ?? true,
       contextLength: cs.contextLength ?? 15,
       longTermMemory: cs.longTermMemory || '',
-      coreMemory: cs.coreMemory || ''
+      coreMemory: cs.coreMemory || '',
+      minimaxVoiceId: cs.minimaxVoiceId || '',
+      minimaxModel: cs.minimaxModel || 'speech-02-hd',
+      minimaxSpeed: cs.minimaxSpeed ?? 1.2,
+      minimaxPitch: cs.minimaxPitch ?? 0,
+      isProactive: cs.isProactive ?? false,
+      triggerTimer: cs.triggerTimer ?? false,
+      triggerTimerValue: cs.triggerTimerValue || '08:00',
+      triggerTimeout: cs.triggerTimeout ?? false,
+      triggerTimeoutValue: cs.triggerTimeoutValue || '5',
+      selectedPersonaId: cs.selectedPersonaId ?? null,
     };
   }
   const conv = await conversationService.getOrCreateSms(roleId);
@@ -219,15 +456,31 @@ onMounted(async () => {
     settings.value.isTop = conv.isTop ?? settings.value.isTop;
     settings.value.isMuted = conv.isMuted ?? settings.value.isMuted;
   }
+  initialized = true;
 });
 
-// ================== 方法 ==================
+const saveRoleEdit = async () => {
+  if (!role.value?.id || !roleEditData.value.name.trim()) return;
+  await roleService.update(role.value.id, {
+    name: roleEditData.value.name,
+    avatar: roleEditData.value.avatar,
+    systemPrompt: roleEditData.value.systemPrompt,
+  });
+  role.value = await roleService.getById(role.value.id);
+  currentView.value = 'main';
+};
+
+const onAvatarUpload = (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => { roleEditData.value.avatar = ev.target.result; };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+};
+
 const goBack = () => {
-  if (currentView.value !== 'main') {
-    currentView.value = 'main';
-  } else {
-    router.back();
-  }
+  if (currentView.value !== 'main') { currentView.value = 'main'; } else { router.back(); }
 };
 </script>
 

@@ -221,6 +221,17 @@ export const messageService = {
     return messages.reverse();
   },
 
+  // 合并微信+短信上下文，按时间排序，取最近N轮
+  async getCombinedContext(roleId, rounds = 15) {
+    const chatConv = await db.conversations.where('roleId').equals(roleId).filter(c => !c.source).first();
+    const smsConv = await db.conversations.where('roleId').equals(roleId).filter(c => c.source === 'sms').first();
+    const msgs = [];
+    if (chatConv) msgs.push(...await db.messages.where('conversationId').equals(chatConv.id).toArray());
+    if (smsConv) msgs.push(...await db.messages.where('conversationId').equals(smsConv.id).toArray());
+    msgs.sort((a, b) => a.timestamp - b.timestamp);
+    return msgs.slice(-rounds * 2);
+  },
+
   // 删除消息
   async delete(id) {
     await db.messages.delete(id);

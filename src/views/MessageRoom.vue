@@ -217,7 +217,7 @@ onMounted(async () => {
 });
 
 const scrollToBottom = () => {
-  nextTick(() => messagesEndRef.value?.scrollIntoView({ behavior: 'smooth' }));
+  nextTick(() => messagesEndRef.value?.scrollIntoView({ behavior: 'instant' }));
 };
 
 watch(messages, () => scrollToBottom(), { deep: true });
@@ -232,17 +232,28 @@ const handleSend = async () => {
 
   isTyping.value = true;
   try {
-    const allConvs = await conversationService.getAll();
-    const chatConv = allConvs.find(c => c.roleId === roleId && !c.source);
-    const chatCtx = chatConv ? await messageService.getContext(chatConv.id, 10) : [];
-    const smsCtx = await messageService.getContext(convId, 10);
+    const contextLength = role.value?.chatSettings?.contextLength || 15;
+    const contextMessages = await messageService.getCombinedContext(roleId, contextLength);
 
-    const combined = [
-      ...chatCtx.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.content })),
-      ...smsCtx.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.content }))
-    ];
+    const bjTimeStr = (ts) => {
+      const d = new Date(ts);
+      return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    };
+    const combined = contextMessages.map(m => ({
+      role: m.role === 'user' ? 'user' : 'assistant',
+      content: m.timestamp ? `[北京时间：${bjTimeStr(m.timestamp)}] ${m.content}` : m.content
+    }));
 
-    const reply = await callClaude(role.value, combined);
+    const cs = role.value?.chatSettings || {};
+    let roleWithTime = { ...role.value };
+    if (cs.isRealTimeOn !== false) {
+      const now = new Date();
+      const weekdays = ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'];
+      const timeInfo = `# 重要：当前时间信息\n今天是 ${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 ${weekdays[now.getDay()]}，当前北京时间是 ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}\n\n这是系统提供的真实时间。`;
+      roleWithTime.systemPrompt = `${timeInfo}\n\n${role.value.systemPrompt || ''}`;
+    }
+
+    const reply = await callClaude(roleWithTime, combined);
     
     // ================= 移植语音逻辑 =================
     const voiceMatch = reply.match(/\[语音[:：]([^\]]+)\]/);

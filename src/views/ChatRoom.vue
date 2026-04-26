@@ -263,7 +263,7 @@ const generateReply = async () => {
     const startTime = Date.now();
 
     const contextLength = role.value?.chatSettings?.contextLength || 15;
-    const contextMessages = await messageService.getContext(conversationId, contextLength);
+    const contextMessages = await messageService.getCombinedContext(role.value.id, contextLength);
 
     // 找到上下文中最后一条图片消息的索引（该条发真实图像，其余用占位符）
     let lastImageIndex = -1;
@@ -298,6 +298,17 @@ const generateReply = async () => {
       return { role: msg.role, content: msg.content };
     }));
 
+    // 给每条消息加北京时间标注
+    const bjTimeStr = (ts) => {
+      const d = new Date(ts);
+      return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+    };
+    const timedMessages = apiMessages.map((m, i) => {
+      const ts = contextMessages[i]?.timestamp;
+      if (!ts || typeof m.content !== 'string') return m;
+      return { ...m, content: `[北京时间：${bjTimeStr(ts)}] ${m.content}` };
+    });
+
     // 构建增强的系统提示词
     let enhancedPrompt = role.value.systemPrompt || '';
 
@@ -324,12 +335,12 @@ const generateReply = async () => {
         // Claude 使用温和的表达
         timeInfo = `# 系统时间信息
 今天是 ${year}年${month}月${date}日 ${weekday}
-当前时间是 ${hours}:${minutes}
+当前北京时间是 ${hours}:${minutes}
 注意：这是真实的系统时间，你可以直接使用这个时间信息回答用户的问题。`;
       } else {
         // OpenAI 使用更强硬的指令
         timeInfo = `# 重要：当前时间信息
-今天是 ${year}年${month}月${date}日 ${weekday}，当前时间是 ${hours}:${minutes}
+今天是 ${year}年${month}月${date}日 ${weekday}，当前北京时间是 ${hours}:${minutes}
 
 这是系统提供的真实时间。当用户询问时间相关问题时，你必须使用这个时间信息回答，不要说你无法获取实时信息。`;
       }
@@ -367,7 +378,7 @@ const generateReply = async () => {
     let audioUrl = null;
     let fullResponse = '';
 
-    const response = await callClaude(roleWithTime, apiMessages, useStream ? async (chunk) => {
+    const response = await callClaude(roleWithTime, timedMessages, useStream ? async (chunk) => {
       fullResponse += chunk;
       // 移除语音标记
       const cleanChunk = chunk.replace(/\[语音[:：][^\]]+\]/g, '').trim();
@@ -460,7 +471,7 @@ const generateReply = async () => {
 const sendImageMessage = async (file, useOriginal) => {
   try {
     const dataUrl = useOriginal
-      ? await readFileAsDataUrl(file)
+      ? await compressImage(file, 2048, 0.95)
       : await compressImage(file, 384, 0.8);
 
     const imageKey = `img_${Date.now()}`;
