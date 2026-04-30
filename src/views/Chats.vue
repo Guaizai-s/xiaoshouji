@@ -63,7 +63,7 @@ onMounted(async () => {
 });
 
 const loadConversations = async () => {
-  conversations.value = (await conversationService.getAll()).filter(c => !c.source);
+  conversations.value = (await conversationService.getAll()).filter(c => !c.source && c.role);
 };
 
 const openChat = (conv) => {
@@ -140,9 +140,9 @@ const formatTime = (timestamp) => {
   background: #b2b2b2;
 }
 .item-pinned {
-  background: #f7f7f7;
+  background: color-mix(in srgb, var(--wx-white) 78%, var(--wx-bg));
 }
 .item-muted .wx-list-title {
-  color: #666;
+  color: var(--wx-text-secondary);
 }
 </style>

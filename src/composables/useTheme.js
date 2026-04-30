@@ -1,6 +1,5 @@
 import { ref, computed } from 'vue';
-
-const STORAGE_KEY = 'smsTheme';
+import { SMS_THEME_KEY, applySmsTheme, initializeTheme } from '../utils/themeSync';
 
 const themes = {
   blanc: {
@@ -50,14 +49,22 @@ vanilla: {
   }
 };
 
-const activeTheme = ref(localStorage.getItem(STORAGE_KEY) || 'blanc');
+const activeTheme = ref(initializeTheme().smsTheme || 'vanilla');
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('xiaoshouji-theme-change', (event) => {
+    const nextTheme = event.detail?.smsTheme || localStorage.getItem(SMS_THEME_KEY);
+    if (nextTheme && themes[nextTheme]) activeTheme.value = nextTheme;
+  });
+}
 
 export function useTheme() {
   const t = computed(() => themes[activeTheme.value]);
 
   const setTheme = (id) => {
-    activeTheme.value = id;
-    localStorage.setItem(STORAGE_KEY, id);
+    const nextTheme = themes[id] ? id : 'vanilla';
+    activeTheme.value = nextTheme;
+    applySmsTheme(nextTheme);
   };
 
   return { activeTheme, themes, t, setTheme };

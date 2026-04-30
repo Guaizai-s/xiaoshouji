@@ -62,12 +62,25 @@
                 <span class="text-[13px] font-medium tracking-wide"></span>
               </div>
 
-              <div v-else class="px-4 py-3 text-[15px] leading-relaxed transition-colors duration-500 shadow-sm"
+              <div v-if="msg.audioUrl && isTranscriptVisible(msg.id)"
+                   class="mt-2 px-4 py-3 text-[15px] leading-relaxed whitespace-pre-wrap transition-colors duration-500 shadow-sm"
                    :class="[
                      msg.role === 'user' ? `${t.myBubble} rounded-[1.25rem] rounded-br-sm` : `${t.otherBubble} rounded-[1.25rem] rounded-bl-sm`
                    ]">
                 {{ msg.content }}
               </div>
+
+              <template v-else-if="!msg.audioUrl">
+                <div v-for="(part, partIndex) in getMessageParts(msg)"
+                     :key="`${msg.id}-${partIndex}`"
+                     class="px-4 py-3 text-[15px] leading-relaxed transition-colors duration-500 shadow-sm"
+                     :class="[
+                       partIndex > 0 ? 'mt-2' : '',
+                       msg.role === 'user' ? `${t.myBubble} rounded-[1.25rem] rounded-br-sm` : `${t.otherBubble} rounded-[1.25rem] rounded-bl-sm`
+                     ]">
+                  {{ part }}
+                </div>
+              </template>
               
               <span class="text-[10px] mt-1 px-1 transition-colors duration-500" :class="t.textMuted">
                 {{ new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}
@@ -127,6 +140,7 @@ import { roleService, conversationService, messageService, apiProfileService } f
 import { callClaude } from '../services/claude.js';
 import { textToSpeech } from '../services/minimax.js'; // 引入语音服务
 import { useTheme } from '../composables/useTheme.js';
+import { buildTimeContextPrompt } from '../utils/timeContext.js';
 
 const route = useRoute();
 const router = useRouter();
@@ -144,10 +158,19 @@ let convId = null;
 
 // ================= 语音播放控制 =================
 const activeAudioId = ref(null);
+const visibleTranscriptIds = ref(new Set());
 let currentAudioPlayer = null;
 
 const togglePlay = (msg) => {
   if (!msg.audioUrl) return;
+
+  const nextTranscriptIds = new Set(visibleTranscriptIds.value);
+  if (nextTranscriptIds.has(msg.id)) {
+    nextTranscriptIds.delete(msg.id);
+  } else {
+    nextTranscriptIds.add(msg.id);
+  }
+  visibleTranscriptIds.value = nextTranscriptIds;
 
   if (activeAudioId.value === msg.id) {
     // 暂停当前播放
@@ -168,6 +191,15 @@ const togglePlay = (msg) => {
     };
   }
 };
+
+const isTranscriptVisible = (id) => visibleTranscriptIds.value.has(id);
+
+const getMessageParts = (msg) => {
+  if (msg.type !== 'text' || msg.audioUrl) return [msg.content];
+  return (msg.content || '').split('\n').map(part => part.trim()).filter(Boolean);
+};
+
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 // 离开页面时停止播放
 onUnmounted(() => {
@@ -235,22 +267,15 @@ const handleSend = async () => {
     const contextLength = role.value?.chatSettings?.contextLength || 15;
     const contextMessages = await messageService.getCombinedContext(roleId, contextLength);
 
-    const bjTimeStr = (ts) => {
-      const d = new Date(ts);
-      return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-    };
     const combined = contextMessages.map(m => ({
       role: m.role === 'user' ? 'user' : 'assistant',
-      content: m.timestamp ? `[北京时间：${bjTimeStr(m.timestamp)}] ${m.content}` : m.content
+      content: m.content
     }));
 
     const cs = role.value?.chatSettings || {};
     let roleWithTime = { ...role.value };
     if (cs.isRealTimeOn !== false) {
-      const now = new Date();
-      const weekdays = ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'];
-      const timeInfo = `# 重要：当前时间信息\n今天是 ${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日 ${weekdays[now.getDay()]}，当前北京时间是 ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}\n\n这是系统提供的真实时间。`;
-      roleWithTime.systemPrompt = `${timeInfo}\n\n${role.value.systemPrompt || ''}`;
+      roleWithTime.systemPrompt = `${buildTimeContextPrompt(contextMessages)}\n\n${role.value.systemPrompt || ''}`;
     }
 
     const reply = await callClaude(roleWithTime, combined);
@@ -282,8 +307,17 @@ const handleSend = async () => {
       // 纯文本消息，清理可能残留的括号
       const cleanResponse = reply.replace(/\[语音[:：][^\]]+\]/g, '').trim();
       if (cleanResponse) {
-        const aiMsg = await messageService.create(convId, 'assistant', cleanResponse, 'text', null);
-        messages.value.push(aiMsg);
+        const parts = cleanResponse.split('\n').map(part => part.trim()).filter(Boolean);
+        if (parts.length <= 1) {
+          const aiMsg = await messageService.create(convId, 'assistant', cleanResponse, 'text', null);
+          messages.value.push(aiMsg);
+        } else {
+          for (let i = 0; i < parts.length; i++) {
+            if (i > 0) await sleep(500);
+            const aiMsg = await messageService.create(convId, 'assistant', parts[i], 'text', null);
+            messages.value.push(aiMsg);
+          }
+        }
       }
     }
     // ==============================================

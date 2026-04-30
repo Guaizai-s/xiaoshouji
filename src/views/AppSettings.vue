@@ -272,7 +272,8 @@
 <script setup>
 import { ref, onMounted, h, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
-import { apiProfileService, roleService, conversationService, messageService, assetService } from '../services/db';
+import db, { apiProfileService, roleService, conversationService, messageService, assetService } from '../services/db';
+import { applySystemTheme, SYSTEM_THEME_KEY, SMS_THEME_KEY } from '../utils/themeSync';
 
 const router = useRouter();
 const activePage = ref('main'); 
@@ -306,13 +307,8 @@ const selectTheme = (index) => {
 };
 
 const applyTheme = (themeId) => {
-  currentTheme.value = themeId;
-  localStorage.setItem('systemTheme', themeId);
-  if (themeId === 'theme-data') {
-    document.documentElement.setAttribute('data-theme', 'dark');
-  } else {
-    document.documentElement.removeAttribute('data-theme');
-  }
+  const { systemTheme } = applySystemTheme(themeId);
+  currentTheme.value = systemTheme;
 };
 
 // ---- 图标组件基础 (用于系统项) ----
@@ -357,6 +353,8 @@ const useStreamAPI = ref(false);
 const wallpaperPreview = ref('');
 const customIcons = ref({});
 const dataMsg = ref('');
+const BACKUP_TABLES = ['roles', 'conversations', 'messages', 'apiProfiles', 'userPersonas', 'stickers', 'stickerLibraries', 'assets'];
+const BACKUP_LOCAL_STORAGE_KEYS = ['globalMinimax', 'useStreamAPI', SYSTEM_THEME_KEY, SMS_THEME_KEY, 'userStatus'];
 
 const loadAll = async () => {
   apiProfiles.value = await apiProfileService.getAll();
@@ -364,7 +362,7 @@ const loadAll = async () => {
   if (mm) globalMinimax.value = JSON.parse(mm);
   useStreamAPI.value = localStorage.getItem('useStreamAPI') === 'true';
   
-  const savedTheme = localStorage.getItem('systemTheme') || 'theme-minimal';
+  const savedTheme = localStorage.getItem(SYSTEM_THEME_KEY) || 'theme-minimal';
   applyTheme(savedTheme);
   const idx = themes.findIndex(t => t.id === savedTheme);
   if (idx !== -1) {
@@ -419,8 +417,114 @@ const resetIcons = async () => {
   customIcons.value = icons;
 };
 
-const exportData = async () => { dataMsg.value = '导出功能已触发'; setTimeout(()=>dataMsg.value='', 2000); };
-const importData = async () => { dataMsg.value = '导入功能已触发'; setTimeout(()=>dataMsg.value='', 2000); };
+const exportData = async () => {
+  try {
+    const tables = {};
+    for (const tableName of BACKUP_TABLES) {
+      tables[tableName] = await db.table(tableName).toArray();
+    }
+
+    const localStorageData = {};
+    for (const key of BACKUP_LOCAL_STORAGE_KEYS) {
+      const value = localStorage.getItem(key);
+      if (value !== null) localStorageData[key] = value;
+    }
+
+    const backup = {
+      app: 'xiaoshouji',
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      tables,
+      localStorage: localStorageData
+    };
+
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    link.href = url;
+    link.download = `xiaoshouji-backup-${stamp}.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+
+    dataMsg.value = '导出成功';
+  } catch (error) {
+    console.error('导出失败:', error);
+    dataMsg.value = `导出失败: ${error.message}`;
+  } finally {
+    setTimeout(() => dataMsg.value = '', 3000);
+  }
+};
+
+const readJsonFile = (file) => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      resolve(JSON.parse(reader.result));
+    } catch (error) {
+      reject(new Error('备份文件不是有效的 JSON'));
+    }
+  };
+  reader.onerror = () => reject(new Error('读取备份文件失败'));
+  reader.readAsText(file);
+});
+
+const normalizeBackupTables = (backup) => {
+  if (backup?.tables && typeof backup.tables === 'object') return backup.tables;
+
+  const legacyTables = {};
+  for (const tableName of BACKUP_TABLES) {
+    if (Array.isArray(backup?.[tableName])) legacyTables[tableName] = backup[tableName];
+  }
+  return legacyTables;
+};
+
+const importData = async (event) => {
+  const file = event.target.files?.[0];
+  if (!file) return;
+
+  try {
+    const backup = await readJsonFile(file);
+    const tables = normalizeBackupTables(backup);
+    const hasTableData = BACKUP_TABLES.some(tableName => Array.isArray(tables[tableName]));
+    if (!hasTableData) throw new Error('未找到可导入的数据表');
+
+    const ok = confirm('导入备份会清空当前本地数据，并替换为备份文件中的内容。确定继续吗？');
+    if (!ok) return;
+
+    await db.transaction('rw', BACKUP_TABLES.map(tableName => db.table(tableName)), async () => {
+      for (const tableName of BACKUP_TABLES) {
+        await db.table(tableName).clear();
+      }
+      for (const tableName of BACKUP_TABLES) {
+        const rows = tables[tableName];
+        if (Array.isArray(rows) && rows.length > 0) {
+          await db.table(tableName).bulkPut(rows);
+        }
+      }
+    });
+
+    if (backup.localStorage && typeof backup.localStorage === 'object') {
+      for (const key of BACKUP_LOCAL_STORAGE_KEYS) {
+        if (Object.prototype.hasOwnProperty.call(backup.localStorage, key)) {
+          localStorage.setItem(key, backup.localStorage[key]);
+        }
+      }
+    }
+
+    dataMsg.value = '导入成功，正在刷新';
+    await loadAll();
+    setTimeout(() => window.location.reload(), 500);
+  } catch (error) {
+    console.error('导入失败:', error);
+    dataMsg.value = `导入失败: ${error.message}`;
+    setTimeout(() => dataMsg.value = '', 5000);
+  } finally {
+    event.target.value = '';
+  }
+};
 </script>
 
 <style scoped>

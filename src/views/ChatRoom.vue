@@ -1,5 +1,5 @@
 <template>
-  <div class="wx-page" @click="onPageClick">
+  <div class="wx-page wx-chat-page" @click="onPageClick">
     <nav-bar :title="isTyping ? '对方正在输入…' : (role?.name || '聊天')" :show-back="true" :show-heart="true" action="•••" @action="goDetails" @heart="onHeart" />
 
     <div ref="messagesContainer" class="wx-content" :style="chatBackgroundStyle">
@@ -41,7 +41,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick, watch, computed } from 'vue';
+import { ref, onMounted, onUnmounted, nextTick, watch, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import NavBar from '../components/NavBar.vue';
 import MessageBubble from '../components/MessageBubble.vue';
@@ -49,6 +49,7 @@ import ChatInput from '../components/ChatInput.vue';
 import { conversationService, messageService, roleService, apiProfileService, personaService, stickerService, assetService } from '../services/db';
 import { callClaude } from '../services/claude';
 import { textToSpeech } from '../services/minimax';
+import { buildTimeContextPrompt } from '../utils/timeContext';
 
 const route = useRoute();
 const router = useRouter();
@@ -129,10 +130,38 @@ const chatBackgroundStyle = computed(() => {
 
 onMounted(async () => {
   loadUserAvatar();
+  setupKeyboardViewport();
   await loadConversation();
   await loadMessages();
   scrollToBottom();
 });
+
+const updateKeyboardViewport = () => {
+  const viewport = window.visualViewport;
+  if (!viewport) {
+    document.documentElement.style.setProperty('--chat-keyboard-offset', '0px');
+    return;
+  }
+
+  const offset = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
+  document.documentElement.style.setProperty('--chat-keyboard-offset', `${Math.round(offset)}px`);
+};
+
+const setupKeyboardViewport = () => {
+  updateKeyboardViewport();
+  window.visualViewport?.addEventListener('resize', updateKeyboardViewport);
+  window.visualViewport?.addEventListener('scroll', updateKeyboardViewport);
+  window.addEventListener('orientationchange', updateKeyboardViewport);
+};
+
+const teardownKeyboardViewport = () => {
+  document.documentElement.style.removeProperty('--chat-keyboard-offset');
+  window.visualViewport?.removeEventListener('resize', updateKeyboardViewport);
+  window.visualViewport?.removeEventListener('scroll', updateKeyboardViewport);
+  window.removeEventListener('orientationchange', updateKeyboardViewport);
+};
+
+onUnmounted(teardownKeyboardViewport);
 
 const lastMessageId = computed(() => {
   const msgs = messages.value;
@@ -304,17 +333,6 @@ const generateReply = async () => {
       return { role: msg.role, content: msg.content };
     }));
 
-    // 给每条消息加北京时间标注
-    const bjTimeStr = (ts) => {
-      const d = new Date(ts);
-      return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
-    };
-    const timedMessages = apiMessages.map((m, i) => {
-      const ts = contextMessages[i]?.timestamp;
-      if (!ts || typeof m.content !== 'string') return m;
-      return { ...m, content: `[北京时间：${bjTimeStr(ts)}] ${m.content}` };
-    });
-
     // 构建增强的系统提示词
     let enhancedPrompt = role.value.systemPrompt || '';
 
@@ -324,35 +342,8 @@ const generateReply = async () => {
     console.log('完整chatSettings:', role.value?.chatSettings);
 
     if (isRealTimeOn) {
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = now.getMonth() + 1;
-      const date = now.getDate();
-      const hours = now.getHours();
-      const minutes = String(now.getMinutes()).padStart(2, '0');
-      const weekdays = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
-      const weekday = weekdays[now.getDay()];
-
-      // 根据 API 格式使用不同的时间提示
-      const apiFormat = role.value?.apiFormat || 'openai';
-      let timeInfo;
-
-      if (apiFormat === 'anthropic') {
-        // Claude 使用温和的表达
-        timeInfo = `# 系统时间信息
-今天是 ${year}年${month}月${date}日 ${weekday}
-当前北京时间是 ${hours}:${minutes}
-注意：这是真实的系统时间，你可以直接使用这个时间信息回答用户的问题。`;
-      } else {
-        // OpenAI 使用更强硬的指令
-        timeInfo = `# 重要：当前时间信息
-今天是 ${year}年${month}月${date}日 ${weekday}，当前北京时间是 ${hours}:${minutes}
-
-这是系统提供的真实时间。当用户询问时间相关问题时，你必须使用这个时间信息回答，不要说你无法获取实时信息。`;
-      }
-
-      enhancedPrompt = `${timeInfo}\n\n${enhancedPrompt}`;
-      console.log('✅ 已添加时间信息:', `${year}年${month}月${date}日 ${hours}:${minutes}`);
+      enhancedPrompt = `${buildTimeContextPrompt(contextMessages)}\n\n${enhancedPrompt}`;
+      console.log('Time context metadata added without modifying message content.');
     } else {
       console.log('❌ 时间感知未开启');
     }
@@ -384,7 +375,7 @@ const generateReply = async () => {
     let audioUrl = null;
     let fullResponse = '';
 
-    const response = await callClaude(roleWithTime, timedMessages, useStream ? async (chunk) => {
+    const response = await callClaude(roleWithTime, apiMessages, useStream ? async (chunk) => {
       fullResponse += chunk;
       // 移除语音标记
       const cleanChunk = chunk.replace(/\[语音[:：][^\]]+\]/g, '').trim();
@@ -538,8 +529,13 @@ const compressImage = (file, maxSize = 384, quality = 0.8) => {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  height: 100dvh;
   overflow: hidden;
+}
+
+.wx-chat-page {
+  height: 100vh;
+  height: 100svh;
+  min-height: 100vh;
 }
 
 .wx-time-label {
@@ -561,6 +557,7 @@ const compressImage = (file, maxSize = 384, quality = 0.8) => {
   flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  padding-bottom: calc(72px + var(--chat-keyboard-offset, 0px));
 }
 .load-more-wrapper {
   display: flex;

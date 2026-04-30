@@ -26,13 +26,17 @@
             <div class="menu-item" @click.stop="handleDelete">删除</div>
           </div>
           <div
-            class="audio-player" :style="{ width: audioBubbleWidth }" @click="toggleAudio"
+            class="audio-player" :class="{ 'is-playing': isPlaying }" :style="{ width: audioBubbleWidth }" @click="toggleAudio"
             @mousedown="onPressStart('audio-multi')" @mouseup="onPressEnd" @mouseleave="onPressEnd"
             @touchstart.passive="onPressStart('audio-multi')" @touchend="onPressEnd" @touchcancel="onPressEnd"
             @contextmenu.prevent="onContextMenu($event, 'audio-multi')"
           >
             <span class="audio-icon">
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><path d="M3 8h2v4H3V8zm4-2h2v8H7V6zm4-2h2v12h-2V4z" /></svg>
+              <span class="audio-wave-bar"></span>
+              <span class="audio-wave-bar"></span>
+              <span class="audio-wave-bar"></span>
+              <span class="audio-wave-bar"></span>
+              <span class="audio-wave-bar"></span>
             </span>
             <span class="audio-duration">{{ audioDuration }}"</span>
           </div>
@@ -68,13 +72,17 @@
             <div class="menu-item" @click.stop="handleDelete">删除</div>
           </div>
           <div
-            class="audio-player" :style="{ width: audioBubbleWidth }" @click="toggleAudio"
+            class="audio-player" :class="{ 'is-playing': isPlaying }" :style="{ width: audioBubbleWidth }" @click="toggleAudio"
             @mousedown="onPressStart('audio-single')" @mouseup="onPressEnd" @mouseleave="onPressEnd"
             @touchstart.passive="onPressStart('audio-single')" @touchend="onPressEnd" @touchcancel="onPressEnd"
             @contextmenu.prevent="onContextMenu($event, 'audio-single')"
           >
             <span class="audio-icon">
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><path d="M3 8h2v4H3V8zm4-2h2v8H7V6zm4-2h2v12h-2V4z" /></svg>
+              <span class="audio-wave-bar"></span>
+              <span class="audio-wave-bar"></span>
+              <span class="audio-wave-bar"></span>
+              <span class="audio-wave-bar"></span>
+              <span class="audio-wave-bar"></span>
             </span>
             <span class="audio-duration">{{ audioDuration }}"</span>
           </div>
@@ -199,24 +207,61 @@ const parseEmoji = (text) => {
   justify-content: space-between;
   gap: 12px;
   padding: 8px 12px;
-  background: #fff;
+  background: var(--wx-bubble-other);
   border-radius: 8px;
   cursor: pointer;
   transition: background 0.2s;
   min-width: 60px;
+  -webkit-tap-highlight-color: transparent;
 }
-.audio-player:active, .audio-player:hover { background: rgba(0, 0, 0, 0.08); }
+.audio-player:active { background: rgba(0, 0, 0, 0.08); }
 
-.audio-icon { display: flex; align-items: center; color: #000; font-size: 14px; }
-.audio-duration { font-size: 16px; color: #000; font-weight: 500; }
+@media (hover: hover) and (pointer: fine) {
+  .audio-player:hover { background: rgba(0, 0, 0, 0.08); }
+}
+
+.audio-icon {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 18px;
+  color: var(--wx-text-primary);
+  font-size: 14px;
+}
+
+.audio-wave-bar {
+  width: 3px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+  transition: height 0.18s ease;
+}
+
+.audio-wave-bar:nth-child(2) { height: 12px; }
+.audio-wave-bar:nth-child(3) { height: 8px; }
+.audio-wave-bar:nth-child(4) { height: 14px; }
+.audio-wave-bar:nth-child(5) { height: 9px; }
+
+.audio-player.is-playing .audio-wave-bar:nth-child(1) { animation: audioWave 1s infinite ease-in-out; }
+.audio-player.is-playing .audio-wave-bar:nth-child(2) { animation: audioWave 1s infinite ease-in-out 0.2s; }
+.audio-player.is-playing .audio-wave-bar:nth-child(3) { animation: audioWave 1s infinite ease-in-out 0.4s; }
+.audio-player.is-playing .audio-wave-bar:nth-child(4) { animation: audioWave 1s infinite ease-in-out 0.1s; }
+.audio-player.is-playing .audio-wave-bar:nth-child(5) { animation: audioWave 1s infinite ease-in-out 0.25s; }
+
+@keyframes audioWave {
+  0%, 100% { height: 6px; }
+  50% { height: 16px; }
+}
+
+.audio-duration { font-size: 16px; color: var(--wx-text-primary); font-weight: 500; }
 
 .audio-transcript {
   margin-top: 8px;
   padding: 12px 16px;
-  background: #fff;
+  background: var(--wx-bubble-other);
   border-radius: 8px;
   font-size: 15px;
-  color: #000;
+  color: var(--wx-text-primary);
   line-height: 1.5;
   word-break: break-word;
 }

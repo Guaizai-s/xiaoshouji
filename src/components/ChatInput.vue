@@ -201,11 +201,12 @@ defineExpose({ closeActionSheet });
 <style scoped>
 .input-container {
   position: fixed;
-  bottom: 0;
+  bottom: var(--chat-keyboard-offset, 0px);
   left: 0;
   right: 0;
   z-index: 1000;
-  background: #fff;
+  background: var(--wx-white);
+  transition: bottom 0.18s ease;
 }
 
 .wx-input-plus svg {
@@ -235,8 +236,8 @@ defineExpose({ closeActionSheet });
 }
 
 .action-panel {
-  background: #f7f7f7;
-  border-top: 1px solid #e5e5e5;
+  background: var(--wx-bg);
+  border-top: 1px solid var(--wx-border);
   padding: 16px;
   height: 220px;
 }
@@ -262,8 +263,8 @@ defineExpose({ closeActionSheet });
   display: flex;
   align-items: center;
   justify-content: center;
-  background: white;
-  color: #1a1a1a;
+  background: var(--wx-white);
+  color: var(--wx-text-primary);
 }
 
 .action-icon svg {
@@ -299,7 +300,7 @@ defineExpose({ closeActionSheet });
 
 .image-options-sheet {
   width: 100%;
-  background: #f2f2f2;
+  background: var(--wx-bg);
   border-radius: 16px 16px 0 0;
   padding: 16px;
   display: flex;
@@ -329,8 +330,8 @@ defineExpose({ closeActionSheet });
   border-radius: 10px;
   font-size: 15px;
   cursor: pointer;
-  background: #fff;
-  color: #333;
+  background: var(--wx-white);
+  color: var(--wx-text-primary);
 }
 
 .image-option-btn.primary {
@@ -349,8 +350,8 @@ defineExpose({ closeActionSheet });
   border-radius: 10px;
   font-size: 15px;
   cursor: pointer;
-  background: #fff;
-  color: #333;
+  background: var(--wx-white);
+  color: var(--wx-text-primary);
   margin-bottom: env(safe-area-inset-bottom, 0);
 }
 
@@ -362,11 +363,12 @@ defineExpose({ closeActionSheet });
 <style scoped>
 .input-container {
   position: fixed;
-  bottom: 0;
+  bottom: var(--chat-keyboard-offset, 0px);
   left: 0;
   right: 0;
   z-index: 1000;
-  background: #fff;
+  background: var(--wx-white);
+  transition: bottom 0.18s ease;
 }
 
 .wx-input-plus svg {
@@ -396,8 +398,8 @@ defineExpose({ closeActionSheet });
 }
 
 .action-panel {
-  background: #f7f7f7;
-  border-top: 1px solid #e5e5e5;
+  background: var(--wx-bg);
+  border-top: 1px solid var(--wx-border);
   padding: 16px;
   height: 220px;
 }
@@ -423,8 +425,8 @@ defineExpose({ closeActionSheet });
   display: flex;
   align-items: center;
   justify-content: center;
-  background: white;
-  color: #1a1a1a;
+  background: var(--wx-white);
+  color: var(--wx-text-primary);
 }
 
 .action-icon svg {

@@ -2,55 +2,49 @@
   <div class="wx-page">
     <div class="nav-bar">
       <div class="nav-back" @click="goBack">
-        <svg width="10" height="18" viewBox="0 0 10 18" fill="none"><path d="M9 1L1 9L9 17" stroke="#111" stroke-width="2" stroke-linecap="round"/></svg>
+        <svg width="10" height="18" viewBox="0 0 10 18" fill="none"><path d="M9 1L1 9L9 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
       </div>
       <div class="nav-title">{{ viewTitle }}</div>
       <div class="nav-placeholder"></div>
     </div>
 
     <!-- ===== 主页 ===== -->
-    <div v-show="currentView === 'main'" class="page-content">
-      <!-- 角色设置 -->
-      <div class="group-label">角色设置</div>
-      <div class="panel">
-        <div class="list-item" @click="currentView = 'roleEdit'">
-          <span class="item-label">编辑角色</span>
-          <div class="item-right"><span class="item-value">{{ role?.name || '...' }}</span><span class="arrow"></span></div>
+    <div v-show="currentView === 'main'" class="page-content details-home">
+      <section class="hero-card">
+        <div class="hero-bg"></div>
+        <div class="hero-main">
+          <img class="hero-avatar role-avatar" :src="role?.avatar || defaultAvatar" alt="role avatar" />
+          <div class="hero-info">
+            <div class="hero-name">{{ role?.name || '未知角色' }}</div>
+            <div class="hero-status">
+              <span class="status-dot"></span>
+              {{ roleStatus }}
+            </div>
+          </div>
+          <button class="profile-edit-btn" @click="currentView = 'roleEdit'">编辑</button>
         </div>
-      </div>
+      </section>
 
-      <!-- 记忆与上下文 -->
-      <div class="group-label">记忆与上下文</div>
-      <div class="panel">
-        <div class="list-item" @click="currentView = 'memory'">
-          <span class="item-label">记忆设置</span>
-          <div class="item-right"><span class="item-value">长期 / 核心</span><span class="arrow"></span></div>
-        </div>
-        <div class="list-item" @click="showContextSlider = !showContextSlider">
-          <span class="item-label">上下文长度</span>
-          <div class="item-right"><span class="item-value">{{ settings.contextLength }} 轮</span><span class="arrow" :class="{ 'arrow-down': showContextSlider }"></span></div>
-        </div>
-        <div v-show="showContextSlider" class="slider-wrap">
-          <input type="range" min="1" max="300" v-model.number="settings.contextLength" class="wx-slider" />
-          <div class="hint-text">最近 <strong>{{ settings.contextLength }}</strong> 轮对话。轮数越大 AI 记忆越好，但 Token 消耗增加。</div>
-        </div>
-      </div>
+      <section class="quick-grid">
+        <button class="quick-card" @click="currentView = 'memory'">
+          <span class="quick-title">记忆</span>
+          <span class="quick-sub">长期 / 核心</span>
+        </button>
+        <button class="quick-card" @click="currentView = 'api'">
+          <span class="quick-title">API</span>
+          <span class="quick-sub">{{ selectedProfileName }}</span>
+        </button>
+        <button class="quick-card" @click="currentView = 'minimax'">
+          <span class="quick-title">语音</span>
+          <span class="quick-sub">{{ settings.minimaxVoiceId ? '已配置' : '未配置' }}</span>
+        </button>
+        <button class="quick-card" @click="currentView = 'stickers'">
+          <span class="quick-title">表情包</span>
+          <span class="quick-sub">{{ linkedLibraryName }}</span>
+        </button>
+      </section>
 
-      <!-- API & 音色 -->
-      <div class="group-label">API 与语音</div>
-      <div class="panel">
-        <div class="list-item" @click="currentView = 'api'">
-          <span class="item-label">API 方案</span>
-          <div class="item-right"><span class="item-value">{{ selectedProfileName }}</span><span class="arrow"></span></div>
-        </div>
-        <div class="list-item" @click="currentView = 'minimax'">
-          <span class="item-label">Minimax 音色</span>
-          <div class="item-right"><span class="item-value">{{ settings.minimaxVoiceId ? '已配置' : '未配置' }}</span><span class="arrow"></span></div>
-        </div>
-      </div>
-
-      <!-- 聊天行为 -->
-      <div class="group-label">聊天行为</div>
+      <div class="group-label">常用设置</div>
       <div class="panel">
         <label class="list-item">
           <span class="item-label">聊天背景图</span>
@@ -74,8 +68,19 @@
         </label>
       </div>
 
-      <!-- 主动发消息 -->
-      <div class="group-label">主动发消息</div>
+      <div class="group-label">上下文</div>
+      <div class="panel">
+        <div class="list-item" @click="showContextSlider = !showContextSlider">
+          <span class="item-label">上下文长度</span>
+          <div class="item-right"><span class="item-value">{{ settings.contextLength }} 轮</span><span class="arrow" :class="{ 'arrow-down': showContextSlider }"></span></div>
+        </div>
+        <div v-show="showContextSlider" class="slider-wrap">
+          <input type="range" min="1" max="300" v-model.number="settings.contextLength" class="wx-slider" />
+          <div class="hint-text">最近 <strong>{{ settings.contextLength }}</strong> 轮对话。轮数越大 AI 记忆越好，但 Token 消耗增加。</div>
+        </div>
+      </div>
+
+      <div class="group-label">主动消息</div>
       <div class="panel">
         <label class="list-item">
           <span class="item-label">允许 AI 主动发消息</span>
@@ -106,22 +111,20 @@
       </div>
       <div v-if="settings.isProactive" class="hint-text">满足勾选条件时，系统将在后台自动唤醒 AI 向你发消息。</div>
 
-      <!-- 用户人设 -->
-      <div class="group-label">用户人设</div>
+      <div class="group-label">关联</div>
       <div class="panel">
         <div class="list-item" @click="currentView = 'persona'">
-          <span class="item-label">选择人设卡</span>
+          <span class="item-label">用户人设</span>
           <div class="item-right"><span class="item-value">{{ selectedPersonaName }}</span><span class="arrow"></span></div>
+        </div>
+        <div class="list-item" @click="currentView = 'stickers'">
+          <span class="item-label">表情包库</span>
+          <div class="item-right"><span class="item-value">{{ linkedLibraryName }}</span><span class="arrow"></span></div>
         </div>
       </div>
 
-      <!-- 表情包 -->
-      <div class="group-label">表情包</div>
-      <div class="panel">
-        <div class="list-item" @click="currentView = 'stickers'">
-          <span class="item-label">关联表情包库</span>
-          <div class="item-right"><span class="item-value">{{ linkedLibraryName }}</span><span class="arrow"></span></div>
-        </div>
+      <div class="danger-panel">
+        <button class="danger-btn" @click="deleteRoleFromDetails">删除角色和聊天记录</button>
       </div>
 
       <div v-if="saveMsg" class="save-toast">{{ saveMsg }}</div>
@@ -336,6 +339,7 @@ const convId = route.params.convId ? parseInt(route.params.convId) : null;
 const currentView = ref('main');
 const showContextSlider = ref(false);
 const role = ref(null);
+const currentConversation = ref(null);
 const apiProfiles = ref([]);
 const personas = ref([]);
 const libraries = ref([]);
@@ -344,6 +348,9 @@ const bgInput = ref(null);
 const avatarInput = ref(null);
 const roleEditData = ref({ name: '', avatar: '', systemPrompt: '' });
 const showModelList = ref(false);
+const defaultAvatar = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="72" height="72"%3E%3Crect fill="%23ddd" width="72" height="72" rx="12"/%3E%3Cpath fill="%23999" d="M36 18a10 10 0 100 20 10 10 0 000-20zm0 25c-7.3 0-13 4.3-13 9.7V56h26v-3.3C49 47.3 43.3 43 36 43z"/%3E%3C/svg%3E';
+const defaultUserAvatar = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="72" height="72"%3E%3Crect fill="%2307C160" width="72" height="72" rx="12"/%3E%3Ctext x="50%25" y="54%25" dominant-baseline="middle" text-anchor="middle" font-size="28" fill="white"%3E我%3C/text%3E%3C/svg%3E';
+const userAvatar = ref(defaultUserAvatar);
 
 const ttsModeList = [
   { id: 'speech-2.8-hd',    name: 'Speech-2.8 HD',    desc: '最新一代 · 最高质量' },
@@ -379,6 +386,13 @@ const linkedLibraryName = computed(() => {
   return lib ? lib.name : '未选择';
 });
 
+const roleStatus = computed(() => {
+  if (!role.value) return '角色资料缺失';
+  if (settings.isMuted) return '免打扰中';
+  if (settings.isProactive) return '可主动联系';
+  return '在线';
+});
+
 const settings = reactive({
   contextLength: 15,
   chatBackground: '',
@@ -406,6 +420,17 @@ const apiProfileId = ref(null);
 const goBack = () => {
   if (currentView.value !== 'main') { currentView.value = 'main'; return; }
   router.back();
+};
+
+const loadUserAvatar = () => {
+  const saved = localStorage.getItem('userProfile');
+  if (!saved) return;
+  try {
+    const data = JSON.parse(saved);
+    userAvatar.value = data.avatar || defaultUserAvatar;
+  } catch (error) {
+    console.warn('读取用户头像失败:', error);
+  }
 };
 
 const triggerBgUpload = () => {
@@ -458,6 +483,14 @@ const saveRoleEdit = async () => {
   setTimeout(() => { saveMsg.value = ''; }, 1500);
 };
 
+const deleteRoleFromDetails = async () => {
+  if (!role.value) return;
+  const ok = confirm(`确定删除角色"${role.value.name}"吗？删除后相关聊天记录也会被删除。`);
+  if (!ok) return;
+  await roleService.delete(role.value.id);
+  router.replace('/chats');
+};
+
 const selectLibrary = (libraryId) => {
   settings.linkedLibraryId = libraryId;
 };
@@ -490,13 +523,15 @@ watch(currentView, (newView) => {
 });
 
 onMounted(async () => {
+  loadUserAvatar();
   apiProfiles.value = await apiProfileService.getAll();
   personas.value = await personaService.getAll();
   libraries.value = await stickerLibraryService.getAll();
 
   let rid = roleId;
   if (!rid && convId) {
-    const conv = await conversationService.getOrCreate(convId);
+    const conv = await conversationService.getById(convId);
+    currentConversation.value = conv || null;
     rid = conv?.roleId;
   }
   if (rid) {
@@ -505,6 +540,10 @@ onMounted(async () => {
       Object.assign(settings, role.value.chatSettings);
     }
     apiProfileId.value = role.value?.apiProfileId ?? null;
+    if (currentConversation.value) {
+      settings.isTop = !!currentConversation.value.isTop;
+      settings.isMuted = !!currentConversation.value.isMuted;
+    }
   }
 });
 </script>
@@ -513,10 +552,11 @@ onMounted(async () => {
 .wx-page {
   width: 100%;
   height: 100dvh;
-  background: #f2f2f7;
+  background: var(--wx-bg);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  color: var(--wx-text-primary);
 }
 .nav-bar {
   height: 44px;
@@ -525,15 +565,15 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #ededed;
-  border-bottom: 1px solid #e5e5e5;
+  background: var(--wx-white);
+  border-bottom: 1px solid var(--wx-border);
   flex-shrink: 0;
 }
 .nav-back {
   display: flex; align-items: center; gap: 4px;
-  font-size: 16px; color: #111; cursor: pointer; min-width: 60px;
+  font-size: 16px; color: var(--wx-text-primary); cursor: pointer; min-width: 60px;
 }
-.nav-title { font-size: 17px; font-weight: 600; color: #111; }
+.nav-title { font-size: 17px; font-weight: 600; color: var(--wx-text-primary); }
 .nav-placeholder { min-width: 60px; }
 
 .page-content {
@@ -541,13 +581,184 @@ onMounted(async () => {
   padding-bottom: max(40px, env(safe-area-inset-bottom));
 }
 .page-content::-webkit-scrollbar { display: none; }
+.details-home {
+  padding-top: 12px;
+}
+
+.hero-card {
+  position: relative;
+  margin: 0 16px 12px;
+  padding: 18px;
+  overflow: hidden;
+  border-radius: 18px;
+  background: linear-gradient(135deg, var(--wx-white) 0%, rgba(7, 193, 96, 0.08) 100%);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.06);
+}
+.hero-bg {
+  position: absolute;
+  inset: auto -30px -60px auto;
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  background: rgba(7, 193, 96, 0.08);
+}
+.hero-main {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.hero-avatar {
+  width: 68px;
+  height: 68px;
+  border-radius: 16px;
+  object-fit: cover;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+}
+.hero-info {
+  flex: 1;
+  min-width: 0;
+}
+.hero-name {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--wx-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hero-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--wx-text-secondary);
+}
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #07c160;
+  box-shadow: 0 0 0 4px rgba(7, 193, 96, 0.12);
+}
+.profile-edit-btn {
+  border: none;
+  border-radius: 999px;
+  padding: 8px 14px;
+  color: #07a857;
+  background: rgba(7, 193, 96, 0.1);
+  font-size: 14px;
+  font-weight: 600;
+}
+.profile-edit-btn:active {
+  transform: scale(0.97);
+}
+.relationship-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 28px 1fr;
+  align-items: center;
+  gap: 8px;
+  margin-top: 20px;
+}
+.mini-profile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.mini-profile.right {
+  justify-content: flex-end;
+  text-align: right;
+}
+.mini-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  object-fit: cover;
+}
+.mini-label {
+  font-size: 11px;
+  color: #9b9b9f;
+}
+.mini-value {
+  max-width: 104px;
+  margin-top: 2px;
+  overflow: hidden;
+  color: var(--wx-text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.relationship-line {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #c8d6cc, transparent);
+}
+
+.quick-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 16px 14px;
+}
+.quick-card {
+  display: flex;
+  min-width: 0;
+  min-height: 72px;
+  flex-direction: column;
+  justify-content: center;
+  border: none;
+  border-radius: 14px;
+  background: var(--wx-white);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.04);
+  padding: 10px 8px;
+  text-align: left;
+}
+.quick-card:active {
+  transform: scale(0.98);
+  background: var(--wx-bg);
+}
+.quick-title {
+  color: var(--wx-text-primary);
+  font-size: 14px;
+  font-weight: 700;
+}
+.quick-sub {
+  display: block;
+  margin-top: 5px;
+  overflow: hidden;
+  color: var(--wx-text-secondary);
+  font-size: 11px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.danger-panel {
+  margin: 22px 16px 10px;
+}
+.danger-btn {
+  width: 100%;
+  border: none;
+  border-radius: 12px;
+  padding: 14px;
+  background: var(--wx-white);
+  color: #ff3b30;
+  font-size: 16px;
+  font-weight: 600;
+}
+.danger-btn:active {
+  background: rgba(255, 59, 48, 0.1);
+}
 
 .group-label {
   padding: 14px 16px 6px;
-  font-size: 12px; color: #8e8e93; text-transform: uppercase; letter-spacing: 0.04em;
+  font-size: 12px; color: var(--wx-text-secondary); text-transform: uppercase; letter-spacing: 0.04em;
 }
 .panel {
-  background: #fff; border-radius: 12px; margin: 0 16px 4px; overflow: hidden;
+  background: var(--wx-white); border-radius: 12px; margin: 0 16px 4px; overflow: hidden;
 }
 .members-panel {
   display: flex; align-items: flex-start; gap: 16px;
@@ -555,30 +766,30 @@ onMounted(async () => {
 }
 .member-item { display: flex; flex-direction: column; align-items: center; width: 56px; }
 .member-avatar { width: 56px; height: 56px; border-radius: 8px; object-fit: cover; margin-bottom: 6px; }
-.member-name { font-size: 11px; color: #666; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%; }
+.member-name { font-size: 11px; color: var(--wx-text-secondary); text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%; }
 .member-add {
   width: 56px; height: 56px; border-radius: 8px;
-  border: 2px dashed #d0d0d0;
+  border: 2px dashed var(--wx-border);
   display: flex; align-items: center; justify-content: center;
   cursor: pointer; margin-top: 0;
 }
-.member-add:active { background: #f5f5f5; }
+.member-add:active { background: var(--wx-bg); }
 
 .list-item {
   display: flex; align-items: center; justify-content: space-between;
   padding: 14px 16px; cursor: pointer;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--wx-border);
 }
 .list-item:last-child { border-bottom: none; }
-.list-item:active { background: #f5f5f5; }
+.list-item:active { background: var(--wx-bg); }
 .list-item.no-click { cursor: default; }
 .list-item.no-click:active { background: transparent; }
 .sub-item { padding-left: 28px; }
-.item-label { font-size: 16px; color: #111; }
-.sub-item .item-label { font-size: 15px; color: #333; }
-.item-desc { font-size: 13px; color: #999; margin-top: 2px; }
+.item-label { font-size: 16px; color: var(--wx-text-primary); }
+.sub-item .item-label { font-size: 15px; color: var(--wx-text-primary); }
+.item-desc { font-size: 13px; color: var(--wx-text-secondary); margin-top: 2px; }
 .item-right { display: flex; align-items: center; gap: 6px; }
-.item-value { font-size: 14px; color: #8e8e93; }
+.item-value { font-size: 14px; color: var(--wx-text-secondary); }
 .arrow {
   width: 7px; height: 7px;
   border-top: 1.5px solid #c7c7cc; border-right: 1.5px solid #c7c7cc;
@@ -588,27 +799,27 @@ onMounted(async () => {
 
 .slider-wrap {
   padding: 8px 16px 14px;
-  background: #f9f9f9;
-  border-top: 1px solid #f0f0f0;
+  background: var(--wx-bg);
+  border-top: 1px solid var(--wx-border);
 }
 .wx-slider {
   -webkit-appearance: none; appearance: none; width: 100%; background: transparent; margin: 8px 0;
 }
 .wx-slider::-webkit-slider-runnable-track {
-  height: 4px; background: #e0e0e0; border-radius: 2px;
+  height: 4px; background: var(--wx-border); border-radius: 2px;
 }
 .wx-slider::-webkit-slider-thumb {
   -webkit-appearance: none; width: 24px; height: 24px; border-radius: 50%;
-  background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.25); margin-top: -10px; cursor: pointer;
+  background: var(--wx-white); box-shadow: 0 1px 4px rgba(0,0,0,0.25); margin-top: -10px; cursor: pointer;
 }
 .slider-labels { position: relative; height: 16px; font-size: 11px; color: #c7c7cc; }
 .slider-labels span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
-.hint-text { padding: 4px 16px 10px; font-size: 12px; color: #8e8e93; line-height: 1.5; }
+.hint-text { padding: 4px 16px 10px; font-size: 12px; color: var(--wx-text-secondary); line-height: 1.5; }
 
 .wx-switch {
   position: relative; width: 51px; height: 31px;
   appearance: none; -webkit-appearance: none;
-  background: #e5e5e5; border-radius: 16px; outline: none; cursor: pointer;
+  background: var(--wx-border); border-radius: 16px; outline: none; cursor: pointer;
   transition: background-color 0.25s; margin: 0; flex-shrink: 0;
 }
 .wx-switch::after {
@@ -623,25 +834,25 @@ onMounted(async () => {
 
 .time-input, .wx-select, .form-select {
   appearance: none; -webkit-appearance: none; border: none;
-  background: transparent; font-size: 14px; color: #8e8e93;
+  background: transparent; font-size: 14px; color: var(--wx-text-secondary);
   outline: none; font-family: inherit;
 }
 
 .panel-form .form-row {
   display: flex; align-items: center; padding: 13px 16px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--wx-border);
 }
 .panel-form .form-row:last-child { border-bottom: none; }
-.form-label { font-size: 15px; color: #111; min-width: 72px; flex-shrink: 0; }
+.form-label { font-size: 15px; color: var(--wx-text-primary); min-width: 72px; flex-shrink: 0; }
 .form-input {
   flex: 1; border: none; outline: none; font-size: 15px;
-  color: #333; text-align: right; background: transparent; font-family: inherit;
+  color: var(--wx-text-primary); text-align: right; background: transparent; font-family: inherit;
 }
 .form-input::placeholder { color: #c7c7cc; }
 .dropdown-toggle {
   background: none; border: none; padding: 4px 0 4px 8px; cursor: pointer; display: flex; align-items: center;
 }
-.model-divider { height: 1px; background: #f0f0f0; margin: 0 16px; }
+.model-divider { height: 1px; background: var(--wx-border); margin: 0 16px; }
 .model-dropdown { overflow: hidden; }
 .dropdown-enter-active { animation: dropdown-in 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94) both; }
 .dropdown-leave-active { animation: dropdown-out 0.18s cubic-bezier(0.55, 0, 1, 0.45) both; }
@@ -656,7 +867,7 @@ onMounted(async () => {
 .textarea-row { align-items: flex-start; padding: 12px 16px; }
 .form-textarea {
   width: 100%; border: none; outline: none; font-size: 14px;
-  color: #333; background: transparent; font-family: inherit;
+  color: var(--wx-text-primary); background: transparent; font-family: inherit;
   resize: none; line-height: 1.6;
 }
 .form-textarea::placeholder { color: #c7c7cc; }
