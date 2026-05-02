@@ -75,7 +75,7 @@
           </div>
           <span>位置</span>
         </div>
-        <div class="action-item">
+        <div class="action-item" @click="openWalletSheet('redpacket')">
           <div class="action-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
               <rect x="3" y="5" width="18" height="14" rx="2"/>
@@ -95,7 +95,7 @@
           </div>
           <span>礼物</span>
         </div>
-        <div class="action-item">
+        <div class="action-item" @click="openWalletSheet('transfer')">
           <div class="action-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
               <circle cx="12" cy="12" r="10"/>
@@ -133,19 +133,78 @@
         </div>
       </div>
     </teleport>
+
+    <teleport to="body">
+      <div v-if="walletSheetMode" class="wallet-sheet-overlay" @click.self="closeWalletSheet">
+        <div class="wallet-sheet" @click.stop>
+          <div class="wallet-sheet-handle"></div>
+          <div class="wallet-sheet-header">
+            <button class="wallet-sheet-cancel" @click="closeWalletSheet">取消</button>
+            <div class="wallet-sheet-title">{{ walletSheetMode === 'redpacket' ? '发红包' : '转账' }}</div>
+            <div class="wallet-sheet-placeholder"></div>
+          </div>
+
+          <div class="wallet-amount-card">
+            <label class="wallet-label">金额</label>
+            <div class="wallet-amount-row">
+              <span class="wallet-currency">¥</span>
+              <input
+                v-model="walletAmount"
+                class="wallet-amount-input"
+                inputmode="decimal"
+                placeholder="0.00"
+                @input="walletError = ''"
+              />
+            </div>
+          </div>
+
+          <div class="wallet-note-card">
+            <input
+              v-model="walletNote"
+              class="wallet-note-input"
+              :placeholder="walletSheetMode === 'redpacket' ? '恭喜发财，大吉大利' : '添加转账说明'"
+              maxlength="32"
+            />
+          </div>
+
+          <div class="wallet-balance-row">
+            <span>零钱余额 ¥{{ formattedWalletBalance }}</span>
+          </div>
+
+          <div v-if="walletError" class="wallet-error">{{ walletError }}</div>
+          <button class="wallet-confirm-btn" @click="confirmWalletSend">
+            {{ walletSheetMode === 'redpacket' ? '塞钱进红包' : '转账' }}
+          </button>
+        </div>
+      </div>
+    </teleport>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
+import { formatCents } from '../services/db';
 
-const emit = defineEmits(['send', 'sendImage', 'generate']);
+const props = defineProps({
+  walletBalanceCents: {
+    type: Number,
+    default: 0
+  }
+});
+
+const emit = defineEmits(['send', 'sendImage', 'generate', 'sendWallet']);
 
 const inputText = ref('');
 const fileInput = ref(null);
 const showActionSheet = ref(false);
 const pendingFile = ref(null);
 const pendingPreview = ref('');
+const walletSheetMode = ref('');
+const walletAmount = ref('');
+const walletNote = ref('');
+const walletError = ref('');
+
+const formattedWalletBalance = computed(() => formatCents(props.walletBalanceCents));
 
 const onSend = () => {
   if (inputText.value.trim()) {
@@ -161,6 +220,33 @@ const onGenerate = () => {
 const onImageClick = () => {
   showActionSheet.value = false;
   fileInput.value?.click();
+};
+
+const openWalletSheet = (mode) => {
+  walletSheetMode.value = mode;
+  walletAmount.value = '';
+  walletNote.value = '';
+  walletError.value = '';
+  showActionSheet.value = false;
+  document.activeElement?.blur();
+};
+
+const closeWalletSheet = () => {
+  walletSheetMode.value = '';
+  walletError.value = '';
+};
+
+const confirmWalletSend = () => {
+  walletError.value = '';
+  if (!walletAmount.value.trim()) {
+    walletError.value = '请输入金额';
+    return;
+  }
+  emit('sendWallet', {
+    type: walletSheetMode.value,
+    amount: walletAmount.value,
+    note: walletNote.value.trim()
+  });
 };
 
 const onFileChange = (event) => {
@@ -186,6 +272,7 @@ const cancelImageSend = () => {
 
 const closeActionSheet = () => {
   showActionSheet.value = false;
+  closeWalletSheet();
 };
 
 const onPlusClick = () => {
@@ -357,6 +444,134 @@ defineExpose({ closeActionSheet });
 
 .image-option-cancel:active {
   opacity: 0.7;
+}
+
+.wallet-sheet-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2100;
+  display: flex;
+  align-items: flex-end;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.wallet-sheet {
+  width: 100%;
+  padding: 8px 16px calc(18px + env(safe-area-inset-bottom));
+  background: var(--wx-bg);
+  border-radius: 16px 16px 0 0;
+  box-sizing: border-box;
+}
+
+.wallet-sheet-handle {
+  width: 36px;
+  height: 4px;
+  margin: 0 auto 8px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.wallet-sheet-header {
+  display: grid;
+  grid-template-columns: 52px 1fr 52px;
+  align-items: center;
+  height: 44px;
+}
+
+.wallet-sheet-cancel {
+  border: none;
+  background: none;
+  padding: 0;
+  color: #576b95;
+  font-size: 15px;
+  text-align: left;
+}
+
+.wallet-sheet-title {
+  text-align: center;
+  color: var(--wx-text-primary);
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.wallet-amount-card,
+.wallet-note-card {
+  background: var(--wx-white);
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-top: 12px;
+}
+
+.wallet-label {
+  display: block;
+  color: var(--wx-text-secondary);
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.wallet-amount-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.wallet-currency {
+  color: var(--wx-text-primary);
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.wallet-amount-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--wx-text-primary);
+  font-size: 34px;
+  line-height: 1.2;
+  font-weight: 600;
+}
+
+.wallet-note-input {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--wx-text-primary);
+  font-size: 15px;
+}
+
+.wallet-balance-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 12px 2px 0;
+  color: var(--wx-text-secondary);
+  font-size: 13px;
+}
+
+.wallet-error {
+  margin-top: 12px;
+  color: #fa5151;
+  font-size: 13px;
+  text-align: center;
+}
+
+.wallet-confirm-btn {
+  width: 100%;
+  height: 46px;
+  margin-top: 16px;
+  border: none;
+  border-radius: 8px;
+  background: var(--wx-green);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+[data-theme="dark"] .wallet-sheet-handle {
+  background: rgba(255, 255, 255, 0.18);
 }
 </style>
 

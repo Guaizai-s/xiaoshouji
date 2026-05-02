@@ -31,12 +31,21 @@
             :role-avatar="role?.avatar || defaultAvatar"
             :linked-stickers="linkedStickers"
             @delete="deleteMessage"
+            @claim-wallet="claimWalletMessage"
+            @refund-transfer="refundTransferMessage"
           />
         </template>
       </div>
     </div>
 
-    <chat-input ref="chatInputRef" @send="sendTextMessage" @send-image="sendImageMessage" @generate="generateReply" />
+    <chat-input
+      ref="chatInputRef"
+      :wallet-balance-cents="walletBalanceCents"
+      @send="sendTextMessage"
+      @send-image="sendImageMessage"
+      @send-wallet="sendWalletMessage"
+      @generate="generateReply"
+    />
   </div>
 </template>
 
@@ -46,7 +55,7 @@ import { useRoute, useRouter } from 'vue-router';
 import NavBar from '../components/NavBar.vue';
 import MessageBubble from '../components/MessageBubble.vue';
 import ChatInput from '../components/ChatInput.vue';
-import { conversationService, messageService, roleService, apiProfileService, personaService, stickerService, assetService } from '../services/db';
+import { conversationService, messageService, roleService, apiProfileService, personaService, stickerService, assetService, walletService, parseAmountToCents } from '../services/db';
 import { callClaude } from '../services/claude';
 import { textToSpeech } from '../services/minimax';
 import { buildTimeContextPrompt } from '../utils/timeContext';
@@ -91,6 +100,7 @@ const isTyping = ref(false);
 const isLoading = ref(true);
 const messagesContainer = ref(null);
 const linkedStickers = ref([]);
+const walletBalanceCents = ref(0);
 
 const defaultUserAvatar = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="40" height="40"%3E%3Crect fill="%2307C160" width="40" height="40"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="20" fill="white"%3E我%3C/text%3E%3C/svg%3E';
 const defaultAvatar = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="40" height="40"%3E%3Crect fill="%23ddd" width="40" height="40"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="20"%3E🤖%3C/text%3E%3C/svg%3E';
@@ -131,6 +141,7 @@ const chatBackgroundStyle = computed(() => {
 onMounted(async () => {
   loadUserAvatar();
   await loadConversation();
+  await loadWalletBalance();
   await loadMessages();
   scrollToBottom();
 });
@@ -206,11 +217,21 @@ const loadConversation = async () => {
 
 const loadMessages = async () => {
   allMessages.value = await messageService.getByConversation(conversationId);
+  for (const message of allMessages.value) {
+    if (message.type === 'redpacket' || message.type === 'transfer') {
+      await walletService.syncMessageContent(message.id);
+    }
+  }
+  allMessages.value = await messageService.getByConversation(conversationId);
   if (!messagesPaginated) {
     displayOffset.value = Math.max(0, allMessages.value.length - PAGE_SIZE);
     messagesPaginated = true;
   }
   isLoading.value = false;
+};
+
+const loadWalletBalance = async () => {
+  walletBalanceCents.value = await walletService.getUserBalance();
 };
 
 const loadMore = async () => {
@@ -262,6 +283,88 @@ const sendTextMessage = async (text) => {
   } catch (error) {
     alert('发送失败: ' + error.message);
   }
+};
+
+const sendWalletMessage = async ({ type, amount, note }) => {
+  try {
+    const amountCents = parseAmountToCents(amount);
+    await walletService.createOutgoing({
+      conversationId,
+      roleId: role.value.id,
+      type,
+      amountCents,
+      note
+    });
+    chatInputRef.value?.closeActionSheet();
+    await loadWalletBalance();
+    await loadMessages();
+    scrollToBottom();
+  } catch (error) {
+    alert('发送失败: ' + error.message);
+  }
+};
+
+const claimWalletMessage = async (messageId) => {
+  try {
+    await walletService.claim(messageId);
+    await loadWalletBalance();
+    await loadMessages();
+  } catch (error) {
+    alert(error.message);
+  }
+};
+
+const refundTransferMessage = async (messageId) => {
+  try {
+    await walletService.refund(messageId);
+    await loadMessages();
+  } catch (error) {
+    alert(error.message);
+  }
+};
+
+const WALLET_COMMAND_RE = /\[(红包|转账)[:：]([0-9]+(?:\.[0-9]{1,2})?)(?:[:：]([^\]]*))?\]/;
+
+const splitWalletCommand = (text) => {
+  const match = text.match(WALLET_COMMAND_RE);
+  if (!match) return null;
+  return {
+    before: text.slice(0, match.index).trim(),
+    after: text.slice(match.index + match[0].length).trim(),
+    type: match[1] === '红包' ? 'redpacket' : 'transfer',
+    amountCents: parseAmountToCents(match[2]),
+    note: (match[3] || '').trim()
+  };
+};
+
+const createAssistantTextMessages = async (text) => {
+  const clean = (text || '').trim();
+  if (!clean) return;
+  const parts = clean.split('\n').filter(p => p.trim());
+  for (let i = 0; i < parts.length; i++) {
+    if (i > 0) await sleep(500);
+    await messageService.create(conversationId, 'assistant', parts[i], 'text', null);
+    await loadMessages();
+  }
+};
+
+const createAssistantWalletSequence = async (text) => {
+  const parsed = splitWalletCommand(text);
+  if (!parsed) {
+    await createAssistantTextMessages(text);
+    return;
+  }
+
+  await createAssistantTextMessages(parsed.before);
+  await walletService.createIncoming({
+    conversationId,
+    roleId: role.value.id,
+    type: parsed.type,
+    amountCents: parsed.amountCents,
+    note: parsed.note
+  });
+  await loadMessages();
+  await createAssistantTextMessages(parsed.after);
 };
 
 const generateReply = async () => {
@@ -343,7 +446,7 @@ const generateReply = async () => {
     let roleWithTime = { ...role.value, systemPrompt: enhancedPrompt };
 
     // 流式回调：收到一个换行就创建一个气泡
-    const useStream = localStorage.getItem('useStreamAPI') === 'true';
+    const useStream = false;
     let audioUrl = null;
     let fullResponse = '';
 
@@ -415,17 +518,7 @@ const generateReply = async () => {
         // 纯文字回复：移除语音标记，按换行拆分
         const cleanResponse = response.replace(/\[语音[:：][^\]]+\]/g, '').trim();
         if (cleanResponse) {
-          const parts = cleanResponse.split('\n').filter(p => p.trim());
-          if (parts.length <= 1) {
-            await messageService.create(conversationId, 'assistant', cleanResponse, 'text', null);
-            await loadMessages();
-          } else {
-            for (let i = 0; i < parts.length; i++) {
-              if (i > 0) await sleep(500);
-              await messageService.create(conversationId, 'assistant', parts[i], 'text', null);
-              await loadMessages();
-            }
-          }
+          await createAssistantWalletSequence(cleanResponse);
         }
       }
     }

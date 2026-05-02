@@ -59,7 +59,93 @@ db.version(6).stores({
   assets: 'key'
 });
 
+db.version(7).stores({
+  roles: '++id, name, createdAt, updatedAt',
+  conversations: '++id, roleId, updatedAt, isTop, isMuted',
+  messages: '++id, conversationId, timestamp',
+  apiProfiles: '++id, name, createdAt',
+  userPersonas: '++id, name, createdAt',
+  stickers: '++id, name, libraryId, createdAt',
+  stickerLibraries: '++id, name, createdAt',
+  assets: 'key',
+  walletAccounts: '++id, &[ownerType+ownerId], ownerType, ownerId, updatedAt',
+  walletTransactions: '++id, conversationId, messageId, type, status, createdAt, updatedAt'
+});
+
 // 角色管理
+const USER_OWNER = { ownerType: 'user', ownerId: 'self' };
+const WALLET_TYPES = new Set(['redpacket', 'transfer']);
+
+export const parseAmountToCents = (value) => {
+  const text = String(value ?? '').trim();
+  if (!/^\d+(\.\d{1,2})?$/.test(text)) {
+    throw new Error('金额必须大于 0，且最多两位小数');
+  }
+  const [yuan, cents = ''] = text.split('.');
+  const amountCents = Number(yuan) * 100 + Number(cents.padEnd(2, '0'));
+  if (!Number.isSafeInteger(amountCents) || amountCents <= 0) {
+    throw new Error('金额必须大于 0');
+  }
+  return amountCents;
+};
+
+export const formatCents = (amountCents = 0) => {
+  const value = Math.max(0, Number(amountCents) || 0);
+  return `${Math.floor(value / 100)}.${String(value % 100).padStart(2, '0')}`;
+};
+
+const ownerKey = (ownerType, ownerId) => [ownerType, String(ownerId)];
+
+const makeWalletContent = (tx, overrides = {}) => JSON.stringify({
+  transactionId: tx.id,
+  type: tx.type,
+  amountCents: tx.amountCents,
+  note: tx.note || '',
+  status: tx.status,
+  failReason: tx.failReason || '',
+  createdAt: tx.createdAt,
+  claimedAt: tx.claimedAt || null,
+  refundedAt: tx.refundedAt || null,
+  ...overrides
+});
+
+const walletLastMessage = (type) => type === 'redpacket' ? '[红包]' : '[转账]';
+
+const createWalletAccountInTx = async (ownerType, ownerId) => {
+  const key = ownerKey(ownerType, ownerId);
+  let account = await db.walletAccounts.where('[ownerType+ownerId]').equals(key).first();
+  if (!account) {
+    const now = Date.now();
+    const id = await db.walletAccounts.add({
+      ownerType,
+      ownerId: String(ownerId),
+      balanceCents: 0,
+      createdAt: now,
+      updatedAt: now
+    });
+    account = await db.walletAccounts.get(id);
+  }
+  return account;
+};
+
+const updateBalanceInTx = async (account, deltaCents) => {
+  const balanceCents = (account.balanceCents || 0) + deltaCents;
+  if (balanceCents < 0) throw new Error('余额不足');
+  await db.walletAccounts.update(account.id, { balanceCents, updatedAt: Date.now() });
+  return { ...account, balanceCents };
+};
+
+const addWalletMessageInTx = async (conversationId, role, content, type, timestamp) => {
+  const message = { conversationId, role, content, type, audioUrl: null, timestamp };
+  const id = await db.messages.add(message);
+  await db.conversations.update(conversationId, {
+    lastMessage: walletLastMessage(type),
+    unread: role === 'assistant' ? 1 : 0,
+    updatedAt: Date.now()
+  });
+  return { id, ...message };
+};
+
 export const roleService = {
   // 创建角色
   async create(roleData) {
@@ -229,7 +315,11 @@ export const messageService = {
     if (chatConv) msgs.push(...await db.messages.where('conversationId').equals(chatConv.id).toArray());
     if (smsConv) msgs.push(...await db.messages.where('conversationId').equals(smsConv.id).toArray());
     msgs.sort((a, b) => a.timestamp - b.timestamp);
-    return msgs.slice(-rounds * 2);
+    const recent = msgs.slice(-rounds * 2);
+    return await Promise.all(recent.map(async (msg) => {
+      if (!WALLET_TYPES.has(msg.type)) return msg;
+      return { ...msg, content: await walletService.describeMessageForContext(msg) };
+    }));
   },
 
   // 删除消息
@@ -253,6 +343,200 @@ export const messageService = {
 };
 
 // API 方案管理
+// 钱包和红包/转账
+export const walletService = {
+  async getOrCreateAccount(ownerType, ownerId) {
+    return await db.transaction('rw', db.walletAccounts, async () => {
+      return await createWalletAccountInTx(ownerType, ownerId);
+    });
+  },
+
+  async getUserBalance() {
+    const account = await this.getOrCreateAccount(USER_OWNER.ownerType, USER_OWNER.ownerId);
+    return account.balanceCents || 0;
+  },
+
+  async adjustUserBalance(amountCents, note = '本地充值') {
+    if (!Number.isSafeInteger(amountCents) || amountCents <= 0) throw new Error('充值金额无效');
+    return await db.transaction('rw', db.walletAccounts, db.walletTransactions, async () => {
+      const account = await createWalletAccountInTx(USER_OWNER.ownerType, USER_OWNER.ownerId);
+      const updated = await updateBalanceInTx(account, amountCents);
+      const now = Date.now();
+      await db.walletTransactions.add({
+        type: 'adjustment',
+        amountCents,
+        note,
+        status: 'done',
+        senderType: 'system',
+        senderId: 'system',
+        receiverType: USER_OWNER.ownerType,
+        receiverId: USER_OWNER.ownerId,
+        createdAt: now,
+        updatedAt: now
+      });
+      return updated.balanceCents;
+    });
+  },
+
+  async createOutgoing({ conversationId, roleId, type, amountCents, note = '' }) {
+    if (!WALLET_TYPES.has(type)) throw new Error('钱包消息类型无效');
+    return await db.transaction('rw', db.walletAccounts, db.walletTransactions, db.messages, db.conversations, async () => {
+      const now = Date.now();
+      const sender = await createWalletAccountInTx(USER_OWNER.ownerType, USER_OWNER.ownerId);
+      const receiver = await createWalletAccountInTx('role', roleId);
+      await updateBalanceInTx(sender, -amountCents);
+      await updateBalanceInTx(receiver, amountCents);
+
+      const txId = await db.walletTransactions.add({
+        conversationId,
+        messageId: null,
+        type,
+        amountCents,
+        note,
+        status: 'claimed',
+        senderType: USER_OWNER.ownerType,
+        senderId: USER_OWNER.ownerId,
+        receiverType: 'role',
+        receiverId: String(roleId),
+        createdAt: now,
+        claimedAt: now,
+        refundedAt: null,
+        updatedAt: now
+      });
+      const tx = await db.walletTransactions.get(txId);
+      const message = await addWalletMessageInTx(conversationId, 'user', makeWalletContent(tx), type, now);
+      await db.walletTransactions.update(txId, { messageId: message.id, updatedAt: Date.now() });
+      return message;
+    });
+  },
+
+  async createIncoming({ conversationId, roleId, type, amountCents, note = '' }) {
+    if (!WALLET_TYPES.has(type)) throw new Error('钱包消息类型无效');
+    return await db.transaction('rw', db.walletAccounts, db.walletTransactions, db.messages, db.conversations, async () => {
+      const now = Date.now();
+      let sender = await createWalletAccountInTx('role', roleId);
+      await createWalletAccountInTx(USER_OWNER.ownerType, USER_OWNER.ownerId);
+
+      if ((sender.balanceCents || 0) < amountCents) {
+        const grantCents = amountCents - (sender.balanceCents || 0);
+        await updateBalanceInTx(sender, grantCents);
+        await db.walletTransactions.add({
+          conversationId,
+          messageId: null,
+          type: 'system_grant',
+          amountCents: grantCents,
+          note: '角色生成转账资金',
+          status: 'done',
+          senderType: 'system',
+          senderId: 'system',
+          receiverType: 'role',
+          receiverId: String(roleId),
+          createdAt: now,
+          updatedAt: now
+        });
+        sender = await db.walletAccounts.get(sender.id);
+      }
+
+      await updateBalanceInTx(sender, -amountCents);
+      const txId = await db.walletTransactions.add({
+        conversationId,
+        messageId: null,
+        type,
+        amountCents,
+        note,
+        status: 'pending',
+        senderType: 'role',
+        senderId: String(roleId),
+        receiverType: USER_OWNER.ownerType,
+        receiverId: USER_OWNER.ownerId,
+        createdAt: now,
+        claimedAt: null,
+        refundedAt: null,
+        updatedAt: now
+      });
+      const tx = await db.walletTransactions.get(txId);
+      const message = await addWalletMessageInTx(conversationId, 'assistant', makeWalletContent(tx), type, now);
+      await db.walletTransactions.update(txId, { messageId: message.id, updatedAt: Date.now() });
+      return message;
+    });
+  },
+
+  parseMessageContent(content) {
+    try {
+      return JSON.parse(content || '{}');
+    } catch {
+      return {};
+    }
+  },
+
+  async getTransactionFromMessage(message) {
+    const cached = this.parseMessageContent(message.content);
+    if (!cached.transactionId) return null;
+    return await db.walletTransactions.get(cached.transactionId);
+  },
+
+  async syncMessageContent(messageId) {
+    const message = await db.messages.get(messageId);
+    if (!message || !WALLET_TYPES.has(message.type)) return null;
+    const tx = await this.getTransactionFromMessage(message);
+    if (!tx) return message;
+    const content = makeWalletContent(tx);
+    await db.messages.update(messageId, { content });
+    return { ...message, content };
+  },
+
+  async claim(messageId) {
+    return await db.transaction('rw', db.walletAccounts, db.walletTransactions, db.messages, async () => {
+      const message = await db.messages.get(messageId);
+      if (!message || !WALLET_TYPES.has(message.type)) throw new Error('钱包消息不存在');
+      const tx = await this.getTransactionFromMessage(message);
+      if (!tx || tx.status !== 'pending') throw new Error('该消息已处理');
+
+      const receiver = await createWalletAccountInTx(tx.receiverType, tx.receiverId);
+      await updateBalanceInTx(receiver, tx.amountCents);
+      const now = Date.now();
+      const updates = { status: 'claimed', claimedAt: now, updatedAt: now };
+      await db.walletTransactions.update(tx.id, updates);
+      const updatedTx = { ...tx, ...updates };
+      await db.messages.update(messageId, { content: makeWalletContent(updatedTx) });
+      return updatedTx;
+    });
+  },
+
+  async refund(messageId) {
+    return await db.transaction('rw', db.walletAccounts, db.walletTransactions, db.messages, async () => {
+      const message = await db.messages.get(messageId);
+      if (!message || message.type !== 'transfer') throw new Error('只能退回转账');
+      const tx = await this.getTransactionFromMessage(message);
+      if (!tx || tx.status !== 'pending') throw new Error('该转账已处理');
+
+      const sender = await createWalletAccountInTx(tx.senderType, tx.senderId);
+      await updateBalanceInTx(sender, tx.amountCents);
+      const now = Date.now();
+      const updates = { status: 'refunded', refundedAt: now, updatedAt: now };
+      await db.walletTransactions.update(tx.id, updates);
+      const updatedTx = { ...tx, ...updates };
+      await db.messages.update(messageId, { content: makeWalletContent(updatedTx) });
+      return updatedTx;
+    });
+  },
+
+  async describeMessageForContext(message) {
+    const cached = this.parseMessageContent(message.content);
+    const tx = cached.transactionId ? await db.walletTransactions.get(cached.transactionId) : cached;
+    if (!tx) return message.type === 'redpacket' ? '[红包]' : '[转账]';
+    const typeLabel = message.type === 'redpacket' ? '红包' : '转账';
+    const sender = message.role === 'user' ? '用户' : '你';
+    const receiver = message.role === 'user' ? '你' : '用户';
+    const statusMap = { pending: '待领取', claimed: '已领取', refunded: '已退回' };
+    const amountText = message.type === 'redpacket' && tx.status === 'pending'
+      ? '金额未显示'
+      : `${formatCents(tx.amountCents)} 元`;
+    const note = tx.note ? `，备注：${tx.note}` : '';
+    return `${sender}给${receiver}发了一笔${typeLabel}，${amountText}，状态：${statusMap[tx.status] || tx.status}${note}`;
+  }
+};
+
 export const apiProfileService = {
   async getAll() {
     return await db.apiProfiles.orderBy('createdAt').toArray();
