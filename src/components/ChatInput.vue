@@ -201,12 +201,12 @@ defineExpose({ closeActionSheet });
 <style scoped>
 .input-container {
   position: fixed;
-  bottom: var(--chat-keyboard-offset, 0px);
+  bottom: 0;
   left: 0;
   right: 0;
   z-index: 1000;
   background: var(--wx-white);
-  transition: bottom 0.18s ease;
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 .wx-input-plus svg {
@@ -363,12 +363,12 @@ defineExpose({ closeActionSheet });
 <style scoped>
 .input-container {
   position: fixed;
-  bottom: var(--chat-keyboard-offset, 0px);
+  bottom: 0;
   left: 0;
   right: 0;
   z-index: 1000;
   background: var(--wx-white);
-  transition: bottom 0.18s ease;
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 .wx-input-plus svg {

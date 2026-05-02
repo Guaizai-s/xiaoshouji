@@ -41,7 +41,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick, watch, computed } from 'vue';
+import { ref, onMounted, nextTick, watch, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import NavBar from '../components/NavBar.vue';
 import MessageBubble from '../components/MessageBubble.vue';
@@ -130,38 +130,10 @@ const chatBackgroundStyle = computed(() => {
 
 onMounted(async () => {
   loadUserAvatar();
-  setupKeyboardViewport();
   await loadConversation();
   await loadMessages();
   scrollToBottom();
 });
-
-const updateKeyboardViewport = () => {
-  const viewport = window.visualViewport;
-  if (!viewport) {
-    document.documentElement.style.setProperty('--chat-keyboard-offset', '0px');
-    return;
-  }
-
-  const offset = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
-  document.documentElement.style.setProperty('--chat-keyboard-offset', `${Math.round(offset)}px`);
-};
-
-const setupKeyboardViewport = () => {
-  updateKeyboardViewport();
-  window.visualViewport?.addEventListener('resize', updateKeyboardViewport);
-  window.visualViewport?.addEventListener('scroll', updateKeyboardViewport);
-  window.addEventListener('orientationchange', updateKeyboardViewport);
-};
-
-const teardownKeyboardViewport = () => {
-  document.documentElement.style.removeProperty('--chat-keyboard-offset');
-  window.visualViewport?.removeEventListener('resize', updateKeyboardViewport);
-  window.visualViewport?.removeEventListener('scroll', updateKeyboardViewport);
-  window.removeEventListener('orientationchange', updateKeyboardViewport);
-};
-
-onUnmounted(teardownKeyboardViewport);
 
 const lastMessageId = computed(() => {
   const msgs = messages.value;
@@ -529,13 +501,12 @@ const compressImage = (file, maxSize = 384, quality = 0.8) => {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100svh;
   overflow: hidden;
 }
 
 .wx-chat-page {
-  height: 100vh;
   height: 100svh;
-  min-height: 100vh;
 }
 
 .wx-time-label {
@@ -557,7 +528,7 @@ const compressImage = (file, maxSize = 384, quality = 0.8) => {
   flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding-bottom: calc(72px + var(--chat-keyboard-offset, 0px));
+  padding-bottom: calc(72px + env(safe-area-inset-bottom));
 }
 .load-more-wrapper {
   display: flex;

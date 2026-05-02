@@ -64,7 +64,7 @@ export function useTheme() {
   const setTheme = (id) => {
     const nextTheme = themes[id] ? id : 'vanilla';
     activeTheme.value = nextTheme;
-    applySmsTheme(nextTheme);
+    applySmsTheme(nextTheme, { syncSystem: false });
   };
 
   return { activeTheme, themes, t, setTheme };

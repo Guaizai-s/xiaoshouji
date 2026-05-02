@@ -66,8 +66,7 @@ const onHeart = () => {
   background-color: var(--wx-white);
 }
 .wx-navbar-safe-area-top {
-  height: env(safe-area-inset-top);
-  background-color: var(--wx-white);
+  display: none;
 }
 
 .wx-navbar-actions {
