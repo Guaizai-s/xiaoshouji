@@ -496,17 +496,14 @@ const compressImage = (file, maxSize = 384, quality = 0.8) => {
 </script>
 
 <style scoped>
-/* 锁定整个页面的高度，禁止整体滚动 */
-.wx-page {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  height: 100svh;
-  overflow: hidden;
-}
-
 .wx-chat-page {
-  height: 100svh;
+  --chat-navbar-height: 44px;
+  --chat-input-height: 56px;
+
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: var(--wx-bg);
 }
 
 .wx-time-label {
@@ -517,18 +514,27 @@ const compressImage = (file, maxSize = 384, quality = 0.8) => {
   pointer-events: none;
 }
 
-/* 确保顶部导航栏和底部输入框不会被挤压变形 */
-:deep(.nav-bar),
-:deep(.wx-input-bar),
-:deep(.chat-input-wrapper) {
-  flex-shrink: 0;
+.wx-chat-page :deep(.wx-navbar-wrap) {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  padding-top: env(safe-area-inset-top);
+  background: var(--wx-white);
 }
 
 .wx-content {
-  flex: 1;
+  position: absolute;
+  top: calc(var(--chat-navbar-height) + env(safe-area-inset-top));
+  left: 0;
+  right: 0;
+  bottom: calc(var(--chat-input-height) + env(safe-area-inset-bottom));
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding-bottom: calc(72px + env(safe-area-inset-bottom));
+  padding-top: 0;
+  padding-bottom: 16px;
+  background-color: var(--wx-bg);
 }
 .load-more-wrapper {
   display: flex;
