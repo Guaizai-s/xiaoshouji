@@ -275,20 +275,21 @@ const parseEmoji = (text) => {
 .wx-message-wrapper {
   display: flex;
   flex-direction: column;
-  animation: popIn 0.2s ease-out both;
+  animation: popIn 0.18s ease-out both;
 }
 .wx-message-wrapper.self { align-items: flex-end; }
 
 @keyframes popIn {
-  0%   { opacity: 0; transform: translateY(6px); }
+  0%   { opacity: 0; transform: translateY(5px); }
   100% { opacity: 1; transform: translateY(0); }
 }
 
 :deep(.emoji-img) {
-  width: 80px;
-  height: 80px;
+  width: 86px;
+  height: 86px;
   vertical-align: middle;
   display: inline-block;
+  border-radius: 10px;
 }
 
 .audio-player {
@@ -296,13 +297,14 @@ const parseEmoji = (text) => {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 8px 12px;
+  padding: 9px 13px;
   background: var(--wx-bubble-other);
-  border-radius: 8px;
+  border-radius: 12px;
   cursor: pointer;
   transition: background 0.2s;
   min-width: 60px;
   -webkit-tap-highlight-color: transparent;
+  box-shadow: var(--wx-shadow-soft);
 }
 .audio-player:active { background: rgba(0, 0, 0, 0.08); }
 
@@ -347,9 +349,9 @@ const parseEmoji = (text) => {
 
 .audio-transcript {
   margin-top: 8px;
-  padding: 12px 16px;
+  padding: 11px 14px;
   background: var(--wx-bubble-other);
-  border-radius: 8px;
+  border-radius: 12px;
   font-size: 15px;
   color: var(--wx-text-primary);
   line-height: 1.5;
@@ -358,16 +360,16 @@ const parseEmoji = (text) => {
 
 /* 微信风悬浮菜单 */
 .wallet-content {
-  max-width: min(248px, calc(100vw - 104px));
-  width: min(248px, calc(100vw - 104px));
+  max-width: min(268px, calc(100vw - 104px));
+  width: min(268px, calc(100vw - 104px));
 }
 
 .wallet-card {
   position: relative;
   overflow: visible;
-  border-radius: 6px;
+  border-radius: 10px;
   color: #fff;
-  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 8px 20px rgba(194, 111, 36, 0.12), 0 1px 2px rgba(0, 0, 0, 0.05);
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -378,7 +380,7 @@ const parseEmoji = (text) => {
 .wallet-card::before {
   content: '';
   position: absolute;
-  top: 18px;
+  top: 16px;
   width: 0;
   height: 0;
   border-top: 8px solid transparent;
@@ -396,13 +398,13 @@ const parseEmoji = (text) => {
 }
 
 .wallet-card.redpacket {
-  --wallet-card-bg: #f99a33;
-  background: var(--wallet-card-bg);
+  --wallet-card-bg: #F49A31;
+  background: linear-gradient(180deg, #FFB04A 0%, var(--wallet-card-bg) 100%);
 }
 
 .wallet-card.transfer {
-  --wallet-card-bg: #fac995;
-  background: var(--wallet-card-bg);
+  --wallet-card-bg: #E9B36F;
+  background: linear-gradient(180deg, #F7CD92 0%, var(--wallet-card-bg) 100%);
 }
 
 .wallet-card.claimed,
@@ -413,15 +415,15 @@ const parseEmoji = (text) => {
 .wallet-card-main {
   display: flex;
   align-items: center;
-  gap: 12px;
-  min-height: 72px;
-  padding: 13px 14px 12px;
-  border-radius: 6px 6px 0 0;
+  gap: 13px;
+  min-height: 78px;
+  padding: 15px 15px 14px;
+  border-radius: 10px 10px 0 0;
 }
 
 .wallet-card-icon {
-  width: 46px;
-  height: 46px;
+  width: 48px;
+  height: 48px;
   border-radius: 999px;
   display: flex;
   align-items: center;
@@ -435,11 +437,11 @@ const parseEmoji = (text) => {
 }
 
 .wallet-card.redpacket .wallet-card-icon {
-  width: 36px;
-  height: 48px;
+  width: 38px;
+  height: 50px;
   border: none;
-  border-radius: 5px;
-  background: linear-gradient(180deg, #ff5656 0%, #e94747 100%);
+  border-radius: 7px;
+  background: linear-gradient(180deg, #FF6262 0%, #E84A4A 100%);
   box-shadow: inset 0 -18px rgba(190, 35, 35, 0.12);
 }
 
@@ -467,15 +469,15 @@ const parseEmoji = (text) => {
 }
 
 .wallet-card-title {
-  font-size: 20px;
+  font-size: 19px;
   font-weight: 600;
   line-height: 1.25;
   color: #fff;
 }
 
 .wallet-card-note {
-  margin-top: 4px;
-  font-size: 16px;
+  margin-top: 5px;
+  font-size: 14px;
   line-height: 1.3;
   color: rgba(255, 255, 255, 0.9);
   overflow: hidden;
@@ -484,16 +486,16 @@ const parseEmoji = (text) => {
 }
 
 .wallet-card-footer {
-  min-height: 28px;
-  padding: 0 14px;
+  min-height: 30px;
+  padding: 0 15px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  background: #fff;
-  color: #b08a62;
+  background: rgba(255, 255, 255, 0.94);
+  color: #A9825E;
   font-size: 12px;
-  border-radius: 0 0 6px 6px;
+  border-radius: 0 0 10px 10px;
 }
 
 .wallet-card.redpacket .wallet-card-footer {
@@ -527,10 +529,10 @@ const parseEmoji = (text) => {
 .wx-context-menu {
   position: absolute;
   top: -46px;
-  background-color: #4c4c4c;
+  background-color: rgba(42, 42, 42, 0.96);
   color: #fff;
   padding: 0 16px;
-  border-radius: 6px;
+  border-radius: 9px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -538,7 +540,7 @@ const parseEmoji = (text) => {
   font-size: 14px;
   font-weight: 500;
   z-index: 999;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
   white-space: nowrap;
   animation: fadeIn 0.15s ease-out;
 }

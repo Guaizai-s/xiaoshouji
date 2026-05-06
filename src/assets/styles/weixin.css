@@ -2,24 +2,35 @@
 
 :root {
   --wx-green: #07C160;
-  --wx-bg: #EDEDED;
+  --wx-green-soft: #95EC69;
+  --wx-bg: #F5F5F5;
   --wx-white: #FFFFFF;
-  --wx-text-primary: #000000;
-  --wx-text-secondary: #999999;
-  --wx-border: #E5E5E5;
+  --wx-surface: #FFFFFF;
+  --wx-surface-raised: #FFFFFF;
+  --wx-text-primary: #111111;
+  --wx-text-secondary: #858585;
+  --wx-text-tertiary: #B2B2B2;
+  --wx-border: rgba(0, 0, 0, 0.07);
   --wx-blue: #576B95;
-  --wx-bubble-self: #95EC69;
+  --wx-bubble-self: #A8E979;
   --wx-bubble-other: #FFFFFF;
+  --wx-shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --wx-radius-sm: 8px;
+  --wx-radius-md: 12px;
 }
 
 [data-theme="dark"] {
-  --wx-bg: #000000;
+  --wx-bg: #111111;
   --wx-white: #1e1e1e;
-  --wx-text-primary:#eeeeee;
-  --wx-text-secondary:#eeeeee;
-  --wx-border: #2c2c2c;
-  --wx-bubble-self: #70B673;
-  --wx-bubble-other: #303030;
+  --wx-surface: #1F1F1F;
+  --wx-surface-raised: #252525;
+  --wx-text-primary: #F1F1F1;
+  --wx-text-secondary: #A8A8A8;
+  --wx-text-tertiary: #747474;
+  --wx-border: rgba(255, 255, 255, 0.08);
+  --wx-bubble-self: #6FBE62;
+  --wx-bubble-other: #262626;
+  --wx-shadow-soft: none;
 }
 
 html, body {
@@ -45,7 +56,9 @@ html, body {
   left: 0;
   right: 0;
   z-index: 1000;
-  background-color: var(--wx-white);
+  background-color: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
   padding-top: env(safe-area-inset-top);
 }
 
@@ -53,9 +66,9 @@ html, body {
   display: flex;
   align-items: center;
   height: 44px;
-  background-color: var(--wx-white);
+  background-color: transparent;
   border-bottom: 1px solid var(--wx-border);
-  padding: 0 16px;
+  padding: 0 14px;
   position: relative;
 }
 
@@ -63,7 +76,7 @@ html, body {
   font-size: 18px;
   color: var(--wx-text-primary);
   cursor: pointer;
-  padding: 8px;
+  padding: 8px 10px;
   margin-left: -8px;
 }
 
@@ -72,7 +85,7 @@ html, body {
   left: 50%;
   transform: translateX(-50%);
   font-size: 17px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--wx-text-primary);
 }
 
@@ -95,13 +108,13 @@ html, body {
 
 /* 列表 */
 .wx-list {
-  background-color: var(--wx-white);
+  background-color: var(--wx-surface);
 }
 
 .wx-list-item {
   display: flex;
   align-items: center;
-  padding: 12px 16px;
+  padding: 13px 16px;
   border-bottom: 1px solid var(--wx-border);
   cursor: pointer;
   transition: background-color 0.2s;
@@ -118,7 +131,7 @@ html, body {
 .wx-list-avatar {
   width: 48px;
   height: 48px;
-  border-radius: 4px;
+  border-radius: 9px;
   object-fit: cover;
   margin-right: 12px;
   background-color: var(--wx-border);
@@ -172,8 +185,10 @@ html, body {
 .wx-tabbar {
   display: flex;
   height: 50px;
-  background-color: var(--wx-white);
+  background-color: rgba(255, 255, 255, 0.94);
   border-top: 1px solid var(--wx-border);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
 }
 
 .wx-tabbar-item {
@@ -205,12 +220,12 @@ html, body {
 
 /* 聊天气泡 */
 .wx-messages {
-  padding: 16px;
+  padding: 14px 12px 18px;
 }
 
 .wx-message {
   display: flex;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .wx-message.self {
@@ -218,61 +233,67 @@ html, body {
 }
 
 .wx-message-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 4px;
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
   object-fit: cover;
   background-color: var(--wx-border);
 }
 
 .wx-message.self .wx-message-avatar {
-  margin-left: 8px;
+  margin-left: 9px;
 }
 
 .wx-message:not(.self) .wx-message-avatar {
-  margin-right: 8px;
+  margin-right: 9px;
 }
 
 .wx-message-content {
   width: auto;
-  max-width: 12em;
+  max-width: min(68vw, 520px);
   flex-shrink: 1;
 }
 
 .wx-message-bubble {
-  padding: 10px 12px;
-  border-radius: 8px;
+  padding: 9px 12px;
+  border-radius: var(--wx-radius-md);
   word-break: break-word;
   position: relative;
+  color: var(--wx-text-primary);
+  font-size: 16px;
+  line-height: 1.48;
+  box-shadow: var(--wx-shadow-soft);
 }
 
 .wx-message.self .wx-message-bubble {
   background-color: var(--wx-bubble-self);
+  border-top-right-radius: 5px;
 }
 
 .wx-message:not(.self) .wx-message-bubble {
   background-color: var(--wx-bubble-other);
+  border-top-left-radius: 5px;
 }
 
 /* 对方气泡尖角 */
 .wx-message:not(.self) .wx-message-bubble.text::before {
   content: '';
   position: absolute;
-  top: 14px;
-  left: -5px;
+  top: 12px;
+  left: -4px;
   width: 0;
   height: 0;
   border-top: 6px solid transparent;
   border-bottom: 6px solid transparent;
-  border-right: 6px solid #ffffff;
+  border-right: 6px solid var(--wx-bubble-other);
 }
 
 /* 自己气泡尖角 */
 .wx-message.self .wx-message-bubble.text::before {
   content: '';
   position: absolute;
-  top: 14px;
-  right: -5px;
+  top: 12px;
+  right: -4px;
   width: 0;
   height: 0;
   border-top: 6px solid transparent;
@@ -292,7 +313,7 @@ html, body {
 
 .wx-message-bubble img {
   max-width: 100%;
-  border-radius: 4px;
+  border-radius: var(--wx-radius-sm);
   display: block;
 }
 
@@ -315,43 +336,52 @@ html, body {
 .wx-input-bar {
   display: flex;
   align-items: center;
-  padding: 8px;
-  background-color: var(--wx-white);
+  min-height: 56px;
+  padding: 7px 8px;
+  background-color: rgba(247, 247, 247, 0.96);
   border-top: 1px solid var(--wx-border);
   width: 100%; /* 确保外层容器宽度固定 */
   box-sizing: border-box; /* 确保 padding 不会撑开容器 */
 }
 
 .wx-input-btn {
-  padding: 8px;
+  width: 36px;
+  height: 36px;
+  padding: 7px;
   font-size: 24px;
-  color: var(--wx-text-secondary);
+  color: #3F3F3F;
   cursor: pointer;
   background: none;
   border: none;
   flex-shrink: 0; /* 防止按钮被压缩 */
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .wx-input-field {
   flex: 1;
   min-width: 0; /* 核心修复：打破 input 的默认最小宽度限制 */
   box-sizing: border-box; /* 核心修复：将内边距和边框计算在宽度内 */
-  padding: 8px 12px;
-  border: 1px solid var(--wx-border);
-  border-radius: 4px;
+  height: 38px;
+  padding: 7px 13px;
+  border: 1px solid transparent;
+  border-radius: 19px;
   font-size: 16px;
   outline: none;
   background-color: var(--wx-white);
-  margin: 0 8px;
+  margin: 0 7px;
   color: var(--wx-text-primary);
 }
 
 .wx-input-send {
-  padding: 8px 12px;
+  height: 34px;
+  padding: 0 13px;
   background-color: var(--wx-green);
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: 17px;
   font-size: 14px;
   cursor: pointer;
   white-space: nowrap;
@@ -359,8 +389,8 @@ html, body {
 }
 
 .wx-input-send:disabled {
-  background-color: var(--wx-border);
-  color: var(--wx-text-secondary);
+  background-color: #E2E2E2;
+  color: #A8A8A8;
   cursor: not-allowed;
 }
 

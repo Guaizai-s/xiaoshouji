@@ -59,6 +59,8 @@ import { conversationService, messageService, roleService, apiProfileService, pe
 import { callClaude } from '../services/claude';
 import { textToSpeech } from '../services/minimax';
 import { buildTimeContextPrompt } from '../utils/timeContext';
+import { parseMessageDirectives } from '../utils/directiveParser';
+import { buildStickerLibraryPrompt } from '../config/messageDirectives';
 
 const route = useRoute();
 const router = useRouter();
@@ -323,20 +325,6 @@ const refundTransferMessage = async (messageId) => {
   }
 };
 
-const WALLET_COMMAND_RE = /\[(红包|转账)[:：]([0-9]+(?:\.[0-9]{1,2})?)(?:[:：]([^\]]*))?\]/;
-
-const splitWalletCommand = (text) => {
-  const match = text.match(WALLET_COMMAND_RE);
-  if (!match) return null;
-  return {
-    before: text.slice(0, match.index).trim(),
-    after: text.slice(match.index + match[0].length).trim(),
-    type: match[1] === '红包' ? 'redpacket' : 'transfer',
-    amountCents: parseAmountToCents(match[2]),
-    note: (match[3] || '').trim()
-  };
-};
-
 const createAssistantTextMessages = async (text) => {
   const clean = (text || '').trim();
   if (!clean) return;
@@ -348,23 +336,31 @@ const createAssistantTextMessages = async (text) => {
   }
 };
 
-const createAssistantWalletSequence = async (text) => {
-  const parsed = splitWalletCommand(text);
-  if (!parsed) {
-    await createAssistantTextMessages(text);
+const removeDirectiveRaws = (text, directives) => {
+  return directives.reduce((result, directive) => {
+    return directive.raw ? result.replace(directive.raw, '') : result;
+  }, text || '').trim();
+};
+
+const createAssistantWalletSequence = async (text, walletDirective, directivesToHide = []) => {
+  if (!walletDirective) {
+    await createAssistantTextMessages(removeDirectiveRaws(text, directivesToHide));
     return;
   }
 
-  await createAssistantTextMessages(parsed.before);
+  const before = text.slice(0, walletDirective.index).trim();
+  const after = text.slice(walletDirective.index + walletDirective.raw.length).trim();
+
+  await createAssistantTextMessages(removeDirectiveRaws(before, directivesToHide));
   await walletService.createIncoming({
     conversationId,
     roleId: role.value.id,
-    type: parsed.type,
-    amountCents: parsed.amountCents,
-    note: parsed.note
+    type: walletDirective.type,
+    amountCents: parseAmountToCents(walletDirective.amount),
+    note: walletDirective.note
   });
   await loadMessages();
-  await createAssistantTextMessages(parsed.after);
+  await createAssistantTextMessages(removeDirectiveRaws(after, directivesToHide));
 };
 
 const generateReply = async () => {
@@ -437,10 +433,8 @@ const generateReply = async () => {
     // 添加表情包信息
     if (settings.linkedLibraryId) {
       const linkedStickers = await stickerService.getByLibrary(settings.linkedLibraryId);
-      const stickerList = linkedStickers.map(s => `${s.name}:${s.description}`).join('、');
-      if (stickerList) {
-        enhancedPrompt += `\n\n[可用表情包]\n你可以使用以下表情包，使用格式为[表情:名字]:\n${stickerList}`;
-      }
+      const stickerPrompt = buildStickerLibraryPrompt(linkedStickers);
+      if (stickerPrompt) enhancedPrompt += `\n\n${stickerPrompt}`;
     }
 
     let roleWithTime = { ...role.value, systemPrompt: enhancedPrompt };
@@ -453,9 +447,9 @@ const generateReply = async () => {
     const response = await callClaude(roleWithTime, apiMessages, useStream ? async (chunk) => {
       fullResponse += chunk;
       // 移除语音标记
-      const cleanChunk = chunk.replace(/\[语音[:：][^\]]+\]/g, '').trim();
-      if (cleanChunk) {
-        await messageService.create(conversationId, 'assistant', cleanChunk, 'text');
+      const parsedChunk = parseMessageDirectives(chunk);
+      if (parsedChunk.cleanText) {
+        await messageService.create(conversationId, 'assistant', parsedChunk.cleanText, 'text');
         await loadMessages();
       }
     } : null);
@@ -465,10 +459,11 @@ const generateReply = async () => {
 
     // 流式模式：检测完整响应中的语音标记
     if (useStream && fullResponse) {
-      const voiceMatch = fullResponse.match(/\[语音[:：]([^\]]+)\]/);
-      if (voiceMatch) {
+      const parsedResponse = parseMessageDirectives(fullResponse);
+      const voiceDirective = parsedResponse.directives.find(directive => directive.type === 'voice');
+      if (voiceDirective) {
         try {
-          const voiceText = voiceMatch[1].trim();
+          const voiceText = voiceDirective.text;
           const voiceSettings = role.value?.chatSettings || {};
           audioUrl = await textToSpeech(voiceText, {
             voiceId: voiceSettings.minimaxVoiceId,
@@ -490,11 +485,13 @@ const generateReply = async () => {
 
     // 非流式模式：按原逻辑处理
     if (!useStream) {
-      // 检测语音标记 [语音:文本内容]
-      const voiceMatch = response.match(/\[语音[:：]([^\]]+)\]/);
-      const voiceText = voiceMatch ? voiceMatch[1].trim() : '';
+      const parsedResponse = parseMessageDirectives(response);
+      const voiceDirective = parsedResponse.directives.find(directive => directive.type === 'voice');
+      const walletDirectives = parsedResponse.directives.filter(directive => directive.type === 'redpacket' || directive.type === 'transfer');
+      const walletDirective = walletDirectives.find(directive => directive.executable);
+      const voiceText = voiceDirective?.text || '';
 
-      if (voiceMatch) {
+      if (voiceDirective) {
         try {
           const voiceSettings = role.value?.chatSettings || {};
           audioUrl = await textToSpeech(voiceText, {
@@ -508,17 +505,15 @@ const generateReply = async () => {
         }
       }
 
-      if (voiceMatch) {
+      if (voiceDirective) {
         // 语音回复：只创建一条带audioUrl的消息
         if (voiceText || audioUrl) {
           await messageService.create(conversationId, 'assistant', voiceText, 'text', audioUrl);
           await loadMessages();
         }
       } else {
-        // 纯文字回复：移除语音标记，按换行拆分
-        const cleanResponse = response.replace(/\[语音[:：][^\]]+\]/g, '').trim();
-        if (cleanResponse) {
-          await createAssistantWalletSequence(cleanResponse);
+        if (response || walletDirective) {
+          await createAssistantWalletSequence(response, walletDirective, walletDirectives);
         }
       }
     }
@@ -600,14 +595,17 @@ const compressImage = (file, maxSize = 384, quality = 0.8) => {
   height: auto;
   min-height: 0;
   overflow: hidden;
-  background: var(--wx-bg);
+  background:
+    radial-gradient(circle at 22% 0%, rgba(255, 255, 255, 0.72), transparent 34%),
+    var(--wx-bg);
 }
 
 .wx-time-label {
   text-align: center;
-  font-size: 12px;
-  color: rgba(0, 0, 0, 0.35);
-  margin: 8px 0;
+  font-size: 11px;
+  line-height: 1;
+  color: rgba(0, 0, 0, 0.38);
+  margin: 10px 0 14px;
   pointer-events: none;
 }
 
@@ -619,7 +617,9 @@ const compressImage = (file, maxSize = 384, quality = 0.8) => {
   z-index: 1000;
   height: calc(var(--chat-navbar-height) + env(safe-area-inset-top));
   padding-top: env(safe-area-inset-top);
-  background: var(--wx-white);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
   box-sizing: border-box;
   transform: translateZ(0);
 }
@@ -639,7 +639,7 @@ const compressImage = (file, maxSize = 384, quality = 0.8) => {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   padding-top: 0;
-  padding-bottom: 16px;
+  padding-bottom: 18px;
   background-color: var(--wx-bg);
   box-sizing: border-box;
   overscroll-behavior: contain;
@@ -655,15 +655,16 @@ const compressImage = (file, maxSize = 384, quality = 0.8) => {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 8px 18px;
-  background-color: #f2f2f7;
-  color: #8e8e93;
-  border: none;
-  border-radius: 20px;
+  padding: 7px 16px;
+  background-color: rgba(255, 255, 255, 0.78);
+  color: var(--wx-text-secondary);
+  border: 1px solid var(--wx-border);
+  border-radius: 999px;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
+  box-shadow: var(--wx-shadow-soft);
 }
 
 .load-more-btn:active:not(:disabled) {

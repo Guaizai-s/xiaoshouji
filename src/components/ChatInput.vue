@@ -292,8 +292,10 @@ defineExpose({ closeActionSheet });
   left: 0;
   right: 0;
   z-index: 1000;
-  background: var(--wx-white);
+  background: rgba(247, 247, 247, 0.96);
   padding-bottom: env(safe-area-inset-bottom);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
 }
 
 .wx-input-plus svg {
@@ -302,12 +304,12 @@ defineExpose({ closeActionSheet });
 }
 
 .wx-generate-btn {
-  background: none;
+  background: transparent;
   border: none;
-  padding: 6px;
-  margin-left: 8px;
+  padding: 7px;
+  margin-left: 2px;
   cursor: pointer;
-  color: #576b95;
+  color: #3f536f;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -323,35 +325,45 @@ defineExpose({ closeActionSheet });
 }
 
 .action-panel {
-  background: var(--wx-bg);
+  background: #F2F2F2;
   border-top: 1px solid var(--wx-border);
-  padding: 16px;
-  height: 220px;
+  padding: 18px 18px 20px;
+  min-height: 226px;
+  height: auto;
+  box-sizing: border-box;
 }
 
 .action-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 20px 16px;
+  gap: 22px 16px;
 }
 
 .action-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .action-icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 8px;
+  width: 58px;
+  height: 58px;
+  border-radius: 15px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--wx-white);
-  color: var(--wx-text-primary);
+  color: #2E2E2E;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: transform 0.16s ease, background 0.16s ease;
+}
+
+.action-item:active .action-icon {
+  transform: scale(0.96);
+  background: #F8F8F8;
 }
 
 .action-icon svg {
@@ -361,7 +373,7 @@ defineExpose({ closeActionSheet });
 
 .action-item span {
   font-size: 12px;
-  color: #666;
+  color: #727272;
 }
 
 .slide-up-enter-active,
@@ -379,7 +391,7 @@ defineExpose({ closeActionSheet });
 .image-options-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.42);
   z-index: 2000;
   display: flex;
   align-items: flex-end;
@@ -387,9 +399,9 @@ defineExpose({ closeActionSheet });
 
 .image-options-sheet {
   width: 100%;
-  background: var(--wx-bg);
-  border-radius: 16px 16px 0 0;
-  padding: 16px;
+  background: #F3F3F3;
+  border-radius: 20px 20px 0 0;
+  padding: 16px 16px 18px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -414,7 +426,7 @@ defineExpose({ closeActionSheet });
   flex: 1;
   padding: 12px;
   border: none;
-  border-radius: 10px;
+  border-radius: 12px;
   font-size: 15px;
   cursor: pointer;
   background: var(--wx-white);
@@ -434,7 +446,7 @@ defineExpose({ closeActionSheet });
   width: 100%;
   padding: 12px;
   border: none;
-  border-radius: 10px;
+  border-radius: 12px;
   font-size: 15px;
   cursor: pointer;
   background: var(--wx-white);
@@ -452,14 +464,14 @@ defineExpose({ closeActionSheet });
   z-index: 2100;
   display: flex;
   align-items: flex-end;
-  background: rgba(0, 0, 0, 0.35);
+  background: rgba(0, 0, 0, 0.38);
 }
 
 .wallet-sheet {
   width: 100%;
-  padding: 8px 16px calc(18px + env(safe-area-inset-bottom));
-  background: var(--wx-bg);
-  border-radius: 16px 16px 0 0;
+  padding: 8px 16px calc(20px + env(safe-area-inset-bottom));
+  background: #F4F4F4;
+  border-radius: 20px 20px 0 0;
   box-sizing: border-box;
 }
 
@@ -480,7 +492,7 @@ defineExpose({ closeActionSheet });
 
 .wallet-sheet-cancel {
   border: none;
-  background: none;
+  background: transparent;
   padding: 0;
   color: #576b95;
   font-size: 15px;
@@ -497,9 +509,10 @@ defineExpose({ closeActionSheet });
 .wallet-amount-card,
 .wallet-note-card {
   background: var(--wx-white);
-  border-radius: 8px;
-  padding: 14px 16px;
+  border-radius: 14px;
+  padding: 15px 16px;
   margin-top: 12px;
+  box-shadow: var(--wx-shadow-soft);
 }
 
 .wallet-label {
@@ -560,10 +573,10 @@ defineExpose({ closeActionSheet });
 
 .wallet-confirm-btn {
   width: 100%;
-  height: 46px;
+  height: 48px;
   margin-top: 16px;
   border: none;
-  border-radius: 8px;
+  border-radius: 14px;
   background: var(--wx-green);
   color: #fff;
   font-size: 16px;
@@ -572,96 +585,5 @@ defineExpose({ closeActionSheet });
 
 [data-theme="dark"] .wallet-sheet-handle {
   background: rgba(255, 255, 255, 0.18);
-}
-</style>
-
-<style scoped>
-.input-container {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 1000;
-  background: var(--wx-white);
-  padding-bottom: env(safe-area-inset-bottom);
-}
-
-.wx-input-plus svg {
-  width: 24px;
-  height: 24px;
-}
-
-.wx-generate-btn {
-  background: none;
-  border: none;
-  padding: 6px;
-  margin-left: 8px;
-  cursor: pointer;
-  color: #576b95;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.wx-generate-btn svg {
-  width: 22px;
-  height: 22px;
-}
-
-.wx-generate-btn:active {
-  opacity: 0.6;
-}
-
-.action-panel {
-  background: var(--wx-bg);
-  border-top: 1px solid var(--wx-border);
-  padding: 16px;
-  height: 220px;
-}
-
-.action-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 20px 16px;
-}
-
-.action-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-}
-
-.action-icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--wx-white);
-  color: var(--wx-text-primary);
-}
-
-.action-icon svg {
-  width: 28px;
-  height: 28px;
-}
-
-.action-item span {
-  font-size: 12px;
-  color: #666;
-}
-
-.slide-up-enter-active,
-.slide-up-leave-active {
-  transition: all 0.3s ease;
-}
-
-.slide-up-enter-from,
-.slide-up-leave-to {
-  opacity: 0;
-  transform: translateY(20px);
 }
 </style>
