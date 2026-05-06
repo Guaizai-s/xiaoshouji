@@ -595,6 +595,10 @@ const compressImage = (file, maxSize = 384, quality = 0.8) => {
 
   position: fixed;
   inset: 0;
+  display: block;
+  width: 100%;
+  height: auto;
+  min-height: 0;
   overflow: hidden;
   background: var(--wx-bg);
 }
@@ -613,8 +617,17 @@ const compressImage = (file, maxSize = 384, quality = 0.8) => {
   left: 0;
   right: 0;
   z-index: 1000;
+  height: calc(var(--chat-navbar-height) + env(safe-area-inset-top));
   padding-top: env(safe-area-inset-top);
   background: var(--wx-white);
+  box-sizing: border-box;
+  transform: translateZ(0);
+}
+
+.wx-chat-page :deep(.wx-navbar) {
+  height: var(--chat-navbar-height);
+  min-height: var(--chat-navbar-height);
+  flex-shrink: 0;
 }
 
 .wx-content {
@@ -628,6 +641,8 @@ const compressImage = (file, maxSize = 384, quality = 0.8) => {
   padding-top: 0;
   padding-bottom: 16px;
   background-color: var(--wx-bg);
+  box-sizing: border-box;
+  overscroll-behavior: contain;
 }
 .load-more-wrapper {
   display: flex;

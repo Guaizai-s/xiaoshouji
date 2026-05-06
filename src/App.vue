@@ -12,7 +12,7 @@
 <style>
 #app {
   width: 100%;
-  height: 100dvh;
+  height: 100%;
   background-color: #EDEDED;
   overflow: hidden;
 }
