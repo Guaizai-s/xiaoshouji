@@ -421,8 +421,7 @@ const generateReply = async () => {
       useStream ? async (chunk) => {
         fullResponse += chunk;
         const parsedChunk = parseMessageDirectives(chunk);
-        const hasVoice = parsedChunk.directives.some(d => d.type === 'voice');
-        if (parsedChunk.cleanText && !hasVoice) {
+        if (parsedChunk.cleanText) {
           await messageService.create(conversationId, 'assistant', parsedChunk.cleanText, 'text', null);
           await loadMessages();
         }
@@ -432,55 +431,41 @@ const generateReply = async () => {
     const elapsed = Date.now() - startTime;
     if (elapsed < 800) await sleep(800 - elapsed);
 
-    if (useStream) {
-      const parsedFull = parseMessageDirectives(fullResponse);
-      const voiceDirective = parsedFull.directives.find(d => d.type === 'voice');
-      if (voiceDirective) {
-        try {
-          const voiceText = voiceDirective.text;
-          const audioUrl = await textToSpeech(voiceText, {
-            voiceId: settings.minimaxVoiceId,
-            model: settings.minimaxModel,
-            speed: settings.minimaxSpeed,
-            pitch: settings.minimaxPitch
-          });
-          const allMsgs = await messageService.getByConversation(conversationId);
-          for (const m of allMsgs.filter(m => m.role === 'assistant')) await messageService.delete(m.id);
-          await messageService.create(conversationId, 'assistant', voiceText, 'text', audioUrl);
-          await loadMessages();
-        } catch (error) {
-          console.warn('语音生成失败:', error.message);
-        }
-      }
-    } else {
-      const parsedResponse = parseMessageDirectives(response);
-      const voiceDirective = parsedResponse.directives.find(d => d.type === 'voice');
-      const walletDirectives = parsedResponse.directives.filter(d => d.type === 'redpacket' || d.type === 'transfer');
-      const walletDirective = walletDirectives.find(d => d.executable);
-      const voiceText = voiceDirective?.text || '';
+    const rawText = useStream ? fullResponse : response;
+    const parsedResponse = parseMessageDirectives(rawText);
+    const voiceDirective = parsedResponse.directives.find(d => d.type === 'voice');
+    const walletDirectives = parsedResponse.directives.filter(d => d.type === 'redpacket' || d.type === 'transfer');
+    const walletDirective = walletDirectives.find(d => d.executable);
 
+    if (voiceDirective) {
       let audioUrl = null;
-      if (voiceDirective) {
-        try {
-          audioUrl = await textToSpeech(voiceText, {
-            voiceId: settings.minimaxVoiceId,
-            model: settings.minimaxModel,
-            speed: settings.minimaxSpeed,
-            pitch: settings.minimaxPitch
-          });
-        } catch (error) {
-          console.warn('语音生成失败:', error.message);
-        }
+      try {
+        audioUrl = await textToSpeech(voiceDirective.text, {
+          voiceId: settings.minimaxVoiceId,
+          model: settings.minimaxModel,
+          speed: settings.minimaxSpeed,
+          pitch: settings.minimaxPitch
+        });
+      } catch (error) {
+        console.warn('语音生成失败:', error.message);
       }
 
-      if (voiceDirective) {
-        if (voiceText || audioUrl) {
-          await messageService.create(conversationId, 'assistant', voiceText, 'text', audioUrl);
-          await loadMessages();
-        }
-      } else if (response || walletDirective) {
-        await createAssistantWalletSequence(response, walletDirective, walletDirectives);
+      if (!useStream) {
+        // 非流式：文字+语音都在全量响应里，按顺序建气泡
+        const textBefore = rawText.slice(0, voiceDirective.index).trim();
+        const textAfter = rawText.slice(voiceDirective.index + voiceDirective.raw.length).trim();
+        if (textBefore) await createAssistantTextMessages(removeDirectiveRaws(textBefore, walletDirectives));
       }
+      if (voiceDirective.text || audioUrl) {
+        await messageService.create(conversationId, 'assistant', voiceDirective.text, 'text', audioUrl);
+        await loadMessages();
+      }
+      if (!useStream) {
+        const textAfter = rawText.slice(voiceDirective.index + voiceDirective.raw.length).trim();
+        if (textAfter) await createAssistantTextMessages(removeDirectiveRaws(textAfter, walletDirectives));
+      }
+    } else if (!useStream && (rawText || walletDirective)) {
+      await createAssistantWalletSequence(rawText, walletDirective, walletDirectives);
     }
 
     isTyping.value = false;
