@@ -7,6 +7,21 @@
 </template>
 
 <script setup>
+import { onMounted, onUnmounted } from 'vue';
+
+const updateVisualViewportHeight = () => {
+  const height = window.visualViewport?.height ?? window.innerHeight;
+  document.documentElement.style.setProperty('--vvh', `${height}px`);
+};
+
+onMounted(() => {
+  updateVisualViewportHeight();
+  window.visualViewport?.addEventListener('resize', updateVisualViewportHeight);
+});
+
+onUnmounted(() => {
+  window.visualViewport?.removeEventListener('resize', updateVisualViewportHeight);
+});
 </script>
 
 <style>
