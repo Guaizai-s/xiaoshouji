@@ -421,7 +421,8 @@ const generateReply = async () => {
       useStream ? async (chunk) => {
         fullResponse += chunk;
         const parsedChunk = parseMessageDirectives(chunk);
-        if (parsedChunk.cleanText) {
+        const hasVoice = parsedChunk.directives.some(d => d.type === 'voice');
+        if (parsedChunk.cleanText && !hasVoice) {
           await messageService.create(conversationId, 'assistant', parsedChunk.cleanText, 'text', null);
           await loadMessages();
         }
