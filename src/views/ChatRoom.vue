@@ -1,5 +1,5 @@
 <template>
-  <div class="wx-page wx-chat-page" @click="onPageClick">
+  <div ref="chatPageRef" class="wx-page wx-chat-page" @click="onPageClick">
     <nav-bar :title="isTyping ? '对方正在输入…' : (role?.name || '聊天')" :show-back="true" :show-heart="true" action="•••" @action="goDetails" @heart="onHeart" />
 
     <div ref="messagesContainer" class="wx-content" :style="chatBackgroundStyle">
@@ -50,7 +50,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick, watch, computed } from 'vue';
+import { ref, onMounted, onUnmounted, nextTick, watch, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import NavBar from '../components/NavBar.vue';
 import MessageBubble from '../components/MessageBubble.vue';
@@ -140,12 +140,30 @@ const chatBackgroundStyle = computed(() => {
   return { backgroundImage: `url(${bg})`, backgroundSize: 'cover', backgroundPosition: 'center' };
 });
 
+const vpResizeHandler = () => {
+  if (chatPageRef.value && window.visualViewport) {
+    chatPageRef.value.style.height = window.visualViewport.height + 'px';
+  }
+};
+
 onMounted(async () => {
   loadUserAvatar();
   await loadConversation();
   await loadWalletBalance();
   await loadMessages();
   scrollToBottom();
+
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', vpResizeHandler);
+    window.visualViewport.addEventListener('scroll', vpResizeHandler);
+  }
+});
+
+onUnmounted(() => {
+  if (window.visualViewport) {
+    window.visualViewport.removeEventListener('resize', vpResizeHandler);
+    window.visualViewport.removeEventListener('scroll', vpResizeHandler);
+  }
 });
 
 const lastMessageId = computed(() => {
@@ -257,6 +275,7 @@ const handleLoadMore = async () => {
 };
 
 const chatInputRef = ref(null);
+const chatPageRef = ref(null);
 
 const onPageClick = (e) => {
   if (!e.target.closest('.wx-input-bar') && !e.target.closest('.action-panel')) {
@@ -586,14 +605,15 @@ const compressImage = (file, maxSize = 384, quality = 0.8) => {
 <style scoped>
 .wx-chat-page {
   --chat-navbar-height: 44px;
-  --chat-input-height: 56px;
 
   position: fixed;
-  inset: 0;
-  display: block;
-  width: 100%;
-  height: auto;
-  min-height: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   background:
     radial-gradient(circle at 22% 0%, rgba(255, 255, 255, 0.72), transparent 34%),
@@ -610,18 +630,16 @@ const compressImage = (file, maxSize = 384, quality = 0.8) => {
 }
 
 .wx-chat-page :deep(.wx-navbar-wrap) {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 1000;
+  position: relative;
+  flex-shrink: 0;
+  width: 100%;
   height: calc(var(--chat-navbar-height) + env(safe-area-inset-top));
   padding-top: env(safe-area-inset-top);
   background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
   box-sizing: border-box;
-  transform: translateZ(0);
+  z-index: 10;
 }
 
 .wx-chat-page :deep(.wx-navbar) {
@@ -631,14 +649,10 @@ const compressImage = (file, maxSize = 384, quality = 0.8) => {
 }
 
 .wx-content {
-  position: absolute;
-  top: calc(var(--chat-navbar-height) + env(safe-area-inset-top));
-  left: 0;
-  right: 0;
-  bottom: calc(var(--chat-input-height) + env(safe-area-inset-bottom));
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding-top: 0;
   padding-bottom: 18px;
   background-color: var(--wx-bg);
   box-sizing: border-box;

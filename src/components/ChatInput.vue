@@ -287,11 +287,9 @@ defineExpose({ closeActionSheet });
 
 <style scoped>
 .input-container {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 1000;
+  position: relative;
+  flex-shrink: 0;
+  width: 100%;
   background: rgba(247, 247, 247, 0.96);
   padding-bottom: env(safe-area-inset-bottom);
   backdrop-filter: blur(18px);
