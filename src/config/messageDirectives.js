@@ -7,7 +7,7 @@ export const MESSAGE_DIRECTIVES = [
   {
     type: 'sticker',
     format: '[表情:表情名]',
-    description: '当想发送表情包时使用。表情名应优先从可用表情包列表中选择。'
+    description: '当想发送表情包时使用。只能使用“可用表情包”列表里真实存在的表情名；如果列表为空或没有合适表情，不要输出表情指令，也不要编造表情名。'
   },
   {
     type: 'redpacket',
@@ -27,15 +27,21 @@ export const MESSAGE_DIRECTIVES_PROMPT = [
   ...MESSAGE_DIRECTIVES.map(item => `- ${item.format}：${item.description}`),
   '',
   '红包和转账的金额会由钱包逻辑处理；你只需要按格式输出金额字符串和备注。',
+  '表情指令必须严格匹配可用表情包列表中的表情名，不能改写、简称、翻译或自创名称。',
   '不要向用户解释这些格式，像正常聊天一样自然使用。'
 ].join('\n');
 
 export function buildStickerLibraryPrompt(stickers = []) {
   const stickerList = stickers
-    .map(sticker => `${sticker.name}:${sticker.description || ''}`)
-    .join('、');
+    .map(sticker => `- ${sticker.name}${sticker.description ? `：${sticker.description}` : ''}`)
+    .join('\n');
 
   if (!stickerList) return '';
 
-  return `[可用表情包]\n${stickerList}`;
+  return [
+    '[可用表情包]',
+    '你只能使用下面列出的表情名发送表情包：',
+    stickerList,
+    '如果没有完全匹配的表情名，就不要输出 [表情:...]。'
+  ].join('\n');
 }

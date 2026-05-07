@@ -55,12 +55,11 @@ import { useRoute, useRouter } from 'vue-router';
 import NavBar from '../components/NavBar.vue';
 import MessageBubble from '../components/MessageBubble.vue';
 import ChatInput from '../components/ChatInput.vue';
-import { conversationService, messageService, roleService, apiProfileService, personaService, stickerService, assetService, walletService, parseAmountToCents } from '../services/db';
+import { conversationService, messageService, roleService, apiProfileService, stickerService, assetService, walletService, parseAmountToCents } from '../services/db';
 import { callClaude } from '../services/claude';
 import { textToSpeech } from '../services/minimax';
-import { buildTimeContextPrompt } from '../utils/timeContext';
 import { parseMessageDirectives } from '../utils/directiveParser';
-import { buildStickerLibraryPrompt } from '../config/messageDirectives';
+import { buildEnhancedSystemPrompt } from '../utils/promptBuilder';
 
 const route = useRoute();
 const router = useRouter();
@@ -390,27 +389,8 @@ const generateReply = async () => {
       return { role: msg.role, content: msg.content };
     }));
 
-    let enhancedPrompt = role.value.systemPrompt || '';
     const settings = role.value?.chatSettings || {};
-
-    if (settings.isRealTimeOn) {
-      enhancedPrompt = `${buildTimeContextPrompt(contextMessages)}\n\n${enhancedPrompt}`;
-    }
-
-    if (settings.selectedPersonaId) {
-      const persona = await personaService.getById(settings.selectedPersonaId);
-      if (persona) {
-        const userStatus = localStorage.getItem('userStatus') || '';
-        enhancedPrompt += `\n\n[用户信息]\n${persona.description}`;
-        if (userStatus) enhancedPrompt += `\n\n[用户状态]\n${userStatus}`;
-      }
-    }
-
-    if (settings.linkedLibraryId) {
-      const linkedStickers = await stickerService.getByLibrary(settings.linkedLibraryId);
-      const stickerPrompt = buildStickerLibraryPrompt(linkedStickers);
-      if (stickerPrompt) enhancedPrompt += `\n\n${stickerPrompt}`;
-    }
+    const enhancedPrompt = await buildEnhancedSystemPrompt(role.value, contextMessages);
 
     const useStream = localStorage.getItem('useStreamAPI') === 'true';
     let fullResponse = '';

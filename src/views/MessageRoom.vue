@@ -140,7 +140,8 @@ import { roleService, conversationService, messageService, apiProfileService } f
 import { callClaude } from '../services/claude.js';
 import { textToSpeech } from '../services/minimax.js'; // 引入语音服务
 import { useTheme } from '../composables/useTheme.js';
-import { buildTimeContextPrompt } from '../utils/timeContext.js';
+import { buildEnhancedSystemPrompt } from '../utils/promptBuilder.js';
+import { parseMessageDirectives } from '../utils/directiveParser.js';
 
 const route = useRoute();
 const router = useRouter();
@@ -254,6 +255,15 @@ const scrollToBottom = () => {
 
 watch(messages, () => scrollToBottom(), { deep: true });
 
+const createAssistantTextMessages = async (text) => {
+  const parts = (text || '').split('\n').map(part => part.trim()).filter(Boolean);
+  for (let i = 0; i < parts.length; i++) {
+    if (i > 0) await sleep(500);
+    const aiMsg = await messageService.create(convId, 'assistant', parts[i], 'text', null);
+    messages.value.push(aiMsg);
+  }
+};
+
 const handleSend = async () => {
   const text = inputText.value.trim();
   if (!text || !convId) return;
@@ -272,24 +282,21 @@ const handleSend = async () => {
       content: m.content
     }));
 
-    const cs = role.value?.chatSettings || {};
-    let roleWithTime = { ...role.value };
-    if (cs.isRealTimeOn !== false) {
-      roleWithTime.systemPrompt = `${buildTimeContextPrompt(contextMessages)}\n\n${role.value.systemPrompt || ''}`;
-    }
+    const roleWithTime = {
+      ...role.value,
+      systemPrompt: await buildEnhancedSystemPrompt(role.value, contextMessages)
+    };
 
     const reply = await callClaude(roleWithTime, combined);
-    
-    // ================= 移植语音逻辑 =================
-    const voiceMatch = reply.match(/\[语音[:：]([^\]]+)\]/);
-    const voiceText = voiceMatch ? voiceMatch[1].trim() : '';
+    const parsedReply = parseMessageDirectives(reply);
+    const voiceDirective = parsedReply.directives.find(directive => directive.type === 'voice');
     let audioUrl = null;
 
-    if (voiceMatch) {
+    if (voiceDirective) {
       try {
         const voiceSettings = role.value?.chatSettings || {};
         // 请求语音接口生成 audioUrl
-        audioUrl = await textToSpeech(voiceText, {
+        audioUrl = await textToSpeech(voiceDirective.text, {
           voiceId: voiceSettings.minimaxVoiceId,
           model: voiceSettings.minimaxModel,
           speed: voiceSettings.minimaxSpeed,
@@ -300,27 +307,12 @@ const handleSend = async () => {
       }
       
       // 创建一条带有 audioUrl 的消息
-      const aiMsg = await messageService.create(convId, 'assistant', voiceText || '语音消息', 'text', audioUrl);
+      const aiMsg = await messageService.create(convId, 'assistant', voiceDirective.text || '语音消息', 'text', audioUrl);
       messages.value.push(aiMsg);
 
-    } else {
-      // 纯文本消息，清理可能残留的括号
-      const cleanResponse = reply.replace(/\[语音[:：][^\]]+\]/g, '').trim();
-      if (cleanResponse) {
-        const parts = cleanResponse.split('\n').map(part => part.trim()).filter(Boolean);
-        if (parts.length <= 1) {
-          const aiMsg = await messageService.create(convId, 'assistant', cleanResponse, 'text', null);
-          messages.value.push(aiMsg);
-        } else {
-          for (let i = 0; i < parts.length; i++) {
-            if (i > 0) await sleep(500);
-            const aiMsg = await messageService.create(convId, 'assistant', parts[i], 'text', null);
-            messages.value.push(aiMsg);
-          }
-        }
-      }
     }
-    // ==============================================
+
+    await createAssistantTextMessages(parsedReply.cleanText);
 
   } catch (e) {
     console.error('AI回复失败:', e);
