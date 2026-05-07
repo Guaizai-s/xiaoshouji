@@ -642,6 +642,10 @@ const compressImage = (file, maxSize = 384, quality = 0.8) => {
   z-index: 10;
 }
 
+[data-theme="dark"] .wx-chat-page :deep(.wx-navbar-wrap) {
+  background: rgba(28, 28, 28, 0.92);
+}
+
 .wx-chat-page :deep(.wx-navbar) {
   height: var(--chat-navbar-height);
   min-height: var(--chat-navbar-height);
