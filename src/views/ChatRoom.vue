@@ -653,6 +653,7 @@ const compressImage = (file, maxSize = 384, quality = 0.8) => {
   min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  padding-top: 0;
   padding-bottom: 18px;
   background-color: var(--wx-bg);
   box-sizing: border-box;
