@@ -181,57 +181,24 @@ const loadConversation = async () => {
   conversation.value = await conversationService.getById(conversationId);
   role.value = await roleService.getById(conversation.value.roleId);
 
-  console.log('1. 原始角色数据:', JSON.parse(JSON.stringify(role.value)));
-
-  // 如果角色关联了API方案，获取配置并合并到role对象
   if (role.value?.apiProfileId) {
     const apiProfile = await apiProfileService.getById(role.value.apiProfileId);
-    console.log('2. 加载的API方案:', JSON.parse(JSON.stringify(apiProfile)));
-
     if (apiProfile) {
-      role.value = {
-        ...role.value,
-        apiKey: apiProfile.apiKey,
-        baseUrl: apiProfile.baseUrl,
-        model: apiProfile.model,
-        apiFormat: apiProfile.apiFormat
-      };
-      console.log('3. 合并后的role.apiKey:', role.value.apiKey);
-      console.log('3. 合并后的role.baseUrl:', role.value.baseUrl);
-      console.log('3. 合并后的role.model:', role.value.model);
-      console.log('3. 合并后的role.apiFormat:', role.value.apiFormat);
-    } else {
-      console.error('❌ 未找到API方案，ID:', role.value.apiProfileId);
+      role.value = { ...role.value, apiKey: apiProfile.apiKey, baseUrl: apiProfile.baseUrl, model: apiProfile.model, apiFormat: apiProfile.apiFormat };
     }
   } else {
-    // 使用全局默认配置：选择第一个API方案
-    console.warn('角色未关联API方案，尝试使用默认方案');
     const allProfiles = await apiProfileService.getAll();
     if (allProfiles.length > 0) {
       const defaultProfile = allProfiles[0];
-      console.log('2. 使用默认API方案:', JSON.parse(JSON.stringify(defaultProfile)));
-      role.value = {
-        ...role.value,
-        apiKey: defaultProfile.apiKey,
-        baseUrl: defaultProfile.baseUrl,
-        model: defaultProfile.model,
-        apiFormat: defaultProfile.apiFormat
-      };
-      console.log('✅ 已自动使用第一个API方案:', defaultProfile.name);
-    } else {
-      console.error('❌ 没有可用的API方案，请先在设置中创建API方案');
+      role.value = { ...role.value, apiKey: defaultProfile.apiKey, baseUrl: defaultProfile.baseUrl, model: defaultProfile.model, apiFormat: defaultProfile.apiFormat };
     }
   }
 
-  console.log('4. 最终role配置:', JSON.parse(JSON.stringify(role.value)));
-
-  // 加载关联的表情包
   const settings = role.value?.chatSettings || {};
   if (settings.linkedLibraryId) {
     linkedStickers.value = await stickerService.getByLibrary(settings.linkedLibraryId);
   }
 
-  // 标记为已读
   await conversationService.markAsRead(conversationId);
 };
 
@@ -423,23 +390,13 @@ const generateReply = async () => {
       return { role: msg.role, content: msg.content };
     }));
 
-    // 构建增强的系统提示词
     let enhancedPrompt = role.value.systemPrompt || '';
+    const settings = role.value?.chatSettings || {};
 
-    // 添加时间感知
-    const isRealTimeOn = role.value?.chatSettings?.isRealTimeOn;
-    console.log('时间感知开关状态:', isRealTimeOn);
-    console.log('完整chatSettings:', role.value?.chatSettings);
-
-    if (isRealTimeOn) {
+    if (settings.isRealTimeOn) {
       enhancedPrompt = `${buildTimeContextPrompt(contextMessages)}\n\n${enhancedPrompt}`;
-      console.log('Time context metadata added without modifying message content.');
-    } else {
-      console.log('❌ 时间感知未开启');
     }
 
-    // 添加用户人设信息
-    const settings = role.value?.chatSettings || {};
     if (settings.selectedPersonaId) {
       const persona = await personaService.getById(settings.selectedPersonaId);
       if (persona) {
@@ -449,92 +406,44 @@ const generateReply = async () => {
       }
     }
 
-    // 添加表情包信息
     if (settings.linkedLibraryId) {
       const linkedStickers = await stickerService.getByLibrary(settings.linkedLibraryId);
       const stickerPrompt = buildStickerLibraryPrompt(linkedStickers);
       if (stickerPrompt) enhancedPrompt += `\n\n${stickerPrompt}`;
     }
 
-    let roleWithTime = { ...role.value, systemPrompt: enhancedPrompt };
-
-    // 流式回调：收到一个换行就创建一个气泡
-    const useStream = false;
-    let audioUrl = null;
-    let fullResponse = '';
-
-    const response = await callClaude(roleWithTime, apiMessages, useStream ? async (chunk) => {
-      fullResponse += chunk;
-      // 移除语音标记
-      const parsedChunk = parseMessageDirectives(chunk);
-      if (parsedChunk.cleanText) {
-        await messageService.create(conversationId, 'assistant', parsedChunk.cleanText, 'text');
-        await loadMessages();
-      }
-    } : null);
+    const response = await callClaude({ ...role.value, systemPrompt: enhancedPrompt }, apiMessages, null);
 
     const elapsed = Date.now() - startTime;
     if (elapsed < 800) await sleep(800 - elapsed);
 
-    // 流式模式：检测完整响应中的语音标记
-    if (useStream && fullResponse) {
-      const parsedResponse = parseMessageDirectives(fullResponse);
-      const voiceDirective = parsedResponse.directives.find(directive => directive.type === 'voice');
-      if (voiceDirective) {
-        try {
-          const voiceText = voiceDirective.text;
-          const voiceSettings = role.value?.chatSettings || {};
-          audioUrl = await textToSpeech(voiceText, {
-            voiceId: voiceSettings.minimaxVoiceId,
-            model: voiceSettings.minimaxModel,
-            speed: voiceSettings.minimaxSpeed,
-            pitch: voiceSettings.minimaxPitch
-          });
-          // 删除流式创建的所有文字气泡，重建一条带audioUrl的消息
-          const msgs = await messageService.getByConversation(conversationId);
-          const streamMsgs = msgs.filter(m => m.role === 'assistant');
-          for (const m of streamMsgs) await messageService.delete(m.id);
-          await messageService.create(conversationId, 'assistant', voiceText, 'text', audioUrl);
-          await loadMessages();
-        } catch (error) {
-          console.warn('语音生成失败:', error.message);
-        }
+    const parsedResponse = parseMessageDirectives(response);
+    const voiceDirective = parsedResponse.directives.find(d => d.type === 'voice');
+    const walletDirectives = parsedResponse.directives.filter(d => d.type === 'redpacket' || d.type === 'transfer');
+    const walletDirective = walletDirectives.find(d => d.executable);
+    const voiceText = voiceDirective?.text || '';
+
+    let audioUrl = null;
+    if (voiceDirective) {
+      try {
+        audioUrl = await textToSpeech(voiceText, {
+          voiceId: settings.minimaxVoiceId,
+          model: settings.minimaxModel,
+          speed: settings.minimaxSpeed,
+          pitch: settings.minimaxPitch
+        });
+      } catch (error) {
+        console.warn('语音生成失败:', error.message);
       }
     }
 
-    // 非流式模式：按原逻辑处理
-    if (!useStream) {
-      const parsedResponse = parseMessageDirectives(response);
-      const voiceDirective = parsedResponse.directives.find(directive => directive.type === 'voice');
-      const walletDirectives = parsedResponse.directives.filter(directive => directive.type === 'redpacket' || directive.type === 'transfer');
-      const walletDirective = walletDirectives.find(directive => directive.executable);
-      const voiceText = voiceDirective?.text || '';
-
-      if (voiceDirective) {
-        try {
-          const voiceSettings = role.value?.chatSettings || {};
-          audioUrl = await textToSpeech(voiceText, {
-            voiceId: voiceSettings.minimaxVoiceId,
-            model: voiceSettings.minimaxModel,
-            speed: voiceSettings.minimaxSpeed,
-            pitch: voiceSettings.minimaxPitch
-          });
-        } catch (error) {
-          console.warn('语音生成失败:', error.message);
-        }
+    if (voiceDirective) {
+      if (voiceText || audioUrl) {
+        await messageService.create(conversationId, 'assistant', voiceText, 'text', audioUrl);
+        await loadMessages();
       }
-
-      if (voiceDirective) {
-        // 语音回复：只创建一条带audioUrl的消息
-        if (voiceText || audioUrl) {
-          await messageService.create(conversationId, 'assistant', voiceText, 'text', audioUrl);
-          await loadMessages();
-        }
-      } else {
-        if (response || walletDirective) {
-          await createAssistantWalletSequence(response, walletDirective, walletDirectives);
-        }
-      }
+    } else if (response || walletDirective) {
+      await createAssistantWalletSequence(response, walletDirective, walletDirectives);
     }
 
     isTyping.value = false;
