@@ -62,6 +62,10 @@ html, body {
   padding-top: env(safe-area-inset-top);
 }
 
+[data-theme="dark"] .wx-navbar-wrap {
+  background-color: rgba(28, 28, 28, 0.92);
+}
+
 .wx-navbar {
   display: flex;
   align-items: center;
@@ -189,6 +193,10 @@ html, body {
   border-top: 1px solid var(--wx-border);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
+}
+
+[data-theme="dark"] .wx-tabbar {
+  background-color: rgba(28, 28, 28, 0.94);
 }
 
 .wx-tabbar-item {
@@ -342,6 +350,10 @@ html, body {
   border-top: 1px solid var(--wx-border);
   width: 100%; /* 确保外层容器宽度固定 */
   box-sizing: border-box; /* 确保 padding 不会撑开容器 */
+}
+
+[data-theme="dark"] .wx-input-bar {
+  background-color: rgba(28, 28, 28, 0.96);
 }
 
 .wx-input-btn {

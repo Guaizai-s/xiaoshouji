@@ -1,5 +1,5 @@
 <template>
-  <div class="wx-page wx-chat-page" @click="onPageClick">
+  <div ref="chatPageRef" class="wx-page wx-chat-page" @click="onPageClick">
     <nav-bar :title="isTyping ? '对方正在输入…' : (role?.name || '聊天')" :show-back="true" :show-heart="true" action="•••" @action="goDetails" @heart="onHeart" />
 
     <div ref="messagesContainer" class="wx-content" :style="chatBackgroundStyle">
@@ -50,7 +50,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick, watch, computed } from 'vue';
+import { ref, onMounted, onUnmounted, nextTick, watch, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import NavBar from '../components/NavBar.vue';
 import MessageBubble from '../components/MessageBubble.vue';
@@ -140,12 +140,30 @@ const chatBackgroundStyle = computed(() => {
   return { backgroundImage: `url(${bg})`, backgroundSize: 'cover', backgroundPosition: 'center' };
 });
 
+const vpResizeHandler = () => {
+  if (chatPageRef.value && window.visualViewport) {
+    chatPageRef.value.style.height = window.visualViewport.height + 'px';
+  }
+};
+
 onMounted(async () => {
   loadUserAvatar();
   await loadConversation();
   await loadWalletBalance();
   await loadMessages();
   scrollToBottom();
+
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', vpResizeHandler);
+    window.visualViewport.addEventListener('scroll', vpResizeHandler);
+  }
+});
+
+onUnmounted(() => {
+  if (window.visualViewport) {
+    window.visualViewport.removeEventListener('resize', vpResizeHandler);
+    window.visualViewport.removeEventListener('scroll', vpResizeHandler);
+  }
 });
 
 const lastMessageId = computed(() => {
@@ -163,57 +181,24 @@ const loadConversation = async () => {
   conversation.value = await conversationService.getById(conversationId);
   role.value = await roleService.getById(conversation.value.roleId);
 
-  console.log('1. 原始角色数据:', JSON.parse(JSON.stringify(role.value)));
-
-  // 如果角色关联了API方案，获取配置并合并到role对象
   if (role.value?.apiProfileId) {
     const apiProfile = await apiProfileService.getById(role.value.apiProfileId);
-    console.log('2. 加载的API方案:', JSON.parse(JSON.stringify(apiProfile)));
-
     if (apiProfile) {
-      role.value = {
-        ...role.value,
-        apiKey: apiProfile.apiKey,
-        baseUrl: apiProfile.baseUrl,
-        model: apiProfile.model,
-        apiFormat: apiProfile.apiFormat
-      };
-      console.log('3. 合并后的role.apiKey:', role.value.apiKey);
-      console.log('3. 合并后的role.baseUrl:', role.value.baseUrl);
-      console.log('3. 合并后的role.model:', role.value.model);
-      console.log('3. 合并后的role.apiFormat:', role.value.apiFormat);
-    } else {
-      console.error('❌ 未找到API方案，ID:', role.value.apiProfileId);
+      role.value = { ...role.value, apiKey: apiProfile.apiKey, baseUrl: apiProfile.baseUrl, model: apiProfile.model, apiFormat: apiProfile.apiFormat };
     }
   } else {
-    // 使用全局默认配置：选择第一个API方案
-    console.warn('角色未关联API方案，尝试使用默认方案');
     const allProfiles = await apiProfileService.getAll();
     if (allProfiles.length > 0) {
       const defaultProfile = allProfiles[0];
-      console.log('2. 使用默认API方案:', JSON.parse(JSON.stringify(defaultProfile)));
-      role.value = {
-        ...role.value,
-        apiKey: defaultProfile.apiKey,
-        baseUrl: defaultProfile.baseUrl,
-        model: defaultProfile.model,
-        apiFormat: defaultProfile.apiFormat
-      };
-      console.log('✅ 已自动使用第一个API方案:', defaultProfile.name);
-    } else {
-      console.error('❌ 没有可用的API方案，请先在设置中创建API方案');
+      role.value = { ...role.value, apiKey: defaultProfile.apiKey, baseUrl: defaultProfile.baseUrl, model: defaultProfile.model, apiFormat: defaultProfile.apiFormat };
     }
   }
 
-  console.log('4. 最终role配置:', JSON.parse(JSON.stringify(role.value)));
-
-  // 加载关联的表情包
   const settings = role.value?.chatSettings || {};
   if (settings.linkedLibraryId) {
     linkedStickers.value = await stickerService.getByLibrary(settings.linkedLibraryId);
   }
 
-  // 标记为已读
   await conversationService.markAsRead(conversationId);
 };
 
@@ -257,6 +242,7 @@ const handleLoadMore = async () => {
 };
 
 const chatInputRef = ref(null);
+const chatPageRef = ref(null);
 
 const onPageClick = (e) => {
   if (!e.target.closest('.wx-input-bar') && !e.target.closest('.action-panel')) {
@@ -404,23 +390,13 @@ const generateReply = async () => {
       return { role: msg.role, content: msg.content };
     }));
 
-    // 构建增强的系统提示词
     let enhancedPrompt = role.value.systemPrompt || '';
+    const settings = role.value?.chatSettings || {};
 
-    // 添加时间感知
-    const isRealTimeOn = role.value?.chatSettings?.isRealTimeOn;
-    console.log('时间感知开关状态:', isRealTimeOn);
-    console.log('完整chatSettings:', role.value?.chatSettings);
-
-    if (isRealTimeOn) {
+    if (settings.isRealTimeOn) {
       enhancedPrompt = `${buildTimeContextPrompt(contextMessages)}\n\n${enhancedPrompt}`;
-      console.log('Time context metadata added without modifying message content.');
-    } else {
-      console.log('❌ 时间感知未开启');
     }
 
-    // 添加用户人设信息
-    const settings = role.value?.chatSettings || {};
     if (settings.selectedPersonaId) {
       const persona = await personaService.getById(settings.selectedPersonaId);
       if (persona) {
@@ -430,92 +406,66 @@ const generateReply = async () => {
       }
     }
 
-    // 添加表情包信息
     if (settings.linkedLibraryId) {
       const linkedStickers = await stickerService.getByLibrary(settings.linkedLibraryId);
       const stickerPrompt = buildStickerLibraryPrompt(linkedStickers);
       if (stickerPrompt) enhancedPrompt += `\n\n${stickerPrompt}`;
     }
 
-    let roleWithTime = { ...role.value, systemPrompt: enhancedPrompt };
-
-    // 流式回调：收到一个换行就创建一个气泡
-    const useStream = false;
-    let audioUrl = null;
+    const useStream = localStorage.getItem('useStreamAPI') === 'true';
     let fullResponse = '';
 
-    const response = await callClaude(roleWithTime, apiMessages, useStream ? async (chunk) => {
-      fullResponse += chunk;
-      // 移除语音标记
-      const parsedChunk = parseMessageDirectives(chunk);
-      if (parsedChunk.cleanText) {
-        await messageService.create(conversationId, 'assistant', parsedChunk.cleanText, 'text');
-        await loadMessages();
-      }
-    } : null);
+    const response = await callClaude(
+      { ...role.value, systemPrompt: enhancedPrompt },
+      apiMessages,
+      useStream ? async (chunk) => {
+        fullResponse += chunk;
+        const parsedChunk = parseMessageDirectives(chunk);
+        if (parsedChunk.cleanText) {
+          await messageService.create(conversationId, 'assistant', parsedChunk.cleanText, 'text', null);
+          await loadMessages();
+        }
+      } : null
+    );
 
     const elapsed = Date.now() - startTime;
     if (elapsed < 800) await sleep(800 - elapsed);
 
-    // 流式模式：检测完整响应中的语音标记
-    if (useStream && fullResponse) {
-      const parsedResponse = parseMessageDirectives(fullResponse);
-      const voiceDirective = parsedResponse.directives.find(directive => directive.type === 'voice');
-      if (voiceDirective) {
-        try {
-          const voiceText = voiceDirective.text;
-          const voiceSettings = role.value?.chatSettings || {};
-          audioUrl = await textToSpeech(voiceText, {
-            voiceId: voiceSettings.minimaxVoiceId,
-            model: voiceSettings.minimaxModel,
-            speed: voiceSettings.minimaxSpeed,
-            pitch: voiceSettings.minimaxPitch
-          });
-          // 删除流式创建的所有文字气泡，重建一条带audioUrl的消息
-          const msgs = await messageService.getByConversation(conversationId);
-          const streamMsgs = msgs.filter(m => m.role === 'assistant');
-          for (const m of streamMsgs) await messageService.delete(m.id);
-          await messageService.create(conversationId, 'assistant', voiceText, 'text', audioUrl);
-          await loadMessages();
-        } catch (error) {
-          console.warn('语音生成失败:', error.message);
-        }
-      }
-    }
+    const rawText = useStream ? fullResponse : response;
+    const parsedResponse = parseMessageDirectives(rawText);
+    const voiceDirective = parsedResponse.directives.find(d => d.type === 'voice');
+    const walletDirectives = parsedResponse.directives.filter(d => d.type === 'redpacket' || d.type === 'transfer');
+    const walletDirective = walletDirectives.find(d => d.executable);
 
-    // 非流式模式：按原逻辑处理
-    if (!useStream) {
-      const parsedResponse = parseMessageDirectives(response);
-      const voiceDirective = parsedResponse.directives.find(directive => directive.type === 'voice');
-      const walletDirectives = parsedResponse.directives.filter(directive => directive.type === 'redpacket' || directive.type === 'transfer');
-      const walletDirective = walletDirectives.find(directive => directive.executable);
-      const voiceText = voiceDirective?.text || '';
-
-      if (voiceDirective) {
-        try {
-          const voiceSettings = role.value?.chatSettings || {};
-          audioUrl = await textToSpeech(voiceText, {
-            voiceId: voiceSettings.minimaxVoiceId,
-            model: voiceSettings.minimaxModel,
-            speed: voiceSettings.minimaxSpeed,
-            pitch: voiceSettings.minimaxPitch
-          });
-        } catch (error) {
-          console.warn('语音生成失败:', error.message);
-        }
+    if (voiceDirective) {
+      let audioUrl = null;
+      try {
+        audioUrl = await textToSpeech(voiceDirective.text, {
+          voiceId: settings.minimaxVoiceId,
+          model: settings.minimaxModel,
+          speed: settings.minimaxSpeed,
+          pitch: settings.minimaxPitch
+        });
+      } catch (error) {
+        console.warn('语音生成失败:', error.message);
       }
 
-      if (voiceDirective) {
-        // 语音回复：只创建一条带audioUrl的消息
-        if (voiceText || audioUrl) {
-          await messageService.create(conversationId, 'assistant', voiceText, 'text', audioUrl);
-          await loadMessages();
-        }
-      } else {
-        if (response || walletDirective) {
-          await createAssistantWalletSequence(response, walletDirective, walletDirectives);
-        }
+      if (!useStream) {
+        // 非流式：文字+语音都在全量响应里，按顺序建气泡
+        const textBefore = rawText.slice(0, voiceDirective.index).trim();
+        const textAfter = rawText.slice(voiceDirective.index + voiceDirective.raw.length).trim();
+        if (textBefore) await createAssistantTextMessages(removeDirectiveRaws(textBefore, walletDirectives));
       }
+      if (voiceDirective.text || audioUrl) {
+        await messageService.create(conversationId, 'assistant', voiceDirective.text, 'text', audioUrl);
+        await loadMessages();
+      }
+      if (!useStream) {
+        const textAfter = rawText.slice(voiceDirective.index + voiceDirective.raw.length).trim();
+        if (textAfter) await createAssistantTextMessages(removeDirectiveRaws(textAfter, walletDirectives));
+      }
+    } else if (!useStream && (rawText || walletDirective)) {
+      await createAssistantWalletSequence(rawText, walletDirective, walletDirectives);
     }
 
     isTyping.value = false;
@@ -616,14 +566,18 @@ const compressImage = (file, maxSize = 384, quality = 0.8) => {
   left: auto;
   right: auto;
   flex-shrink: 0;
-  z-index: 1000;
+  width: 100%;
   height: calc(var(--chat-navbar-height) + env(safe-area-inset-top));
   padding-top: env(safe-area-inset-top);
   background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
   box-sizing: border-box;
-  transform: translateZ(0);
+  z-index: 10;
+}
+
+[data-theme="dark"] .wx-chat-page :deep(.wx-navbar-wrap) {
+  background: rgba(28, 28, 28, 0.92);
 }
 
 .wx-chat-page :deep(.wx-navbar) {

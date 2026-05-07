@@ -287,11 +287,9 @@ defineExpose({ closeActionSheet });
 
 <style scoped>
 .input-container {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 1000;
+  position: relative;
+  flex-shrink: 0;
+  width: 100%;
   background: rgba(247, 247, 247, 0.96);
   padding-bottom: env(safe-area-inset-bottom);
   backdrop-filter: blur(18px);
@@ -581,6 +579,24 @@ defineExpose({ closeActionSheet });
   color: #fff;
   font-size: 16px;
   font-weight: 600;
+}
+
+[data-theme="dark"] .input-container {
+  background: rgba(28, 28, 28, 0.96);
+}
+
+[data-theme="dark"] .action-panel {
+  background: #1c1c1c;
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .action-icon {
+  background: #2a2a2a;
+  color: #d0d0d0;
+}
+
+[data-theme="dark"] .action-item span {
+  color: #909090;
 }
 
 [data-theme="dark"] .wallet-sheet-handle {
