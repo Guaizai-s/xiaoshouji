@@ -412,38 +412,74 @@ const generateReply = async () => {
       if (stickerPrompt) enhancedPrompt += `\n\n${stickerPrompt}`;
     }
 
-    const response = await callClaude({ ...role.value, systemPrompt: enhancedPrompt }, apiMessages, null);
+    const useStream = localStorage.getItem('useStreamAPI') === 'true';
+    let fullResponse = '';
+
+    const response = await callClaude(
+      { ...role.value, systemPrompt: enhancedPrompt },
+      apiMessages,
+      useStream ? async (chunk) => {
+        fullResponse += chunk;
+        const parsedChunk = parseMessageDirectives(chunk);
+        if (parsedChunk.cleanText) {
+          await messageService.create(conversationId, 'assistant', parsedChunk.cleanText, 'text', null);
+          await loadMessages();
+        }
+      } : null
+    );
 
     const elapsed = Date.now() - startTime;
     if (elapsed < 800) await sleep(800 - elapsed);
 
-    const parsedResponse = parseMessageDirectives(response);
-    const voiceDirective = parsedResponse.directives.find(d => d.type === 'voice');
-    const walletDirectives = parsedResponse.directives.filter(d => d.type === 'redpacket' || d.type === 'transfer');
-    const walletDirective = walletDirectives.find(d => d.executable);
-    const voiceText = voiceDirective?.text || '';
-
-    let audioUrl = null;
-    if (voiceDirective) {
-      try {
-        audioUrl = await textToSpeech(voiceText, {
-          voiceId: settings.minimaxVoiceId,
-          model: settings.minimaxModel,
-          speed: settings.minimaxSpeed,
-          pitch: settings.minimaxPitch
-        });
-      } catch (error) {
-        console.warn('语音生成失败:', error.message);
+    if (useStream) {
+      const parsedFull = parseMessageDirectives(fullResponse);
+      const voiceDirective = parsedFull.directives.find(d => d.type === 'voice');
+      if (voiceDirective) {
+        try {
+          const voiceText = voiceDirective.text;
+          const audioUrl = await textToSpeech(voiceText, {
+            voiceId: settings.minimaxVoiceId,
+            model: settings.minimaxModel,
+            speed: settings.minimaxSpeed,
+            pitch: settings.minimaxPitch
+          });
+          const allMsgs = await messageService.getByConversation(conversationId);
+          for (const m of allMsgs.filter(m => m.role === 'assistant')) await messageService.delete(m.id);
+          await messageService.create(conversationId, 'assistant', voiceText, 'text', audioUrl);
+          await loadMessages();
+        } catch (error) {
+          console.warn('语音生成失败:', error.message);
+        }
       }
-    }
+    } else {
+      const parsedResponse = parseMessageDirectives(response);
+      const voiceDirective = parsedResponse.directives.find(d => d.type === 'voice');
+      const walletDirectives = parsedResponse.directives.filter(d => d.type === 'redpacket' || d.type === 'transfer');
+      const walletDirective = walletDirectives.find(d => d.executable);
+      const voiceText = voiceDirective?.text || '';
 
-    if (voiceDirective) {
-      if (voiceText || audioUrl) {
-        await messageService.create(conversationId, 'assistant', voiceText, 'text', audioUrl);
-        await loadMessages();
+      let audioUrl = null;
+      if (voiceDirective) {
+        try {
+          audioUrl = await textToSpeech(voiceText, {
+            voiceId: settings.minimaxVoiceId,
+            model: settings.minimaxModel,
+            speed: settings.minimaxSpeed,
+            pitch: settings.minimaxPitch
+          });
+        } catch (error) {
+          console.warn('语音生成失败:', error.message);
+        }
       }
-    } else if (response || walletDirective) {
-      await createAssistantWalletSequence(response, walletDirective, walletDirectives);
+
+      if (voiceDirective) {
+        if (voiceText || audioUrl) {
+          await messageService.create(conversationId, 'assistant', voiceText, 'text', audioUrl);
+          await loadMessages();
+        }
+      } else if (response || walletDirective) {
+        await createAssistantWalletSequence(response, walletDirective, walletDirectives);
+      }
     }
 
     isTyping.value = false;
