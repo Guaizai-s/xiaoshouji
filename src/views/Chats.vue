@@ -112,8 +112,8 @@ const formatTime = (timestamp) => {
 
 .chat-list-item {
   position: relative;
-  min-height: 74px;
-  padding: 10px 16px;
+  min-height: 66px;
+  padding: 7px 16px;
   border-bottom: none;
   box-sizing: border-box;
 }
@@ -121,7 +121,7 @@ const formatTime = (timestamp) => {
 .chat-list-item::after {
   content: '';
   position: absolute;
-  left: 80px;
+  left: 74px;
   right: 0;
   bottom: 0;
   height: 1px;
@@ -145,13 +145,13 @@ const formatTime = (timestamp) => {
 .avatar-wrap {
   position: relative;
   flex-shrink: 0;
-  margin-right: 12px;
+  margin-right: 11px;
 }
 
 .wx-list-avatar {
-  width: 52px;
-  height: 52px;
-  border-radius: 7px;
+  width: 46px;
+  height: 46px;
+  border-radius: 6px;
   object-fit: cover;
   display: block;
   background: var(--wx-border);
@@ -159,32 +159,32 @@ const formatTime = (timestamp) => {
 
 .wx-list-content {
   min-width: 0;
-  padding-top: 2px;
+  padding-top: 1px;
 }
 
 .wx-list-title {
-  font-size: 17px;
-  line-height: 1.25;
+  font-size: 16px;
+  line-height: 1.22;
   font-weight: 500;
   color: var(--wx-text-primary);
-  margin-bottom: 5px;
-  letter-spacing: 0.01em;
+  margin-bottom: 4px;
+  letter-spacing: 0.005em;
 }
 
 .wx-list-desc {
-  font-size: 15px;
-  line-height: 1.35;
-  color: #8a8a8a;
+  font-size: 14px;
+  line-height: 1.28;
+  color: #8f8f8f;
 }
 
 .wx-list-meta {
   align-self: flex-start;
-  padding-top: 4px;
-  margin-left: 10px;
+  padding-top: 3px;
+  margin-left: 8px;
 }
 
 .wx-list-time {
-  font-size: 14px;
+  font-size: 12px;
   line-height: 1.25;
   color: #999;
 }
