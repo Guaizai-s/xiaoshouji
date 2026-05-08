@@ -1,8 +1,8 @@
 <template>
-  <div class="wx-page">
+  <div class="wx-page chats-page">
     <nav-bar title="微信" />
 
-    <div class="wx-content">
+    <div class="wx-content chats-content">
       <div v-if="conversations.length === 0" class="wx-empty">
         <svg class="wx-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
           <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
@@ -11,11 +11,11 @@
         <div class="wx-empty-text">去通讯录添加角色开始聊天吧</div>
       </div>
 
-      <div v-else class="wx-list">
+      <div v-else class="wx-list chats-list">
         <div
           v-for="conv in sortedConversations"
           :key="conv.id"
-          class="wx-list-item"
+          class="wx-list-item chat-list-item"
           :class="{ 'item-muted': conv.isMuted, 'item-pinned': conv.isTop }"
           @click="openChat(conv)"
         >
@@ -101,28 +101,98 @@ const formatTime = (timestamp) => {
 </script>
 
 <style scoped>
+.chats-page,
+.chats-content {
+  background: #f5f5f5;
+}
+
+.chats-list {
+  background: var(--wx-white);
+}
+
+.chat-list-item {
+  position: relative;
+  min-height: 74px;
+  padding: 10px 16px;
+  border-bottom: none;
+  box-sizing: border-box;
+}
+
+.chat-list-item::after {
+  content: '';
+  position: absolute;
+  left: 80px;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: var(--wx-border);
+  transform: scaleY(0.5);
+  transform-origin: bottom;
+  pointer-events: none;
+}
+
+.chat-list-item:last-child::after {
+  display: none;
+}
+
 .wx-empty-icon {
   width: 64px;
   height: 64px;
   color: #c0c0c0;
   margin-bottom: 16px;
 }
+
 .avatar-wrap {
   position: relative;
   flex-shrink: 0;
   margin-right: 12px;
 }
+
 .wx-list-avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: 6px;
+  width: 52px;
+  height: 52px;
+  border-radius: 7px;
   object-fit: cover;
   display: block;
+  background: var(--wx-border);
 }
+
+.wx-list-content {
+  min-width: 0;
+  padding-top: 2px;
+}
+
+.wx-list-title {
+  font-size: 17px;
+  line-height: 1.25;
+  font-weight: 500;
+  color: var(--wx-text-primary);
+  margin-bottom: 5px;
+  letter-spacing: 0.01em;
+}
+
+.wx-list-desc {
+  font-size: 15px;
+  line-height: 1.35;
+  color: #8a8a8a;
+}
+
+.wx-list-meta {
+  align-self: flex-start;
+  padding-top: 4px;
+  margin-left: 10px;
+}
+
+.wx-list-time {
+  font-size: 14px;
+  line-height: 1.25;
+  color: #999;
+}
+
 .badge {
   position: absolute;
   top: -5px;
-  right: -5px;
+  right: -6px;
   min-width: 18px;
   height: 18px;
   background: #e64340;
@@ -136,13 +206,29 @@ const formatTime = (timestamp) => {
   padding: 0 4px;
   border: 1.5px solid #fff;
 }
+
 .badge-grey {
   background: #b2b2b2;
 }
+
 .item-pinned {
-  background: color-mix(in srgb, var(--wx-white) 78%, var(--wx-bg));
+  background: color-mix(in srgb, var(--wx-white) 82%, var(--wx-bg));
 }
+
 .item-muted .wx-list-title {
   color: var(--wx-text-secondary);
+}
+
+[data-theme="dark"] .chats-page,
+[data-theme="dark"] .chats-content {
+  background: var(--wx-bg);
+}
+
+[data-theme="dark"] .wx-list-desc {
+  color: rgba(238, 238, 238, 0.62);
+}
+
+[data-theme="dark"] .wx-list-time {
+  color: rgba(238, 238, 238, 0.55);
 }
 </style>
