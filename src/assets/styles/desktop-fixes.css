@@ -1,0 +1,4 @@
+/* 桌面页视觉修复：隐藏自绘模拟状态栏，避免和系统状态栏重复 */
+.desktop .status-bar {
+  display: none !important;
+}
