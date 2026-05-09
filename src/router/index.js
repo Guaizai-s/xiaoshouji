@@ -62,6 +62,11 @@ const routes = [
     component: () => import('../views/AppSettings.vue')
   },
   {
+    path: '/world-book',
+    name: 'WorldBook',
+    component: () => import('../views/WorldBook.vue')
+  },
+  {
     path: '/personas',
     name: 'UserPersonas',
     component: () => import('../views/UserPersonas.vue')

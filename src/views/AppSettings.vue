@@ -353,7 +353,7 @@ const useStreamAPI = ref(false);
 const wallpaperPreview = ref('');
 const customIcons = ref({});
 const dataMsg = ref('');
-const BACKUP_TABLES = ['roles', 'conversations', 'messages', 'apiProfiles', 'userPersonas', 'stickers', 'stickerLibraries', 'assets', 'walletAccounts', 'walletTransactions'];
+const BACKUP_TABLES = ['roles', 'conversations', 'messages', 'apiProfiles', 'userPersonas', 'stickers', 'stickerLibraries', 'assets', 'walletAccounts', 'walletTransactions', 'worldBookEntries'];
 const BACKUP_LOCAL_STORAGE_KEYS = ['globalMinimax', 'useStreamAPI', SYSTEM_THEME_KEY, SMS_THEME_KEY, 'userStatus'];
 
 const loadAll = async () => {

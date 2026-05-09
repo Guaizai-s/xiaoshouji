@@ -396,7 +396,7 @@ const generateReply = async () => {
     let fullResponse = '';
 
     const response = await callClaude(
-      { ...role.value, systemPrompt: enhancedPrompt },
+      { ...role.value, systemPrompt: enhancedPrompt, skipSystemPromptMerge: true },
       apiMessages,
       useStream ? async (chunk) => {
         fullResponse += chunk;

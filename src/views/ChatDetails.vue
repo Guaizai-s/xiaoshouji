@@ -406,7 +406,7 @@ const settings = reactive({
   triggerTimeoutValue: '5',
   minimaxVoiceId: '',
   minimaxModel: 'speech-02-hd',
-  minimaxSpeed: 1.2,
+  minimaxSpeed: 1,
   minimaxPitch: 0,
   longTermMemory: '',
   coreMemory: '',

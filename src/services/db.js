@@ -72,6 +72,20 @@ db.version(7).stores({
   walletTransactions: '++id, conversationId, messageId, type, status, createdAt, updatedAt'
 });
 
+db.version(8).stores({
+  roles: '++id, name, createdAt, updatedAt',
+  conversations: '++id, roleId, updatedAt, isTop, isMuted',
+  messages: '++id, conversationId, timestamp',
+  apiProfiles: '++id, name, createdAt',
+  userPersonas: '++id, name, createdAt',
+  stickers: '++id, name, libraryId, createdAt',
+  stickerLibraries: '++id, name, createdAt',
+  assets: 'key',
+  walletAccounts: '++id, &[ownerType+ownerId], ownerType, ownerId, updatedAt',
+  walletTransactions: '++id, conversationId, messageId, type, status, createdAt, updatedAt',
+  worldBookEntries: 'id, enabled, triggerType, priority, updatedAt'
+});
+
 // 角色管理
 const USER_OWNER = { ownerType: 'user', ownerId: 'self' };
 const WALLET_TYPES = new Set(['redpacket', 'transfer']);
@@ -626,6 +640,98 @@ export const stickerLibraryService = {
     // 删除库时同时删除库中的所有表情包
     await db.stickers.where('libraryId').equals(id).delete();
     await db.stickerLibraries.delete(id);
+  }
+};
+
+// 世界书管理
+const normalizeWorldBookEntry = (data = {}, existing = null) => {
+  const now = new Date().toISOString();
+  const triggerType = data.triggerType === 'keyword' ? 'keyword' : 'always';
+  const keywords = Array.isArray(data.keywords)
+    ? data.keywords.map(item => String(item).trim()).filter(Boolean)
+    : String(data.keywords || '').split(/[,，\n]/).map(item => item.trim()).filter(Boolean);
+
+  return {
+    id: existing?.id || data.id || `wb_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    title: String(data.title || '').trim() || '未命名条目',
+    enabled: data.enabled ?? true,
+    triggerType,
+    keywords: triggerType === 'keyword' ? keywords : [],
+    content: String(data.content || '').trim(),
+    priority: Number.isFinite(Number(data.priority)) ? Number(data.priority) : 50,
+    position: ['before_user', 'after_system', 'before_assistant'].includes(data.position) ? data.position : 'after_system',
+    createdAt: existing?.createdAt || data.createdAt || now,
+    updatedAt: now
+  };
+};
+
+export const worldBookEntryService = {
+  normalize(entry, existing = null) {
+    return normalizeWorldBookEntry(entry, existing);
+  },
+
+  normalizeImport(rawEntries = []) {
+    const skipped = [];
+    const entries = [];
+
+    rawEntries.forEach((raw, index) => {
+      const entry = normalizeWorldBookEntry(raw);
+      if (!entry.content) {
+        skipped.push({ index, title: entry.title, reason: 'content 为空' });
+        return;
+      }
+      if (entry.triggerType === 'keyword' && entry.keywords.length === 0) {
+        skipped.push({ index, title: entry.title, reason: 'keyword 条目缺少关键词' });
+        return;
+      }
+      entries.push(entry);
+    });
+
+    return { entries, skipped };
+  },
+
+  async getAll() {
+    const entries = await db.worldBookEntries.orderBy('updatedAt').reverse().toArray();
+    return entries.sort((a, b) => (b.priority || 0) - (a.priority || 0));
+  },
+
+  async create(data) {
+    const entry = normalizeWorldBookEntry(data);
+    if (!entry.content) throw new Error('内容不能为空');
+    if (entry.triggerType === 'keyword' && entry.keywords.length === 0) throw new Error('关键词触发条目需要至少一个关键词');
+    await db.worldBookEntries.add(entry);
+    return entry;
+  },
+
+  async update(id, data) {
+    const existing = await db.worldBookEntries.get(id);
+    if (!existing) throw new Error('世界书条目不存在');
+    const entry = normalizeWorldBookEntry({ ...existing, ...data, id }, existing);
+    if (!entry.content) throw new Error('内容不能为空');
+    if (entry.triggerType === 'keyword' && entry.keywords.length === 0) throw new Error('关键词触发条目需要至少一个关键词');
+    await db.worldBookEntries.put(entry);
+    return entry;
+  },
+
+  async delete(id) {
+    await db.worldBookEntries.delete(id);
+  },
+
+  async importEntries(rawEntries = []) {
+    const result = this.normalizeImport(rawEntries);
+    if (result.entries.length > 0) {
+      await db.worldBookEntries.bulkPut(result.entries);
+    }
+    return result;
+  },
+
+  async exportData() {
+    return {
+      type: 'world_book',
+      version: 1,
+      exported_at: new Date().toISOString(),
+      entries: await this.getAll()
+    };
   }
 };
 

@@ -161,14 +161,16 @@ async function handleOpenAIStream(response, onChunk) {
  * @returns {Promise<string>} - AI 回复内容
  */
 export async function callClaude(role, messages, onChunk = null) {
-  const { apiKey, baseUrl, model, apiFormat, systemPrompt } = role;
+  const { apiKey, baseUrl, model, apiFormat, systemPrompt, skipSystemPromptMerge = false } = role;
 
   if (!apiKey) {
     throw new Error('请配置 API Key');
   }
 
-  // 合并内置提示词和用户提示词
-  const finalSystemPrompt = mergeSystemPrompts(systemPrompt);
+  // 聊天界面会先通过 promptBuilder 统一拼接完整提示词，避免重复追加内置指令。
+  const finalSystemPrompt = skipSystemPromptMerge
+    ? (systemPrompt || '')
+    : mergeSystemPrompts(systemPrompt);
 
   console.log('📤 发送给API的系统提示词（前200字符）:', finalSystemPrompt.substring(0, 200));
   console.log('📤 消息数量:', messages.length);

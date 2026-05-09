@@ -21,15 +21,30 @@ export const MESSAGE_DIRECTIVES = [
   }
 ];
 
-export const MESSAGE_DIRECTIVES_PROMPT = [
-  '[特殊消息格式]',
-  '你可以在自然聊天中使用以下特殊消息格式：',
-  ...MESSAGE_DIRECTIVES.map(item => `- ${item.format}：${item.description}`),
-  '',
-  '红包和转账的金额会由钱包逻辑处理；你只需要按格式输出金额字符串和备注。',
-  '表情指令必须严格匹配可用表情包列表中的表情名，不能改写、简称、翻译或自创名称。',
-  '不要向用户解释这些格式，像正常聊天一样自然使用。'
-].join('\n');
+export function buildMessageDirectivesPrompt(types = MESSAGE_DIRECTIVES.map(item => item.type)) {
+  const allowedTypes = new Set(types);
+  const directives = MESSAGE_DIRECTIVES.filter(item => allowedTypes.has(item.type));
+  if (directives.length === 0) return '';
+
+  const lines = [
+    '[特殊消息格式]',
+    '你可以在自然聊天中使用以下特殊消息格式：',
+    ...directives.map(item => `- ${item.format}：${item.description}`)
+  ];
+
+  if (allowedTypes.has('redpacket') || allowedTypes.has('transfer')) {
+    lines.push('', '红包和转账的金额会由钱包逻辑处理；你只需要按格式输出金额字符串和备注。');
+  }
+
+  if (allowedTypes.has('sticker')) {
+    lines.push('表情指令必须严格匹配可用表情包列表中的表情名，不能改写、简称、翻译或自创名称。');
+  }
+
+  lines.push('不要向用户解释这些格式，像正常聊天一样自然使用。');
+  return lines.join('\n');
+}
+
+export const MESSAGE_DIRECTIVES_PROMPT = buildMessageDirectivesPrompt();
 
 export function buildStickerLibraryPrompt(stickers = []) {
   const stickerList = stickers

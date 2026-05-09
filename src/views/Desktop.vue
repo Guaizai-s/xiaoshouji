@@ -1,13 +1,5 @@
 <template>
   <div class="desktop" :class="currentTheme" :style="wallpaper ? `background-image:url(${wallpaper});background-size:cover;background-position:center` : ''">
-    <div class="status-bar">
-      <span class="status-time">{{ currentTime.split(' ')[0] }}</span>
-      <div class="status-icons">
-        <svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15"><path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3c-1.65-1.66-4.34-1.66-6 0zm-4-4l2 2c2.76-2.76 7.24-2.76 10 0l2-2C15.14 9.14 8.87 9.14 5 13z"/></svg>
-        <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="15"><path d="M15.67 4H14V2h-4v2H8.33C7.6 4 7 4.6 7 5.33v15.33C7 21.4 7.6 22 8.33 22h7.33c.74 0 1.34-.6 1.34-1.33V5.33C17 4.6 16.4 4 15.67 4z"/></svg>
-      </div>
-    </div>
-
     <div class="content-scroll">
       
       <div class="hero-card animate-enter" style="--delay: 0.1s">
@@ -119,7 +111,7 @@
           <component :is="RegexIcon" class="icon-svg" />
           <span>正则</span>
         </div>
-        <div class="dock-item">
+        <div class="dock-item" @click="go('/world-book')">
           <component :is="WorldIcon" class="icon-svg" />
           <span>世界书</span>
         </div>
@@ -285,18 +277,6 @@ const WorldIcon = mkIcon(['M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.9
   --text-sub: #8892b0;
   --shadow-color: rgba(0, 0, 0, 0.3);
 }
-
-/* 状态栏 */
-.status-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  padding: env(safe-area-inset-top) 24px 10px;
-  font-size: 14px;
-  font-weight: 600;
-  z-index: 10;
-}
-.status-icons { display: flex; gap: 6px; align-items: center; }
 
 /* 滚动区 */
 .content-scroll {

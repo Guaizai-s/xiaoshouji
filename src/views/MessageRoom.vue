@@ -282,12 +282,13 @@ const handleSend = async () => {
       content: m.content
     }));
 
-    const roleWithTime = {
+    const enhancedRole = {
       ...role.value,
-      systemPrompt: await buildEnhancedSystemPrompt(role.value, contextMessages)
+      systemPrompt: await buildEnhancedSystemPrompt(role.value, contextMessages, { directiveTypes: ['voice'] }),
+      skipSystemPromptMerge: true
     };
 
-    const reply = await callClaude(roleWithTime, combined);
+    const reply = await callClaude(enhancedRole, combined);
     const parsedReply = parseMessageDirectives(reply);
     const voiceDirective = parsedReply.directives.find(directive => directive.type === 'voice');
     let audioUrl = null;
