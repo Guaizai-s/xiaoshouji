@@ -86,6 +86,23 @@ db.version(8).stores({
   worldBookEntries: 'id, enabled, triggerType, priority, updatedAt'
 });
 
+db.version(9).stores({
+  roles: '++id, name, createdAt, updatedAt',
+  conversations: '++id, roleId, updatedAt, isTop, isMuted',
+  messages: '++id, conversationId, timestamp',
+  apiProfiles: '++id, name, createdAt',
+  userPersonas: '++id, name, createdAt',
+  stickers: '++id, name, libraryId, createdAt',
+  stickerLibraries: '++id, name, createdAt',
+  assets: 'key',
+  walletAccounts: '++id, &[ownerType+ownerId], ownerType, ownerId, updatedAt',
+  walletTransactions: '++id, conversationId, messageId, type, status, createdAt, updatedAt',
+  worldBookEntries: 'id, enabled, triggerType, priority, updatedAt',
+  diaries: '++id, authorType, roleId, dateKey, startAt, endAt, visibility, includeInContext, createdAt, updatedAt',
+  diaryRoleLinks: '++id, diaryId, roleId',
+  dailyMoods: 'dateKey, moodId, updatedAt'
+});
+
 // 角色管理
 const USER_OWNER = { ownerType: 'user', ownerId: 'self' };
 const WALLET_TYPES = new Set(['redpacket', 'transfer']);
@@ -201,6 +218,16 @@ export const roleService = {
       await db.messages.where('conversationId').equals(conv.id).delete();
     }
     await db.conversations.where('roleId').equals(id).delete();
+    const roleDiaries = await db.diaries.where('roleId').equals(id).toArray();
+    for (const diary of roleDiaries) {
+      if (diary.authorType === 'role') {
+        await db.diaryRoleLinks.where('diaryId').equals(diary.id).delete();
+        await db.diaries.delete(diary.id);
+      } else {
+        await db.diaries.update(diary.id, { roleId: null, updatedAt: Date.now() });
+      }
+    }
+    await db.diaryRoleLinks.where('roleId').equals(id).delete();
     await db.roles.delete(id);
   }
 };
@@ -331,6 +358,25 @@ export const messageService = {
     msgs.sort((a, b) => a.timestamp - b.timestamp);
     const recent = msgs.slice(-rounds * 2);
     return await Promise.all(recent.map(async (msg) => {
+      if (!WALLET_TYPES.has(msg.type)) return msg;
+      return { ...msg, content: await walletService.describeMessageForContext(msg) };
+    }));
+  },
+
+  async getByRoleTimeRange(roleId, startAt, endAt) {
+    const convs = await db.conversations.where('roleId').equals(roleId).toArray();
+    const ids = convs.map(conv => conv.id);
+    const msgs = [];
+    for (const id of ids) {
+      const chunk = await db.messages
+        .where('conversationId')
+        .equals(id)
+        .filter(msg => msg.timestamp >= startAt && msg.timestamp <= endAt)
+        .toArray();
+      msgs.push(...chunk);
+    }
+    msgs.sort((a, b) => a.timestamp - b.timestamp);
+    return await Promise.all(msgs.map(async (msg) => {
       if (!WALLET_TYPES.has(msg.type)) return msg;
       return { ...msg, content: await walletService.describeMessageForContext(msg) };
     }));
@@ -732,6 +778,182 @@ export const worldBookEntryService = {
       exported_at: new Date().toISOString(),
       entries: await this.getAll()
     };
+  }
+};
+
+// 日记和每日心情管理
+const normalizeRoleIds = (roleIds = []) => {
+  const ids = Array.isArray(roleIds) ? roleIds : [roleIds];
+  return [...new Set(ids.map(id => Number(id)).filter(id => Number.isFinite(id) && id > 0))];
+};
+
+const toLocalDateKey = (date = new Date()) => {
+  const d = new Date(date);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const todayDateKey = () => toLocalDateKey();
+
+const normalizeDiary = (data = {}, existing = null) => {
+  const now = Date.now();
+  const authorType = data.authorType === 'role' ? 'role' : 'user';
+  const linkedRoleIds = normalizeRoleIds(data.linkedRoleIds ?? data.visibleRoleIds ?? []);
+  const primaryRoleId = Number(data.roleId || linkedRoleIds[0]) || null;
+  const visibility = data.visibility === 'role_visible' ? 'role_visible' : 'private';
+
+  return {
+    authorType,
+    roleId: authorType === 'role' ? primaryRoleId : (visibility === 'role_visible' ? primaryRoleId : null),
+    conversationId: data.conversationId ?? existing?.conversationId ?? null,
+    title: String(data.title || '').trim() || '未命名日记',
+    content: String(data.content || '').trim(),
+    moodId: data.moodId || existing?.moodId || '',
+    visibility,
+    includeInContext: !!data.includeInContext && visibility === 'role_visible',
+    aiReview: data.aiReview ?? existing?.aiReview ?? '',
+    aiReviewRoleId: data.aiReviewRoleId ?? existing?.aiReviewRoleId ?? null,
+    aiReviewedAt: data.aiReviewedAt ?? existing?.aiReviewedAt ?? null,
+    dateKey: data.dateKey || existing?.dateKey || todayDateKey(),
+    startAt: data.startAt ?? existing?.startAt ?? null,
+    endAt: data.endAt ?? existing?.endAt ?? null,
+    source: data.source || existing?.source || 'manual',
+    summary: data.summary ?? existing?.summary ?? '',
+    createdAt: existing?.createdAt || data.createdAt || now,
+    updatedAt: now
+  };
+};
+
+const attachDiaryRoleIds = async (diary) => {
+  if (!diary) return diary;
+  const links = await db.diaryRoleLinks.where('diaryId').equals(diary.id).toArray();
+  return {
+    ...diary,
+    linkedRoleIds: links.map(link => Number(link.roleId)).filter(Boolean)
+  };
+};
+
+const syncDiaryRoleLinks = async (diaryId, roleIds = []) => {
+  await db.diaryRoleLinks.where('diaryId').equals(diaryId).delete();
+  const rows = normalizeRoleIds(roleIds).map(roleId => ({ diaryId, roleId }));
+  if (rows.length > 0) await db.diaryRoleLinks.bulkAdd(rows);
+};
+
+export const diaryService = {
+  async create(data) {
+    const linkedRoleIds = normalizeRoleIds(data.linkedRoleIds ?? data.visibleRoleIds ?? []);
+    const entry = normalizeDiary(data);
+    if (!entry.content) throw new Error('日记正文不能为空');
+
+    return await db.transaction('rw', db.diaries, db.diaryRoleLinks, async () => {
+      const id = await db.diaries.add(entry);
+      if (entry.authorType === 'role' && entry.roleId) {
+        await syncDiaryRoleLinks(id, [entry.roleId]);
+      } else if (entry.visibility === 'role_visible') {
+        await syncDiaryRoleLinks(id, linkedRoleIds);
+      }
+      return await attachDiaryRoleIds(await db.diaries.get(id));
+    });
+  },
+
+  async update(id, data) {
+    const existing = await db.diaries.get(id);
+    if (!existing) throw new Error('日记不存在');
+    const linkedRoleIds = normalizeRoleIds(data.linkedRoleIds ?? data.visibleRoleIds ?? existing.linkedRoleIds ?? []);
+    const entry = normalizeDiary({ ...existing, ...data }, existing);
+    if (!entry.content) throw new Error('日记正文不能为空');
+
+    return await db.transaction('rw', db.diaries, db.diaryRoleLinks, async () => {
+      await db.diaries.update(id, entry);
+      if (entry.authorType === 'role' && entry.roleId) {
+        await syncDiaryRoleLinks(id, [entry.roleId]);
+      } else if (entry.visibility === 'role_visible') {
+        await syncDiaryRoleLinks(id, linkedRoleIds);
+      } else {
+        await syncDiaryRoleLinks(id, []);
+      }
+      return await attachDiaryRoleIds(await db.diaries.get(id));
+    });
+  },
+
+  async delete(id) {
+    await db.transaction('rw', db.diaries, db.diaryRoleLinks, async () => {
+      await db.diaryRoleLinks.where('diaryId').equals(id).delete();
+      await db.diaries.delete(id);
+    });
+  },
+
+  async getById(id) {
+    return await attachDiaryRoleIds(await db.diaries.get(id));
+  },
+
+  async getAll() {
+    const diaries = await db.diaries.orderBy('updatedAt').reverse().toArray();
+    return await Promise.all(diaries.map(attachDiaryRoleIds));
+  },
+
+  async getByDateKey(dateKey) {
+    const diaries = await db.diaries.where('dateKey').equals(dateKey).toArray();
+    diaries.sort((a, b) => b.createdAt - a.createdAt);
+    return await Promise.all(diaries.map(attachDiaryRoleIds));
+  },
+
+  async getByMonth(monthKey) {
+    const start = `${monthKey}-01`;
+    const [year, month] = monthKey.split('-').map(Number);
+    const end = toLocalDateKey(new Date(year, month, 0));
+    const diaries = await db.diaries.where('dateKey').between(start, end, true, true).toArray();
+    diaries.sort((a, b) => b.createdAt - a.createdAt);
+    return await Promise.all(diaries.map(attachDiaryRoleIds));
+  },
+
+  async getForRole(roleId) {
+    const numericRoleId = Number(roleId);
+    const direct = await db.diaries.where('roleId').equals(numericRoleId).toArray();
+    const links = await db.diaryRoleLinks.where('roleId').equals(numericRoleId).toArray();
+    const linked = links.length > 0
+      ? await db.diaries.bulkGet(links.map(link => link.diaryId))
+      : [];
+    const byId = new Map([...direct, ...linked.filter(Boolean)].map(entry => [entry.id, entry]));
+    const diaries = [...byId.values()].sort((a, b) => b.createdAt - a.createdAt);
+    return await Promise.all(diaries.map(attachDiaryRoleIds));
+  },
+
+  async getVisibleContextForRole(roleId, limit = 3) {
+    const diaries = await this.getForRole(roleId);
+    return diaries
+      .filter(entry => entry.includeInContext && (entry.authorType === 'role' || entry.visibility === 'role_visible'))
+      .slice(0, Math.max(0, Number(limit) || 0));
+  }
+};
+
+export const dailyMoodService = {
+  async get(dateKey) {
+    return await db.dailyMoods.get(dateKey);
+  },
+
+  async getByMonth(monthKey) {
+    const start = `${monthKey}-01`;
+    const [year, month] = monthKey.split('-').map(Number);
+    const end = toLocalDateKey(new Date(year, month, 0));
+    return await db.dailyMoods.where('dateKey').between(start, end, true, true).toArray();
+  },
+
+  async set(dateKey, moodId, note = '') {
+    const now = Date.now();
+    await db.dailyMoods.put({
+      dateKey,
+      moodId,
+      note: String(note || '').trim(),
+      updatedAt: now
+    });
+    return await db.dailyMoods.get(dateKey);
+  },
+
+  async remove(dateKey) {
+    await db.dailyMoods.delete(dateKey);
   }
 };
 

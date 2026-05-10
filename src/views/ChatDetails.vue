@@ -80,6 +80,32 @@
         </div>
       </div>
 
+      <div class="group-label">日记记忆</div>
+      <div class="panel">
+        <label class="list-item">
+          <span class="item-label">关联日记记忆</span>
+          <input type="checkbox" v-model="settings.diaryMemoryEnabled" class="wx-switch" />
+        </label>
+        <template v-if="settings.diaryMemoryEnabled">
+          <div class="list-item" @click="showDiarySlider = !showDiarySlider">
+            <span class="item-label">最近日记数量</span>
+            <div class="item-right"><span class="item-value">{{ settings.diaryMemoryLimit }} 篇</span><span class="arrow" :class="{ 'arrow-down': showDiarySlider }"></span></div>
+          </div>
+          <div v-show="showDiarySlider" class="slider-wrap">
+            <input type="range" min="1" max="20" v-model.number="settings.diaryMemoryLimit" class="wx-slider" />
+            <div class="hint-text">会读取允许角色看到、并勾选“作为聊天记忆”的最近日记。</div>
+          </div>
+          <label class="list-item sub-item">
+            <span class="item-label">包含我的可见日记</span>
+            <input type="checkbox" v-model="settings.includeUserDiaries" class="wx-switch small-switch" />
+          </label>
+          <label class="list-item sub-item">
+            <span class="item-label">包含角色日记</span>
+            <input type="checkbox" v-model="settings.includeRoleDiaries" class="wx-switch small-switch" />
+          </label>
+        </template>
+      </div>
+
       <div class="group-label">主动消息</div>
       <div class="panel">
         <label class="list-item">
@@ -338,6 +364,7 @@ const convId = route.params.convId ? parseInt(route.params.convId) : null;
 
 const currentView = ref('main');
 const showContextSlider = ref(false);
+const showDiarySlider = ref(false);
 const role = ref(null);
 const currentConversation = ref(null);
 const apiProfiles = ref([]);
@@ -410,6 +437,10 @@ const settings = reactive({
   minimaxPitch: 0,
   longTermMemory: '',
   coreMemory: '',
+  diaryMemoryEnabled: false,
+  diaryMemoryLimit: 3,
+  includeUserDiaries: true,
+  includeRoleDiaries: true,
   selectedPersonaId: null,
   linkedStickerIds: []
 });

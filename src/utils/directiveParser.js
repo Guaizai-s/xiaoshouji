@@ -1,4 +1,4 @@
-const DIRECTIVE_RE = /\[(语音|表情|红包|转账)[:：]([^\]]*)\]/g;
+const DIRECTIVE_RE = /\[(语音|表情|红包|转账|日记|角色日记)[:：]([^\]]*)\]/g;
 
 function splitWalletPayload(payload) {
   const separatorIndex = payload.search(/[:：]/);
@@ -12,6 +12,21 @@ function splitWalletPayload(payload) {
   return {
     amount: payload.slice(0, separatorIndex).trim(),
     note: payload.slice(separatorIndex + 1).trim()
+  };
+}
+
+function splitDiaryPayload(payload) {
+  const separatorIndex = payload.search(/[:：]/);
+  if (separatorIndex < 0) {
+    return {
+      title: '',
+      content: payload.trim()
+    };
+  }
+
+  return {
+    title: payload.slice(0, separatorIndex).trim(),
+    content: payload.slice(separatorIndex + 1).trim()
   };
 }
 
@@ -36,12 +51,18 @@ function toDirective(label, payload) {
     return amount ? { type: 'transfer', amount, note } : null;
   }
 
+  if (label === '日记' || label === '角色日记') {
+    const { title, content } = splitDiaryPayload(payload);
+    return content ? { type: 'diary', title, content } : null;
+  }
+
   return null;
 }
 
 export function parseMessageDirectives(text = '') {
   const directives = [];
   let hasWalletDirective = false;
+  let hasDiaryDirective = false;
 
   const cleanText = String(text).replace(DIRECTIVE_RE, (raw, label, payload, offset) => {
     const directive = toDirective(label, payload);
@@ -55,6 +76,17 @@ export function parseMessageDirectives(text = '') {
         executable: !hasWalletDirective
       });
       hasWalletDirective = true;
+      return '';
+    }
+
+    if (directive.type === 'diary') {
+      directives.push({
+        ...directive,
+        index: offset,
+        raw,
+        executable: !hasDiaryDirective
+      });
+      hasDiaryDirective = true;
       return '';
     }
 

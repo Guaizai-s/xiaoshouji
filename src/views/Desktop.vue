@@ -62,7 +62,7 @@
       </div>
 
       <div class="module-row animate-enter" style="--delay: 0.3s">
-        <div class="large-card rect">
+        <div class="large-card rect" @click="go('/diary')">
           <component :is="DiaryIcon" class="icon-svg large-svg" />
           <span class="rect-title">日记</span>
           <span class="rect-sub">记录今天的心情...</span>

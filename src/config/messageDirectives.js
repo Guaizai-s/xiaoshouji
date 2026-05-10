@@ -18,6 +18,11 @@ export const MESSAGE_DIRECTIVES = [
     type: 'transfer',
     format: '[转账:金额:备注]',
     description: '在自然聊天中给用户转账时使用。每次回复最多使用一次红包或转账。'
+  },
+  {
+    type: 'diary',
+    format: '[日记:标题:正文]',
+    description: '如果你觉得这次聊天内容值得被长期记录，可以写一篇角色日记。正文应是你的第一人称私人记录，不要写成总结；不要频繁使用。每次回复最多使用一次。'
   }
 ];
 

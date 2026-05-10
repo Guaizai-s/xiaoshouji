@@ -55,7 +55,7 @@ import { useRoute, useRouter } from 'vue-router';
 import NavBar from '../components/NavBar.vue';
 import MessageBubble from '../components/MessageBubble.vue';
 import ChatInput from '../components/ChatInput.vue';
-import { conversationService, messageService, roleService, apiProfileService, stickerService, assetService, walletService, parseAmountToCents } from '../services/db';
+import { conversationService, diaryService, messageService, roleService, apiProfileService, stickerService, assetService, walletService, parseAmountToCents } from '../services/db';
 import { callClaude } from '../services/claude';
 import { textToSpeech } from '../services/minimax';
 import { parseMessageDirectives } from '../utils/directiveParser';
@@ -416,6 +416,27 @@ const generateReply = async () => {
     const voiceDirective = parsedResponse.directives.find(d => d.type === 'voice');
     const walletDirectives = parsedResponse.directives.filter(d => d.type === 'redpacket' || d.type === 'transfer');
     const walletDirective = walletDirectives.find(d => d.executable);
+    const diaryDirectives = parsedResponse.directives.filter(d => d.type === 'diary');
+    const diaryDirective = diaryDirectives.find(d => d.executable);
+    const hiddenDirectives = [...walletDirectives, ...diaryDirectives];
+
+    if (diaryDirective?.content) {
+      try {
+        await diaryService.create({
+          authorType: 'role',
+          roleId: role.value.id,
+          linkedRoleIds: [role.value.id],
+          dateKey: toDateKey(),
+          title: diaryDirective.title || `${formatMessageTime(Date.now())}的日记`,
+          content: diaryDirective.content,
+          visibility: 'role_visible',
+          includeInContext: true,
+          source: 'directive'
+        });
+      } catch (error) {
+        console.warn('角色日记写入失败:', error.message);
+      }
+    }
 
     if (voiceDirective) {
       let audioUrl = null;
@@ -434,7 +455,7 @@ const generateReply = async () => {
         // 非流式：文字+语音都在全量响应里，按顺序建气泡
         const textBefore = rawText.slice(0, voiceDirective.index).trim();
         const textAfter = rawText.slice(voiceDirective.index + voiceDirective.raw.length).trim();
-        if (textBefore) await createAssistantTextMessages(removeDirectiveRaws(textBefore, walletDirectives));
+        if (textBefore) await createAssistantTextMessages(removeDirectiveRaws(textBefore, hiddenDirectives));
       }
       if (voiceDirective.text || audioUrl) {
         await messageService.create(conversationId, 'assistant', voiceDirective.text, 'text', audioUrl);
@@ -442,10 +463,10 @@ const generateReply = async () => {
       }
       if (!useStream) {
         const textAfter = rawText.slice(voiceDirective.index + voiceDirective.raw.length).trim();
-        if (textAfter) await createAssistantTextMessages(removeDirectiveRaws(textAfter, walletDirectives));
+        if (textAfter) await createAssistantTextMessages(removeDirectiveRaws(textAfter, hiddenDirectives));
       }
     } else if (!useStream && (rawText || walletDirective)) {
-      await createAssistantWalletSequence(rawText, walletDirective, walletDirectives);
+      await createAssistantWalletSequence(rawText, walletDirective, hiddenDirectives);
     }
 
     isTyping.value = false;
@@ -478,6 +499,14 @@ const readFileAsDataUrl = (file) => new Promise((resolve, reject) => {
 });
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+const toDateKey = (timestamp = Date.now()) => {
+  const date = new Date(timestamp);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 // 压缩图片：双边限制 + 统一输出 JPEG（PNG 的 quality 参数无效，转 JPEG 才能真正压缩）
 const compressImage = (file, maxSize = 384, quality = 0.8) => {
