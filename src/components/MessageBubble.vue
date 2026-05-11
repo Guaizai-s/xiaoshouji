@@ -1,13 +1,27 @@
 <template>
-  <div class="wx-message-wrapper" :class="{ self: message.role === 'user' }">
+  <div class="wx-message-wrapper" :class="{ self: message.role === 'user', selecting: selectionMode, selected }">
     <div v-if="activeMenuId !== null" class="wx-menu-mask" @click.stop="closeMenu" @touchstart.prevent="closeMenu"></div>
 
-    <template v-if="isWalletMessage">
+    <div v-if="isSystemMessage" class="wx-system-row" @click="handleSystemClick">
+      <button
+        v-if="selectionMode"
+        class="wx-select-dot"
+        :class="{ active: selected }"
+        @click.stop="emit('toggle-select', message.id)"
+        aria-label="选择消息"
+      ></button>
+      <div class="wx-system-notice" :class="{ clickable: message.type === 'diary_notice' }">
+        {{ message.content }}
+      </div>
+    </div>
+
+    <template v-else-if="isWalletMessage">
       <div class="wx-message wallet-message" :class="{ self: message.role === 'user' }">
+        <button v-if="selectionMode" class="wx-select-dot" :class="{ active: selected }" @click.stop="emit('toggle-select', message.id)" aria-label="选择消息"></button>
         <img class="wx-message-avatar" :src="avatar" alt="avatar" />
         <div class="wx-message-content wallet-content" style="position: relative;">
           <div v-if="activeMenuId === 'wallet'" class="wx-context-menu" :class="{ 'is-self': message.role === 'user' }">
-            <div class="menu-item" @click.stop="handleDelete">删除</div>
+            <div v-for="item in menuItems" :key="item.action" class="menu-item" @click.stop="handleAction(item.action)">{{ item.label }}</div>
           </div>
           <div
             class="wallet-card"
@@ -42,26 +56,31 @@
 
     <template v-else-if="message.type === 'text' && messageParts.length > 1">
       <div v-for="(part, index) in messageParts" :key="index" class="wx-message" :class="{ self: message.role === 'user' }">
+        <button v-if="selectionMode" class="wx-select-dot" :class="{ active: selected }" @click.stop="emit('toggle-select', message.id)" aria-label="选择消息"></button>
         <img class="wx-message-avatar" :src="avatar" alt="avatar" />
         <div class="wx-message-content" style="position: relative;">
           <div v-if="activeMenuId === 'part-' + index" class="wx-context-menu" :class="{ 'is-self': message.role === 'user' }">
-            <div class="menu-item" @click.stop="handleDelete">删除</div>
+            <div v-for="item in menuItems" :key="item.action" class="menu-item" @click.stop="handleAction(item.action)">{{ item.label }}</div>
           </div>
           <div
             class="wx-message-bubble text"
-            v-html="parseEmoji(part)"
             @mousedown="onPressStart('part-' + index)" @mouseup="onPressEnd" @mouseleave="onPressEnd"
             @touchstart.passive="onPressStart('part-' + index)" @touchend="onPressEnd" @touchcancel="onPressEnd"
             @contextmenu.prevent="onContextMenu($event, 'part-' + index)"
-          ></div>
+          >
+            <div v-if="index === 0 && message.replyTo" class="wx-reply-preview">{{ replyPreview }}</div>
+            <span v-html="parseEmoji(part)"></span>
+            <span v-if="message.isFavorite && index === messageParts.length - 1" class="favorite-mark">★</span>
+          </div>
         </div>
       </div>
 
       <div v-if="message.audioUrl" class="wx-message" :class="{ self: message.role === 'user' }">
+        <button v-if="selectionMode" class="wx-select-dot" :class="{ active: selected }" @click.stop="emit('toggle-select', message.id)" aria-label="选择消息"></button>
         <img class="wx-message-avatar" :src="avatar" alt="avatar" />
         <div class="wx-message-content" style="position: relative;">
           <div v-if="activeMenuId === 'audio-multi'" class="wx-context-menu" :class="{ 'is-self': message.role === 'user' }">
-            <div class="menu-item" @click.stop="handleDelete">删除</div>
+            <div v-for="item in menuItems" :key="item.action" class="menu-item" @click.stop="handleAction(item.action)">{{ item.label }}</div>
           </div>
           <div
             class="audio-player" :class="{ 'is-playing': isPlaying }" :style="{ width: audioBubbleWidth }" @click="toggleAudio"
@@ -85,10 +104,11 @@
 
     <template v-else>
       <div v-if="message.content && !message.audioUrl" class="wx-message" :class="{ self: message.role === 'user' }">
+        <button v-if="selectionMode" class="wx-select-dot" :class="{ active: selected }" @click.stop="emit('toggle-select', message.id)" aria-label="选择消息"></button>
         <img class="wx-message-avatar" :src="avatar" alt="avatar" />
         <div class="wx-message-content" style="position: relative;">
           <div v-if="activeMenuId === 'single'" class="wx-context-menu" :class="{ 'is-self': message.role === 'user' }">
-            <div class="menu-item" @click.stop="handleDelete">删除</div>
+            <div v-for="item in menuItems" :key="item.action" class="menu-item" @click.stop="handleAction(item.action)">{{ item.label }}</div>
           </div>
           <div
             class="wx-message-bubble" :class="message.type"
@@ -96,18 +116,21 @@
             @touchstart.passive="onPressStart('single')" @touchend="onPressEnd" @touchcancel="onPressEnd"
             @contextmenu.prevent="onContextMenu($event, 'single')"
           >
+            <div v-if="message.replyTo" class="wx-reply-preview">{{ replyPreview }}</div>
             <template v-if="message.type === 'text'"><span v-html="parseEmoji(message.content)"></span></template>
             <template v-else-if="message.type === 'image'"><img :src="imageUrl" alt="image" /></template>
             <template v-else-if="message.type === 'sticker'"><img :src="message.content" alt="sticker" /></template>
+            <span v-if="message.isFavorite" class="favorite-mark">★</span>
           </div>
         </div>
       </div>
 
       <div v-if="message.audioUrl" class="wx-message" :class="{ self: message.role === 'user' }">
+        <button v-if="selectionMode" class="wx-select-dot" :class="{ active: selected }" @click.stop="emit('toggle-select', message.id)" aria-label="选择消息"></button>
         <img class="wx-message-avatar" :src="avatar" alt="avatar" />
         <div class="wx-message-content" style="position: relative;">
           <div v-if="activeMenuId === 'audio-single'" class="wx-context-menu" :class="{ 'is-self': message.role === 'user' }">
-            <div class="menu-item" @click.stop="handleDelete">删除</div>
+            <div v-for="item in menuItems" :key="item.action" class="menu-item" @click.stop="handleAction(item.action)">{{ item.label }}</div>
           </div>
           <div
             class="audio-player" :class="{ 'is-playing': isPlaying }" :style="{ width: audioBubbleWidth }" @click="toggleAudio"
@@ -139,10 +162,12 @@ const props = defineProps({
   message: { type: Object, required: true },
   userAvatar: { type: String, default: '' },
   roleAvatar: { type: String, default: '' },
-  linkedStickers: { type: Array, default: () => [] }
+  linkedStickers: { type: Array, default: () => [] },
+  selectionMode: { type: Boolean, default: false },
+  selected: { type: Boolean, default: false }
 });
 
-const emit = defineEmits(['delete', 'claim-wallet', 'refund-transfer']);
+const emit = defineEmits(['delete', 'claim-wallet', 'refund-transfer', 'action', 'toggle-select', 'open-diary']);
 
 const activeMenuId = ref(null);
 let pressTimer = null;
@@ -154,6 +179,31 @@ const onPressEnd = () => { clearTimeout(pressTimer); };
 const closeMenu = () => { activeMenuId.value = null; };
 const onContextMenu = (e, id) => { activeMenuId.value = id; };
 const handleDelete = () => { emit('delete', props.message.id); closeMenu(); };
+const handleAction = (action) => {
+  if (action === 'delete') emit('delete', props.message.id);
+  else emit('action', { action, message: props.message });
+  closeMenu();
+};
+
+const menuItems = computed(() => [
+  { action: 'select', label: '多选' },
+  { action: 'delete', label: '删除' },
+  { action: 'withdraw', label: '撤回' },
+  { action: 'favorite', label: props.message.isFavorite ? '取消收藏' : '收藏' },
+  { action: 'quote', label: '引用' }
+]);
+
+const isSystemMessage = computed(() => ['system', 'diary_notice'].includes(props.message.type) || props.message.role === 'system');
+
+const handleSystemClick = () => {
+  if (props.selectionMode) {
+    emit('toggle-select', props.message.id);
+    return;
+  }
+  if (props.message.type === 'diary_notice' && props.message.diaryId) {
+    emit('open-diary', props.message.diaryId);
+  }
+};
 
 const isPlaying = ref(false);
 const audioElement = ref(null);
@@ -261,6 +311,14 @@ const messageParts = computed(() => {
   return props.message.content.split('\n').filter(part => part.trim());
 });
 
+const replyPreview = computed(() => {
+  const reply = props.message.replyTo;
+  if (!reply) return '';
+  const author = reply.role === 'user' ? '我' : '对方';
+  const text = reply.type === 'image' ? '[图片]' : reply.audioUrl ? '[语音]' : (reply.content || '');
+  return `${author}: ${String(text).replace(/\s+/g, ' ').slice(0, 44)}`;
+});
+
 const parseEmoji = (text) => {
   if (!text) return '';
   return text.replace(/\[表情[：:]\s*([^\]]+)\]/g, (match, emojiName) => {
@@ -278,6 +336,64 @@ const parseEmoji = (text) => {
   animation: popIn 0.18s ease-out both;
 }
 .wx-message-wrapper.self { align-items: flex-end; }
+.wx-message-wrapper.selecting { width: 100%; }
+.wx-message-wrapper.selecting .wx-message {
+  align-items: center;
+}
+
+.wx-select-dot {
+  width: 22px;
+  height: 22px;
+  border: 1.5px solid rgba(0, 0, 0, 0.22);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.86);
+  margin: 0 8px 0 0;
+  flex-shrink: 0;
+}
+.wx-message.self .wx-select-dot { margin: 0 0 0 8px; order: 3; }
+.wx-select-dot.active {
+  border-color: var(--wx-green);
+  background: var(--wx-green);
+  box-shadow: inset 0 0 0 5px #fff;
+}
+
+.wx-system-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 14px;
+}
+.wx-system-notice {
+  max-width: min(78vw, 420px);
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.08);
+  color: var(--wx-text-secondary);
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: center;
+  word-break: break-word;
+}
+.wx-system-notice.clickable {
+  cursor: pointer;
+  color: var(--wx-blue);
+}
+
+.wx-reply-preview {
+  margin-bottom: 6px;
+  padding-left: 8px;
+  border-left: 3px solid rgba(0, 0, 0, 0.16);
+  color: var(--wx-text-secondary);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.favorite-mark {
+  margin-left: 6px;
+  color: #d6a33a;
+  font-size: 12px;
+}
 
 @keyframes popIn {
   0%   { opacity: 0; transform: translateY(5px); }
@@ -537,6 +653,7 @@ const parseEmoji = (text) => {
   align-items: center;
   justify-content: center;
   height: 38px;
+  gap: 14px;
   font-size: 14px;
   font-weight: 500;
   z-index: 999;
@@ -560,7 +677,7 @@ const parseEmoji = (text) => {
 .wx-context-menu.is-self { right: 0; }
 .wx-context-menu.is-self::after { right: 16px; }
 
-.menu-item { cursor: pointer; padding: 0 4px; }
+.menu-item { cursor: pointer; padding: 0 2px; }
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(4px); }

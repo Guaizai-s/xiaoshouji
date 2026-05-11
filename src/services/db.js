@@ -142,6 +142,47 @@ const makeWalletContent = (tx, overrides = {}) => JSON.stringify({
 
 const walletLastMessage = (type) => type === 'redpacket' ? '[红包]' : '[转账]';
 
+const systemMessageTypes = new Set(['system', 'diary_notice']);
+const contextMessageTypes = new Set(['text', 'image', 'sticker', 'redpacket', 'transfer']);
+
+const messageLastText = (message) => {
+  if (!message) return '';
+  if (message.type === 'text' || message.type === 'system' || message.type === 'diary_notice') return message.content || '';
+  return `[${message.type}]`;
+};
+
+const messageContentForContext = async (message) => {
+  let content = message.content || '';
+  if (WALLET_TYPES.has(message.type)) {
+    content = await walletService.describeMessageForContext(message);
+  } else if (message.type === 'image') {
+    content = '[图片]';
+  } else if (message.type === 'sticker') {
+    content = '[表情]';
+  } else if (message.audioUrl && content) {
+    content = `[语音:${content}]`;
+  }
+
+  if (!message.replyTo) return { ...message, content };
+  const reply = message.replyTo;
+  const author = reply.role === 'user' ? '用户' : '角色';
+  const quoted = String(reply.content || '').replace(/\s+/g, ' ').slice(0, 80);
+  return {
+    ...message,
+    content: `[回复 ${author}: ${quoted}]\n${content}`
+  };
+};
+
+const refreshConversationLastMessage = async (conversationId) => {
+  const messages = await db.messages.where('conversationId').equals(conversationId).toArray();
+  messages.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+  const last = messages[messages.length - 1];
+  await conversationService.update(conversationId, {
+    lastMessage: messageLastText(last),
+    unread: 0
+  });
+};
+
 const createWalletAccountInTx = async (ownerType, ownerId) => {
   const key = ownerKey(ownerType, ownerId);
   let account = await db.walletAccounts.where('[ownerType+ownerId]').equals(key).first();
@@ -308,20 +349,21 @@ export const conversationService = {
 // 消息管理
 export const messageService = {
   // 创建消息
-  async create(conversationId, role, content, type = 'text', audioUrl = null) {
+  async create(conversationId, role, content, type = 'text', audioUrl = null, extra = {}) {
     const message = {
       conversationId,
       role,
       content,
       type,
       audioUrl,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      ...extra
     };
     const id = await db.messages.add(message);
 
     // 更新会话最后消息
     await conversationService.update(conversationId, {
-      lastMessage: type === 'text' ? content : `[${type}]`,
+      lastMessage: messageLastText(message),
       unread: role === 'assistant' ? 1 : 0
     });
 
@@ -356,11 +398,8 @@ export const messageService = {
     if (chatConv) msgs.push(...await db.messages.where('conversationId').equals(chatConv.id).toArray());
     if (smsConv) msgs.push(...await db.messages.where('conversationId').equals(smsConv.id).toArray());
     msgs.sort((a, b) => a.timestamp - b.timestamp);
-    const recent = msgs.slice(-rounds * 2);
-    return await Promise.all(recent.map(async (msg) => {
-      if (!WALLET_TYPES.has(msg.type)) return msg;
-      return { ...msg, content: await walletService.describeMessageForContext(msg) };
-    }));
+    const recent = msgs.filter(msg => contextMessageTypes.has(msg.type) && !systemMessageTypes.has(msg.type)).slice(-rounds * 2);
+    return await Promise.all(recent.map(messageContentForContext));
   },
 
   async getByRoleTimeRange(roleId, startAt, endAt) {
@@ -371,20 +410,49 @@ export const messageService = {
       const chunk = await db.messages
         .where('conversationId')
         .equals(id)
-        .filter(msg => msg.timestamp >= startAt && msg.timestamp <= endAt)
+        .filter(msg => msg.timestamp >= startAt && msg.timestamp <= endAt && contextMessageTypes.has(msg.type) && !systemMessageTypes.has(msg.type))
         .toArray();
       msgs.push(...chunk);
     }
     msgs.sort((a, b) => a.timestamp - b.timestamp);
-    return await Promise.all(msgs.map(async (msg) => {
-      if (!WALLET_TYPES.has(msg.type)) return msg;
-      return { ...msg, content: await walletService.describeMessageForContext(msg) };
-    }));
+    return await Promise.all(msgs.map(messageContentForContext));
   },
 
   // 删除消息
   async delete(id) {
+    const message = await db.messages.get(id);
     await db.messages.delete(id);
+    if (message?.conversationId) await refreshConversationLastMessage(message.conversationId);
+  },
+
+  async deleteMany(ids = []) {
+    const cleanIds = [...new Set(ids.map(Number).filter(Number.isFinite))];
+    if (cleanIds.length === 0) return;
+    const messages = await db.messages.bulkGet(cleanIds);
+    const conversationIds = [...new Set(messages.filter(Boolean).map(msg => msg.conversationId))];
+    await db.messages.bulkDelete(cleanIds);
+    for (const conversationId of conversationIds) {
+      await refreshConversationLastMessage(conversationId);
+    }
+  },
+
+  async withdraw(id, notice, extra = {}) {
+    const original = await db.messages.get(id);
+    if (!original) return null;
+    const updates = {
+      role: 'system',
+      type: 'system',
+      content: notice,
+      audioUrl: null,
+      withdrawnAt: Date.now(),
+      withdrawnRole: original.role,
+      withdrawnType: original.type,
+      withdrawnContent: original.content,
+      ...extra
+    };
+    await db.messages.update(id, updates);
+    await refreshConversationLastMessage(original.conversationId);
+    return await db.messages.get(id);
   },
 
   // 更新消息

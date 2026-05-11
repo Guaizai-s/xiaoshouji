@@ -1,5 +1,5 @@
 <template>
-  <div class="h-screen w-full flex flex-col relative font-sans transition-colors duration-500 page-spring-enter-active" :class="t.appBg">
+  <div class="h-screen w-full flex flex-col relative font-sans transition-colors duration-500 page-spring-enter-active" :class="t.appBg" @click="closeMenu">
 
     <div class="h-8 w-full backdrop-blur-md absolute top-0 z-20 transition-colors duration-500" :class="t.headerBg"></div>
 
@@ -13,7 +13,7 @@
       
       <div class="flex flex-col items-center flex-[2]">
         <h1 class="text-[17px] font-semibold tracking-wide transition-colors truncate max-w-full" :class="t.textMain">{{ role?.name || '...' }}</h1>
-        <span class="text-[11px] font-medium tracking-wider transition-colors" :class="t.textMuted">在线</span>
+        <span class="text-[11px] font-medium tracking-wider transition-colors" :class="t.textMuted">{{ isTyping ? '正在输入...' : '在线' }}</span>
       </div>
 
       <div class="flex-1 flex justify-end">
@@ -34,16 +34,35 @@
             </span>
           </div>
 
-          <div class="flex items-end gap-2" :class="msg.role === 'user' ? 'justify-end' : 'justify-start'">
+          <div
+            v-if="isSystemMessage(msg)"
+            class="sms-system-row"
+            :class="{ clickable: msg.type === 'diary_notice' }"
+            @click="handleSystemClick(msg)"
+          >
+            <button v-if="selectionMode" class="sms-select-dot" :class="{ active: selectedMessageIds.has(msg.id) }" @click.stop="toggleMessageSelection(msg.id)"></button>
+            <span>{{ msg.content }}</span>
+          </div>
+
+          <div v-else class="flex items-end gap-2 relative" :class="msg.role === 'user' ? 'justify-end' : 'justify-start'">
+            <button v-if="selectionMode" class="sms-select-dot" :class="{ active: selectedMessageIds.has(msg.id) }" @click.stop="toggleMessageSelection(msg.id)"></button>
             <div v-if="msg.role !== 'user'" class="w-8 h-8 rounded-full overflow-hidden shrink-0 mb-1">
               <img v-if="showAvatar(index)" :src="role?.avatar" alt="avatar" class="w-full h-full object-cover" />
               <div v-else class="w-full h-full bg-transparent"></div>
             </div>
 
-            <div class="flex flex-col max-w-[75%]" :class="msg.role === 'user' ? 'items-end' : 'items-start'">
+            <div class="flex flex-col max-w-[75%] relative" :class="msg.role === 'user' ? 'items-end' : 'items-start'">
+              <div v-if="activeMenuId === msg.id" class="sms-message-menu" :class="[t.cardBg, t.textMain, t.border]">
+                <button v-for="item in menuItems(msg)" :key="item.action" @click.stop="handleMessageAction(item.action, msg)">
+                  {{ item.label }}
+                </button>
+              </div>
               
               <div v-if="msg.audioUrl" 
                    @click="togglePlay(msg)"
+                   @mousedown="onPressStart(msg.id)" @mouseup="onPressEnd" @mouseleave="onPressEnd"
+                   @touchstart.passive="onPressStart(msg.id)" @touchend="onPressEnd" @touchcancel="onPressEnd"
+                   @contextmenu.prevent="openMenu(msg.id)"
                    class="flex items-center gap-2.5 px-4 py-2.5 shadow-sm cursor-pointer transition-all duration-300 active:scale-95"
                    :class="[
                      msg.role === 'user' ? `${t.myBubble} rounded-[1.25rem] rounded-br-sm` : `${t.otherBubble} rounded-[1.25rem] rounded-bl-sm`
@@ -73,12 +92,17 @@
               <template v-else-if="!msg.audioUrl">
                 <div v-for="(part, partIndex) in getMessageParts(msg)"
                      :key="`${msg.id}-${partIndex}`"
+                     @mousedown="onPressStart(msg.id)" @mouseup="onPressEnd" @mouseleave="onPressEnd"
+                     @touchstart.passive="onPressStart(msg.id)" @touchend="onPressEnd" @touchcancel="onPressEnd"
+                     @contextmenu.prevent="openMenu(msg.id)"
                      class="px-4 py-3 text-[15px] leading-relaxed transition-colors duration-500 shadow-sm"
                      :class="[
                        partIndex > 0 ? 'mt-2' : '',
                        msg.role === 'user' ? `${t.myBubble} rounded-[1.25rem] rounded-br-sm` : `${t.otherBubble} rounded-[1.25rem] rounded-bl-sm`
                      ]">
+                  <div v-if="partIndex === 0 && msg.replyTo" class="sms-reply-preview">{{ replyPreview(msg.replyTo) }}</div>
                   {{ part }}
+                  <span v-if="msg.isFavorite && partIndex === getMessageParts(msg).length - 1" class="sms-favorite">★</span>
                 </div>
               </template>
               
@@ -93,41 +117,60 @@
       <div ref="messagesEndRef" class="h-2"></div>
     </div>
 
-    <div class="px-4 py-3 border-t shrink-0 safe-area-pb transition-colors duration-500" :class="[t.inputAreaBg, t.headerBorder]">
-      <div class="flex items-center gap-3">
-        <button class="w-9 h-9 flex items-center justify-center rounded-full transition-all duration-300 active:scale-90 shrink-0" 
-                :class="[t.textMuted, t.iconBtnBg]">
-          <i class="ph ph-plus text-xl"></i>
-        </button>
-        
-        <div class="flex-1 flex items-center rounded-full px-4 py-2 border transition-all duration-300"
-             :class="t.inputBg">
-          <input 
-            type="text" 
-            placeholder="发消息..." 
-            class="flex-1 bg-transparent text-[15px] outline-none transition-colors"
-            :class="t.textMain"
-            v-model="inputText"
-            @keypress.enter="handleSend"
-          />
-          <button class="ml-2 transition-all duration-200 active:scale-90 flex items-center" :class="[t.textMuted, `hover:${t.textMain}`]">
-            <i class="ph ph-smiley text-xl"></i>
-          </button>
-        </div>
+    <div v-if="replyingTo && !selectionMode" class="sms-reply-draft" :class="[t.inputAreaBg, t.headerBorder]">
+      <div>
+        <span :class="t.textMuted">引用</span>
+        <p :class="t.textMain">{{ messagePreview(replyingTo) }}</p>
+      </div>
+      <button :class="t.textMuted" @click="replyingTo = null">×</button>
+    </div>
 
-        <button v-if="inputText.trim()"
-                @click="handleSend"
-                class="w-9 h-9 flex items-center justify-center rounded-full transition-all duration-300 active:scale-[0.85] shrink-0 shadow-sm"
-                :class="t.sendBtn">
-          <i class="ph-fill ph-paper-plane-tilt text-lg ml-0.5"></i>
-        </button>
-        
-        <button v-else 
-                class="w-9 h-9 flex items-center justify-center rounded-full transition-all duration-300 active:scale-90 shrink-0"
-                :class="[t.textMuted, t.iconBtnBg]">
-          <i class="ph ph-microphone text-xl"></i>
+    <div v-if="selectionMode" class="sms-selection-bar" :class="[t.inputAreaBg, t.headerBorder]">
+      <button :class="t.textMuted" @click="cancelSelection">取消</button>
+      <span :class="t.textMuted">已选 {{ selectedMessageIds.size }} 条</span>
+      <button class="danger" :disabled="selectedMessageIds.size === 0" @click="deleteSelectedMessages">删除</button>
+    </div>
+
+    <div v-else class="sms-compose safe-area-pb" :class="[t.inputAreaBg, t.headerBorder]">
+      <button class="sms-round-btn" :class="[t.textMuted, t.iconBtnBg]" aria-label="更多">
+        <i class="ph ph-plus"></i>
+      </button>
+
+      <div class="sms-input-shell" :class="t.inputBg">
+        <input
+          v-model="inputText"
+          type="text"
+          placeholder="发消息..."
+          :disabled="isTyping"
+          :class="t.textMain"
+          @keydown.enter.prevent="handleSend"
+        />
+        <button class="sms-emoji-btn" :class="t.textMuted" aria-label="表情">
+          <i class="ph ph-smiley"></i>
         </button>
       </div>
+
+      <button
+        class="sms-trigger-btn"
+        :class="[t.iconBtnBg, t.textMuted, { 'is-thinking': isTyping }]"
+        :disabled="isTyping || !convId || messages.length === 0"
+        title="让角色回复"
+        aria-label="让角色回复"
+        @click.stop="generateReply"
+      >
+        <i :class="isTyping ? 'ph ph-circle-notch' : 'ph ph-chat-circle-dots'"></i>
+      </button>
+
+      <button
+        v-if="inputText.trim()"
+        class="sms-send-btn"
+        :class="t.sendBtn"
+        :disabled="isTyping"
+        aria-label="发送"
+        @click="handleSend"
+      >
+        <i class="ph-fill ph-paper-plane-tilt"></i>
+      </button>
     </div>
 
   </div>
@@ -152,10 +195,15 @@ const messages = ref([]);
 const inputText = ref('');
 const { t, activeTheme } = useTheme();
 const messagesEndRef = ref(null);
+const activeMenuId = ref(null);
+const selectionMode = ref(false);
+const selectedMessageIds = ref(new Set());
+const replyingTo = ref(null);
+let pressTimer = null;
 
 const showAvatar = (index) => index === 0 || messages.value[index - 1].role === 'user';
 const isTyping = ref(false);
-let convId = null;
+const convId = ref(null);
 
 // ================= 语音播放控制 =================
 const activeAudioId = ref(null);
@@ -164,6 +212,7 @@ let currentAudioPlayer = null;
 
 const togglePlay = (msg) => {
   if (!msg.audioUrl) return;
+  if (activeMenuId.value !== null || selectionMode.value) return;
 
   const nextTranscriptIds = new Set(visibleTranscriptIds.value);
   if (nextTranscriptIds.has(msg.id)) {
@@ -198,6 +247,107 @@ const isTranscriptVisible = (id) => visibleTranscriptIds.value.has(id);
 const getMessageParts = (msg) => {
   if (msg.type !== 'text' || msg.audioUrl) return [msg.content];
   return (msg.content || '').split('\n').map(part => part.trim()).filter(Boolean);
+};
+
+const isSystemMessage = (msg) => ['system', 'diary_notice'].includes(msg.type) || msg.role === 'system';
+
+const messagePreview = (msg) => {
+  if (!msg) return '';
+  if (msg.type === 'image') return '[图片]';
+  if (msg.type === 'sticker') return '[表情]';
+  if (msg.audioUrl) return `[语音] ${msg.content || ''}`.trim();
+  return String(msg.content || '').replace(/\s+/g, ' ').slice(0, 80);
+};
+
+const replyPreview = (reply) => {
+  const author = reply?.role === 'user' ? '我' : '对方';
+  return `${author}: ${String(reply?.content || '').replace(/\s+/g, ' ').slice(0, 44)}`;
+};
+
+const makeReplyPayload = (msg) => ({
+  id: msg.id,
+  role: msg.role,
+  type: msg.type,
+  content: messagePreview(msg),
+  audioUrl: !!msg.audioUrl
+});
+
+const menuItems = (msg) => [
+  { action: 'select', label: '多选' },
+  { action: 'delete', label: '删除' },
+  { action: 'withdraw', label: '撤回' },
+  { action: 'favorite', label: msg.isFavorite ? '取消收藏' : '收藏' },
+  { action: 'quote', label: '回复' }
+];
+
+const openMenu = (id) => { activeMenuId.value = id; };
+const closeMenu = () => { activeMenuId.value = null; };
+const onPressStart = (id) => {
+  pressTimer = setTimeout(() => { activeMenuId.value = id; }, 500);
+};
+const onPressEnd = () => { clearTimeout(pressTimer); };
+
+const toggleMessageSelection = (id) => {
+  const next = new Set(selectedMessageIds.value);
+  next.has(id) ? next.delete(id) : next.add(id);
+  selectedMessageIds.value = next;
+};
+
+const startSelection = (msg) => {
+  selectionMode.value = true;
+  selectedMessageIds.value = new Set([msg.id]);
+  closeMenu();
+};
+
+const cancelSelection = () => {
+  selectionMode.value = false;
+  selectedMessageIds.value = new Set();
+};
+
+const deleteMessage = async (msg) => {
+  if (!confirm('确定删除这条信息吗？')) return;
+  await messageService.delete(msg.id);
+  if (replyingTo.value?.id === msg.id) replyingTo.value = null;
+  messages.value = await messageService.getByConversation(convId.value);
+};
+
+const deleteSelectedMessages = async () => {
+  const ids = [...selectedMessageIds.value];
+  if (ids.length === 0) return;
+  if (!confirm(`确定删除选中的 ${ids.length} 条信息吗？`)) return;
+  await messageService.deleteMany(ids);
+  if (replyingTo.value && ids.includes(replyingTo.value.id)) replyingTo.value = null;
+  messages.value = await messageService.getByConversation(convId.value);
+  cancelSelection();
+};
+
+const withdrawMessage = async (msg) => {
+  if (!confirm('确定撤回这条信息吗？')) return;
+  const notice = msg.role === 'user' ? '你撤回了一条信息' : `${role.value?.name || '角色'}撤回了一条信息`;
+  await messageService.withdraw(msg.id, notice);
+  if (replyingTo.value?.id === msg.id) replyingTo.value = null;
+  messages.value = await messageService.getByConversation(convId.value);
+};
+
+const handleMessageAction = async (action, msg) => {
+  closeMenu();
+  if (action === 'select') return startSelection(msg);
+  if (action === 'delete') return deleteMessage(msg);
+  if (action === 'withdraw') return withdrawMessage(msg);
+  if (action === 'favorite') {
+    await messageService.update(msg.id, {
+      isFavorite: !msg.isFavorite,
+      favoriteAt: msg.isFavorite ? null : Date.now()
+    });
+    messages.value = await messageService.getByConversation(convId.value);
+    return;
+  }
+  if (action === 'quote') replyingTo.value = msg;
+};
+
+const handleSystemClick = (msg) => {
+  if (selectionMode.value) return toggleMessageSelection(msg.id);
+  if (msg.type === 'diary_notice' && msg.diaryId) router.push({ path: '/diary', query: { diaryId: msg.diaryId } });
 };
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -244,8 +394,8 @@ onMounted(async () => {
   }
   role.value = r;
   const conv = await conversationService.getOrCreateSms(roleId);
-  convId = conv.id;
-  messages.value = await messageService.getByConversation(convId);
+  convId.value = conv.id;
+  messages.value = await messageService.getByConversation(convId.value);
   scrollToBottom();
 });
 
@@ -259,19 +409,24 @@ const createAssistantTextMessages = async (text) => {
   const parts = (text || '').split('\n').map(part => part.trim()).filter(Boolean);
   for (let i = 0; i < parts.length; i++) {
     if (i > 0) await sleep(500);
-    const aiMsg = await messageService.create(convId, 'assistant', parts[i], 'text', null);
+    const aiMsg = await messageService.create(convId.value, 'assistant', parts[i], 'text', null);
     messages.value.push(aiMsg);
   }
 };
 
 const handleSend = async () => {
   const text = inputText.value.trim();
-  if (!text || !convId) return;
+  if (!text || !convId.value || isTyping.value) return;
   inputText.value = '';
 
-  const userMsg = await messageService.create(convId, 'user', text);
+  const extra = replyingTo.value ? { replyTo: makeReplyPayload(replyingTo.value) } : {};
+  const userMsg = await messageService.create(convId.value, 'user', text, 'text', null, extra);
   messages.value.push(userMsg);
+  replyingTo.value = null;
+};
 
+const generateReply = async () => {
+  if (!convId.value || isTyping.value || messages.value.length === 0) return;
   isTyping.value = true;
   try {
     const contextLength = role.value?.chatSettings?.contextLength || 15;
@@ -308,7 +463,7 @@ const handleSend = async () => {
       }
       
       // 创建一条带有 audioUrl 的消息
-      const aiMsg = await messageService.create(convId, 'assistant', voiceDirective.text || '语音消息', 'text', audioUrl);
+      const aiMsg = await messageService.create(convId.value, 'assistant', voiceDirective.text || '语音消息', 'text', audioUrl);
       messages.value.push(aiMsg);
 
     }
@@ -329,6 +484,231 @@ const handleSend = async () => {
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 .safe-area-pb { padding-bottom: calc(0.75rem + env(safe-area-inset-bottom)); }
+
+.sms-compose {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-top-width: 1px;
+  flex-shrink: 0;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+.sms-round-btn,
+.sms-trigger-btn,
+.sms-send-btn,
+.sms-emoji-btn {
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform 0.18s ease, opacity 0.18s ease, background-color 0.3s ease;
+}
+.sms-round-btn,
+.sms-trigger-btn,
+.sms-send-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+}
+.sms-round-btn i,
+.sms-trigger-btn i,
+.sms-send-btn i,
+.sms-emoji-btn i {
+  font-size: 20px;
+}
+.sms-input-shell {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 12px 0 15px;
+  border-width: 1px;
+  border-radius: 999px;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+.sms-input-shell input {
+  min-width: 0;
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 15px;
+  line-height: 1;
+}
+.sms-input-shell input:disabled {
+  opacity: 0.55;
+}
+.sms-emoji-btn {
+  width: 26px;
+  height: 26px;
+  background: transparent;
+}
+.sms-trigger-btn {
+  position: relative;
+  overflow: hidden;
+}
+.sms-trigger-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.055;
+  transition: opacity 0.18s ease;
+}
+.sms-trigger-btn i {
+  position: relative;
+  z-index: 1;
+  font-size: 21px;
+}
+.sms-trigger-btn:active:not(:disabled)::after {
+  opacity: 0.12;
+}
+.sms-send-btn {
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+}
+.sms-send-btn i {
+  margin-left: 2px;
+  font-size: 18px;
+}
+.sms-round-btn:active,
+.sms-trigger-btn:active:not(:disabled),
+.sms-send-btn:active:not(:disabled),
+.sms-emoji-btn:active {
+  transform: scale(0.92);
+}
+.sms-trigger-btn:disabled,
+.sms-send-btn:disabled {
+  opacity: 0.5;
+}
+.sms-trigger-btn.is-thinking i {
+  animation: sms-spin 0.9s linear infinite;
+}
+@keyframes sms-spin {
+  to { transform: rotate(360deg); }
+}
+
+.sms-system-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin: 2px 0 14px;
+}
+.sms-system-row span {
+  max-width: min(78vw, 420px);
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(120, 120, 120, 0.14);
+  color: currentColor;
+  opacity: 0.72;
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: center;
+}
+.sms-system-row.clickable span {
+  opacity: 0.9;
+  cursor: pointer;
+}
+.sms-message-menu {
+  position: absolute;
+  top: -44px;
+  z-index: 30;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 12px;
+  border-width: 1px;
+  border-radius: 14px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+  white-space: nowrap;
+}
+.items-end .sms-message-menu {
+  right: 0;
+}
+.items-start .sms-message-menu {
+  left: 0;
+}
+.sms-message-menu button {
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+  font-weight: 600;
+}
+.sms-select-dot {
+  width: 22px;
+  height: 22px;
+  border: 1.5px solid rgba(130, 130, 130, 0.45);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  flex-shrink: 0;
+}
+.sms-select-dot.active {
+  border-color: #d97757;
+  background: #d97757;
+  box-shadow: inset 0 0 0 5px #fff;
+}
+.sms-reply-preview {
+  margin-bottom: 6px;
+  padding-left: 8px;
+  border-left: 3px solid rgba(128, 128, 128, 0.28);
+  opacity: 0.72;
+  font-size: 12px;
+  line-height: 1.35;
+}
+.sms-favorite {
+  margin-left: 6px;
+  color: #d6a33a;
+  font-size: 12px;
+}
+.sms-reply-draft,
+.sms-selection-bar {
+  flex-shrink: 0;
+  border-top-width: 1px;
+  transition: all 0.3s ease;
+}
+.sms-reply-draft {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 16px;
+}
+.sms-reply-draft span {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 12px;
+}
+.sms-reply-draft p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.35;
+}
+.sms-reply-draft button,
+.sms-selection-bar button {
+  border: none;
+  background: transparent;
+  font-size: 15px;
+}
+.sms-selection-bar {
+  display: grid;
+  grid-template-columns: 56px 1fr 56px;
+  align-items: center;
+  padding: 11px 16px calc(11px + env(safe-area-inset-bottom));
+  text-align: center;
+  font-size: 14px;
+}
+.sms-selection-bar .danger {
+  color: #e5534b;
+}
+.sms-selection-bar button:disabled {
+  opacity: 0.45;
+}
 
 /* ================= 页面与列表动画 ================= */
 .page-spring-enter-active {

@@ -79,3 +79,23 @@ export async function buildEnhancedSystemPrompt(role, contextMessages = [], opti
 
   return parts.filter(Boolean).join('\n\n');
 }
+
+export async function buildDiaryReviewSystemPrompt(role, contextMessages = [], diary = {}) {
+  const diaryTriggerMessage = {
+    role: 'user',
+    content: `日记标题：${diary.title || ''}\n日记正文：${diary.content || ''}`
+  };
+  const worldBookMessages = [...contextMessages.slice(-6), diaryTriggerMessage];
+  const worldBookEntries = await worldBookEntryService.getAll();
+  const worldBook = buildWorldBookContext(worldBookEntries, worldBookMessages, {
+    scanDepth: worldBookMessages.length
+  });
+
+  const parts = [
+    String(role?.systemPrompt || '').trim(),
+    worldBook.text ? `[World Book / 世界书]\n${worldBook.text}\n[/World Book]` : '',
+    '你正在阅读用户允许你看到的一篇日记。请结合最近聊天语境和世界书设定，用你的角色口吻给出简短、温柔、自然的回应。不要写成分析报告，不要复述系统设定。'
+  ];
+
+  return parts.filter(Boolean).join('\n\n');
+}

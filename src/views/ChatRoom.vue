@@ -30,7 +30,12 @@
             :user-avatar="userAvatar"
             :role-avatar="role?.avatar || defaultAvatar"
             :linked-stickers="linkedStickers"
+            :selection-mode="selectionMode"
+            :selected="selectedMessageIds.has(message.id)"
             @delete="deleteMessage"
+            @action="handleMessageAction"
+            @toggle-select="toggleMessageSelection"
+            @open-diary="openDiaryNotice"
             @claim-wallet="claimWalletMessage"
             @refund-transfer="refundTransferMessage"
           />
@@ -38,7 +43,22 @@
       </div>
     </div>
 
+    <div v-if="replyingTo && !selectionMode" class="wx-reply-draft">
+      <div>
+        <span>引用</span>
+        <p>{{ messagePreview(replyingTo) }}</p>
+      </div>
+      <button @click="replyingTo = null">×</button>
+    </div>
+
+    <div v-if="selectionMode" class="wx-selection-bar">
+      <button @click="cancelSelection">取消</button>
+      <span>已选 {{ selectedMessageIds.size }} 条</span>
+      <button class="danger" :disabled="selectedMessageIds.size === 0" @click="deleteSelectedMessages">删除</button>
+    </div>
+
     <chat-input
+      v-else
       ref="chatInputRef"
       :wallet-balance-cents="walletBalanceCents"
       @send="sendTextMessage"
@@ -102,6 +122,9 @@ const isLoading = ref(true);
 const messagesContainer = ref(null);
 const linkedStickers = ref([]);
 const walletBalanceCents = ref(0);
+const selectionMode = ref(false);
+const selectedMessageIds = ref(new Set());
+const replyingTo = ref(null);
 
 const defaultUserAvatar = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="40" height="40"%3E%3Crect fill="%2307C160" width="40" height="40"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="20" fill="white"%3E我%3C/text%3E%3C/svg%3E';
 const defaultAvatar = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="40" height="40"%3E%3Crect fill="%23ddd" width="40" height="40"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="20"%3E🤖%3C/text%3E%3C/svg%3E';
@@ -258,14 +281,87 @@ const scrollToBottom = () => {
   }
 };
 
+const makeReplyPayload = (message) => ({
+  id: message.id,
+  role: message.role,
+  type: message.type,
+  content: messagePreview(message),
+  audioUrl: !!message.audioUrl
+});
+
+const messagePreview = (message) => {
+  if (!message) return '';
+  if (message.type === 'image') return '[图片]';
+  if (message.type === 'sticker') return '[表情]';
+  if (message.type === 'redpacket') return '[红包]';
+  if (message.type === 'transfer') return '[转账]';
+  if (message.audioUrl) return `[语音] ${message.content || ''}`.trim();
+  return String(message.content || '').replace(/\s+/g, ' ').slice(0, 80);
+};
+
+const toggleMessageSelection = (id) => {
+  const next = new Set(selectedMessageIds.value);
+  next.has(id) ? next.delete(id) : next.add(id);
+  selectedMessageIds.value = next;
+};
+
+const cancelSelection = () => {
+  selectionMode.value = false;
+  selectedMessageIds.value = new Set();
+};
+
+const startSelection = (message) => {
+  selectionMode.value = true;
+  selectedMessageIds.value = new Set([message.id]);
+};
+
 const deleteMessage = async (id) => {
+  if (!confirm('确定删除这条信息吗？')) return;
   await messageService.delete(id);
+  if (replyingTo.value?.id === id) replyingTo.value = null;
   await loadMessages();
+};
+
+const deleteSelectedMessages = async () => {
+  const ids = [...selectedMessageIds.value];
+  if (ids.length === 0) return;
+  if (!confirm(`确定删除选中的 ${ids.length} 条信息吗？`)) return;
+  await messageService.deleteMany(ids);
+  if (replyingTo.value && ids.includes(replyingTo.value.id)) replyingTo.value = null;
+  cancelSelection();
+  await loadMessages();
+};
+
+const withdrawMessage = async (message) => {
+  if (!confirm('确定撤回这条信息吗？')) return;
+  const notice = message.role === 'user' ? '你撤回了一条信息' : `${role.value?.name || '角色'}撤回了一条信息`;
+  await messageService.withdraw(message.id, notice);
+  if (replyingTo.value?.id === message.id) replyingTo.value = null;
+  await loadMessages();
+};
+
+const handleMessageAction = async ({ action, message }) => {
+  if (action === 'select') startSelection(message);
+  if (action === 'withdraw') await withdrawMessage(message);
+  if (action === 'favorite') {
+    await messageService.update(message.id, {
+      isFavorite: !message.isFavorite,
+      favoriteAt: message.isFavorite ? null : Date.now()
+    });
+    await loadMessages();
+  }
+  if (action === 'quote') replyingTo.value = message;
+};
+
+const openDiaryNotice = (diaryId) => {
+  router.push({ path: '/diary', query: { diaryId } });
 };
 
 const sendTextMessage = async (text) => {
   try {
-    await messageService.create(conversationId, 'user', text, 'text');
+    const extra = replyingTo.value ? { replyTo: makeReplyPayload(replyingTo.value) } : {};
+    await messageService.create(conversationId, 'user', text, 'text', null, extra);
+    replyingTo.value = null;
     await loadMessages();
   } catch (error) {
     alert('发送失败: ' + error.message);
@@ -422,7 +518,7 @@ const generateReply = async () => {
 
     if (diaryDirective?.content) {
       try {
-        await diaryService.create({
+        const diary = await diaryService.create({
           authorType: 'role',
           roleId: role.value.id,
           linkedRoleIds: [role.value.id],
@@ -433,6 +529,14 @@ const generateReply = async () => {
           includeInContext: true,
           source: 'directive'
         });
+        await messageService.create(
+          conversationId,
+          'system',
+          `${role.value?.name || '角色'}写了一篇日记 >`,
+          'diary_notice',
+          null,
+          { diaryId: diary.id }
+        );
       } catch (error) {
         console.warn('角色日记写入失败:', error.message);
       }
@@ -567,6 +671,60 @@ const compressImage = (file, maxSize = 384, quality = 0.8) => {
   color: rgba(0, 0, 0, 0.38);
   margin: 10px 0 14px;
   pointer-events: none;
+}
+
+.wx-reply-draft {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--wx-border);
+  background: rgba(247, 247, 247, 0.96);
+  color: var(--wx-text-primary);
+  flex-shrink: 0;
+}
+.wx-reply-draft span {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--wx-blue);
+  font-size: 12px;
+}
+.wx-reply-draft p {
+  margin: 0;
+  color: var(--wx-text-secondary);
+  font-size: 13px;
+  line-height: 1.35;
+}
+.wx-reply-draft button,
+.wx-selection-bar button {
+  border: none;
+  background: transparent;
+  color: var(--wx-blue);
+  font-size: 15px;
+}
+.wx-selection-bar {
+  display: grid;
+  grid-template-columns: 56px 1fr 56px;
+  align-items: center;
+  padding: 9px 12px calc(9px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--wx-border);
+  background: rgba(247, 247, 247, 0.98);
+  color: var(--wx-text-secondary);
+  font-size: 14px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.wx-selection-bar .danger {
+  color: #fa5151;
+}
+.wx-selection-bar button:disabled {
+  color: var(--wx-text-tertiary);
+}
+
+[data-theme="dark"] .wx-reply-draft,
+[data-theme="dark"] .wx-selection-bar {
+  background: rgba(28, 28, 28, 0.96);
 }
 
 .wx-chat-page :deep(.wx-navbar-wrap) {
