@@ -360,8 +360,8 @@ const ttsModeList = [
 ];
 
 const sliderColor = computed(() => {
-  if (activeTheme.value === 'blanc') return '#222222';
   if (activeTheme.value === 'vanilla') return '#B4A79A';
+  if (activeTheme.value === 'mono') return '#111111';
   return '#E0E0E0';
 });
 

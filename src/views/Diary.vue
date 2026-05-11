@@ -822,10 +822,12 @@ onUnmounted(() => {
   --diary-accent: #d97757;
   --diary-soft: rgba(0, 0, 0, .055);
   --diary-shadow: rgba(217, 119, 87, .08);
-  min-height: 100vh;
+  height: 100dvh;
   background: var(--diary-bg);
   color: var(--diary-text);
-  padding-bottom: 22px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 .diary-page.theme-nordic {
   --diary-bg: #f0f4f8;
@@ -852,7 +854,7 @@ onUnmounted(() => {
 .segmented { margin: 4px 16px 14px; padding: 4px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; background: var(--diary-soft); border-radius: 14px; }
 .segmented button { border: none; border-radius: 11px; background: transparent; padding: 9px; color: var(--diary-sub); font-size: 15px; }
 .segmented button.active { background: var(--diary-card-bg); color: var(--diary-text); box-shadow: 0 2px 8px var(--diary-shadow); }
-.content { padding: 0 16px; }
+.content { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 0 16px 22px; }
 .month-card, .diary-card, .drawer-content, .option-panel, .role-select-panel, .role-manage-panel, .role-reading-card { background: var(--diary-card-bg); border-radius: 20px; box-shadow: 0 10px 28px var(--diary-shadow); }
 .month-card { padding: 16px; }
 .month-header { display: flex; align-items: center; justify-content: space-between; text-align: center; }

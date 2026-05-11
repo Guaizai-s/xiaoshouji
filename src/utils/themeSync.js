@@ -2,19 +2,26 @@ export const SYSTEM_THEME_KEY = 'systemTheme';
 export const SMS_THEME_KEY = 'smsTheme';
 
 const systemToSmsTheme = {
-  'theme-nordic': 'blanc',
+  'theme-nordic': 'vanilla',
   'theme-minimal': 'vanilla',
   'theme-data': 'midnight'
 };
 
 const smsToSystemTheme = {
-  blanc: 'theme-nordic',
   vanilla: 'theme-minimal',
   midnight: 'theme-data'
 };
 
+const smsThemes = new Set(['vanilla', 'midnight', 'mono']);
+
+export const normalizeSmsTheme = (themeId) => smsThemes.has(themeId) ? themeId : 'vanilla';
 export const getSmsThemeForSystemTheme = (themeId) => systemToSmsTheme[themeId] || 'vanilla';
-export const getSystemThemeForSmsTheme = (themeId) => smsToSystemTheme[themeId] || 'theme-minimal';
+export const getSystemThemeForSmsTheme = (themeId) => {
+  if (themeId === 'mono' && typeof localStorage !== 'undefined') {
+    return localStorage.getItem(SYSTEM_THEME_KEY) || 'theme-minimal';
+  }
+  return smsToSystemTheme[themeId] || 'theme-minimal';
+};
 
 export function applyWechatTheme(themeId) {
   if (themeId === 'theme-data') {
@@ -43,7 +50,7 @@ export function applySystemTheme(themeId, { syncSms = true, notify = true } = {}
 }
 
 export function applySmsTheme(themeId, { syncSystem = true, notify = true } = {}) {
-  const smsTheme = themeId || 'vanilla';
+  const smsTheme = normalizeSmsTheme(themeId || 'vanilla');
   const systemTheme = getSystemThemeForSmsTheme(smsTheme);
 
   localStorage.setItem(SMS_THEME_KEY, smsTheme);
@@ -58,7 +65,7 @@ export function applySmsTheme(themeId, { syncSystem = true, notify = true } = {}
 
 export function initializeTheme() {
   const systemTheme = localStorage.getItem(SYSTEM_THEME_KEY) || 'theme-minimal';
-  const smsTheme = localStorage.getItem(SMS_THEME_KEY) || getSmsThemeForSystemTheme(systemTheme);
+  const smsTheme = normalizeSmsTheme(localStorage.getItem(SMS_THEME_KEY) || getSmsThemeForSystemTheme(systemTheme));
 
   localStorage.setItem(SYSTEM_THEME_KEY, systemTheme);
   localStorage.setItem(SMS_THEME_KEY, smsTheme);

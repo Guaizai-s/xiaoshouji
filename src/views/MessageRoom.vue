@@ -1,5 +1,5 @@
 <template>
-  <div class="h-screen w-full flex flex-col relative font-sans transition-colors duration-500 page-spring-enter-active" :class="t.appBg" @click="closeMenu">
+  <div class="sms-room-page w-full flex flex-col relative font-sans transition-colors duration-500 page-spring-enter-active" :class="[t.appBg, t.backgroundFx]" @click="closeMenu">
 
     <div class="h-8 w-full backdrop-blur-md absolute top-0 z-20 transition-colors duration-500" :class="t.headerBg"></div>
 
@@ -23,7 +23,7 @@
       </div>
     </div>
 
-    <div class="flex-1 overflow-y-auto px-4 py-6 scrollbar-hide">
+    <div class="flex-1 min-h-0 overflow-y-auto px-4 pt-6 pb-28 scrollbar-hide">
       <transition-group name="msg-spring" tag="div" class="flex flex-col space-y-6">
         <div v-for="(msg, index) in messages" :key="msg.id">
           
@@ -131,7 +131,7 @@
       <button class="danger" :disabled="selectedMessageIds.size === 0" @click="deleteSelectedMessages">删除</button>
     </div>
 
-    <div v-else class="sms-compose safe-area-pb" :class="[t.inputAreaBg, t.headerBorder]">
+    <div v-else class="sms-compose" :class="[t.inputAreaBg, t.headerBorder]">
       <button class="sms-round-btn" :class="[t.textMuted, t.iconBtnBg]" aria-label="更多">
         <i class="ph ph-plus"></i>
       </button>
@@ -483,15 +483,28 @@ const generateReply = async () => {
 <style scoped>
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-.safe-area-pb { padding-bottom: calc(0.75rem + env(safe-area-inset-bottom)); }
+
+.sms-room-page {
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
 
 .sms-compose {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 12;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 14px;
+  box-sizing: border-box;
+  padding: 10px 14px calc(10px + env(safe-area-inset-bottom));
   border-top-width: 1px;
   flex-shrink: 0;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
   transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 .sms-round-btn,
@@ -668,11 +681,16 @@ const generateReply = async () => {
 }
 .sms-reply-draft,
 .sms-selection-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  z-index: 11;
   flex-shrink: 0;
   border-top-width: 1px;
   transition: all 0.3s ease;
 }
 .sms-reply-draft {
+  bottom: calc(59px + env(safe-area-inset-bottom));
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -696,6 +714,7 @@ const generateReply = async () => {
   font-size: 15px;
 }
 .sms-selection-bar {
+  bottom: 0;
   display: grid;
   grid-template-columns: 56px 1fr 56px;
   align-items: center;

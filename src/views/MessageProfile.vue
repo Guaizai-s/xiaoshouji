@@ -1,6 +1,6 @@
 <template>
   <!-- 外层容器：占满屏幕，随主题切换背景 -->
-  <div class="h-screen w-full flex flex-col relative font-sans transition-colors duration-500" :class="t.appBg">
+  <div class="sms-profile-page w-full flex flex-col relative font-sans transition-colors duration-500" :class="[t.appBg, t.backgroundFx]">
     
     <!-- 顶部状态栏留白 (适配刘海屏) -->
     <div class="h-10 w-full absolute top-0 z-20 backdrop-blur-md transition-colors duration-500" :class="t.headerBg"></div>
@@ -47,7 +47,7 @@
           <div class="flex items-center gap-4">
             <!-- 主题色预览圆点 -->
             <div class="w-10 h-10 rounded-full border-2 shadow-sm flex items-center justify-center transition-colors duration-500"
-                 :class="[theme.appBg, theme.id === 'midnight' ? 'border-[#333]' : 'border-stone-200']">
+                 :class="[theme.appBg, theme.previewFx, theme.id === 'midnight' ? 'border-[#333]' : 'border-stone-200']">
               <div class="w-5 h-5 rounded-full shadow-inner" :class="theme.switchBg.replace('!', '')"></div>
             </div>
             <div class="flex flex-col">
@@ -99,7 +99,7 @@
     </div>
 
     <!-- 底部导航栏 (Tab Bar) -->
-<div class="absolute bottom-0 left-0 right-0 pt-4 pb-4 px-6 backdrop-blur-xl border-t transition-colors duration-500 flex justify-between items-center safe-area-pb"
+<div class="sms-bottom-nav pt-4 pb-4 px-6 backdrop-blur-xl border-t transition-colors duration-500 flex justify-between items-center"
          :class="[t.tabBg, t.headerBorder]">
 
       <button class="flex flex-col items-center gap-1 transition-all duration-200 active:scale-90" :class="t.textMuted" @click="router.replace('/messages')">
@@ -168,7 +168,19 @@ const onAvatarChange = (e) => {
 }
 
 /* 适配 iOS 底部安全区 */
-.safe-area-pb {
+.sms-profile-page {
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.sms-bottom-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 25;
+  box-sizing: border-box;
   padding-bottom: calc(1rem + env(safe-area-inset-bottom));
 }
 </style>

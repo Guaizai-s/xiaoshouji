@@ -40,6 +40,39 @@ html, body {
   overflow: hidden;
 }
 
+.sms-ink-bg {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 16% 12%, rgba(0, 0, 0, 0.14), transparent 30%),
+    radial-gradient(circle at 86% 10%, rgba(0, 0, 0, 0.08), transparent 28%),
+    radial-gradient(circle at 55% 100%, rgba(0, 0, 0, 0.12), transparent 34%),
+    linear-gradient(135deg, #fbfbfa 0%, #eeeeec 52%, #f7f7f5 100%);
+}
+
+.sms-ink-bg::before {
+  content: '';
+  position: absolute;
+  inset: -18%;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 22% 34%, rgba(0, 0, 0, 0.18), transparent 23%),
+    radial-gradient(circle at 78% 22%, rgba(255, 255, 255, 0.9), transparent 25%),
+    radial-gradient(circle at 68% 78%, rgba(0, 0, 0, 0.13), transparent 24%);
+  filter: blur(42px);
+  opacity: 0.62;
+  transform: rotate(-8deg);
+}
+
+.sms-mono-preview {
+  background:
+    radial-gradient(circle at 28% 24%, rgba(0, 0, 0, 0.42), transparent 36%),
+    radial-gradient(circle at 70% 72%, rgba(0, 0, 0, 0.18), transparent 35%),
+    linear-gradient(135deg, #ffffff 0%, #eeeeee 45%, #cfcfcf 100%) !important;
+}
+
 /* 页面容器 */
 .wx-page {
   display: flex;

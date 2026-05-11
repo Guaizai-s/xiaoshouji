@@ -1,6 +1,6 @@
 <template>
   <!-- 外层容器：占满屏幕，随主题切换背景 -->
-  <div class="h-screen w-full flex flex-col relative font-sans transition-colors duration-500" :class="t.appBg">
+  <div class="sms-home-page w-full flex flex-col relative font-sans transition-colors duration-500" :class="[t.appBg, t.backgroundFx]">
 
     <!-- 顶部状态栏留白 (适配刘海屏) -->
     <div class="h-10 w-full shrink-0 z-20"></div>
@@ -101,7 +101,7 @@
     </button>
 
     <!-- 底部导航栏 (Tab Bar) -->
-<div class="absolute bottom-0 left-0 right-0 pt-4 pb-4 px-6 backdrop-blur-xl border-t transition-colors duration-500 flex justify-between items-center safe-area-pb"
+<div class="sms-bottom-nav pt-4 pb-4 px-6 backdrop-blur-xl border-t transition-colors duration-500 flex justify-between items-center"
          :class="[t.tabBg, t.headerBorder]">
       
       <button class="flex flex-col items-center gap-1 transition-all duration-200 active:scale-90" :class="t.textMain">
@@ -167,7 +167,19 @@ const startMessage = async (role) => {
 }
 
 /* 适配 iOS 底部安全区 */
-.safe-area-pb {
+.sms-home-page {
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.sms-bottom-nav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 25;
+  box-sizing: border-box;
   padding-bottom: calc(1rem + env(safe-area-inset-bottom));
 }
 /* 弹出框果冻跳动动画 */
