@@ -862,19 +862,20 @@ onUnmounted(() => {
 .month-sub { margin-top: 3px; font-size: 12px; color: var(--diary-sub); }
 .week-row, .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); }
 .week-row { margin-top: 18px; color: var(--diary-sub); font-size: 12px; text-align: center; }
-.calendar-grid { gap: 6px; margin-top: 8px; }
-.day-cell { position: relative; aspect-ratio: 1 / 1; min-height: 44px; border: none; border-radius: 14px; background: transparent; color: inherit; }
+.calendar-grid { gap: 6px; margin-top: 8px; min-width: 0; }
+.day-cell { position: relative; width: 100%; min-width: 0; aspect-ratio: 1 / 1; border: none; border-radius: clamp(10px, 3.6vw, 14px); background: transparent; color: inherit; }
 .day-cell.muted { opacity: .35; }
 .day-cell.today { background: color-mix(in srgb, var(--diary-accent) 14%, transparent); }
 .day-cell.selected { outline: 2px solid color-mix(in srgb, var(--diary-accent) 36%, transparent); }
-.day-num { position: absolute; top: 7px; left: 8px; z-index: 2; font-size: 13px; line-height: 1; }
+.day-num { position: absolute; top: 7px; left: clamp(6px, 1.8vw, 8px); z-index: 2; font-size: 13px; line-height: 1; }
 .day-mood { position: absolute; left: 50%; top: 52%; transform: translate(-50%, -50%); color: var(--mood); }
 .mood-svg { width: 20px; height: 20px; display: block; }
 .diary-mark { position: absolute; left: 50%; bottom: 3px; width: 19px; height: 4px; transform: translateX(-50%); border-radius: 999px; background: color-mix(in srgb, var(--diary-accent) 72%, transparent); opacity: .78; }
 .mood-strip { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .mood-summary { color: var(--mood); display: flex; align-items: center; gap: 4px; padding: 7px 10px; border-radius: 999px; background: var(--diary-card-bg); font-size: 12px; }
 .role-filter { display: flex; overflow-x: auto; gap: 8px; padding: 2px 0 12px; }
-.role-filter button, .role-checks button { border: none; background: var(--diary-card-bg); color: inherit; border-radius: 999px; padding: 7px 12px; display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.role-filter button, .role-checks button { border: none; background: var(--diary-card-bg); color: inherit; border-radius: 999px; padding: 7px 12px; display: flex; align-items: center; gap: 6px; white-space: nowrap; min-width: 0; max-width: min(72vw, 240px); }
+.role-filter button span, .role-checks button span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .role-filter button.active, .role-checks button.active { background: var(--diary-accent); color: #fff; }
 .role-filter img, .role-checks img { width: 24px; height: 24px; border-radius: 999px; object-fit: cover; }
 .generate-role-btn, .save-btn { width: 100%; border: none; border-radius: 16px; padding: 13px 16px; color: #fff; background: var(--diary-accent); font-size: 15px; font-weight: 700; margin-bottom: 12px; }
@@ -886,9 +887,10 @@ onUnmounted(() => {
 .diary-card p { margin: 0; color: var(--diary-sub); line-height: 1.65; white-space: pre-wrap; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
 .card-meta { display: flex; gap: 8px; flex-wrap: wrap; color: var(--diary-sub); font-size: 12px; }
 .compact-meta { margin-top: 2px; }
-.role-card-head { display: flex; align-items: center; gap: 10px; }
+.role-card-head { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .role-card-head img { width: 38px; height: 38px; border-radius: 12px; object-fit: cover; }
-.role-card-name { font-weight: 700; }
+.role-card-head > div { min-width: 0; flex: 1; }
+.role-card-name { font-weight: 700; overflow-wrap: anywhere; line-height: 1.25; }
 .drawer-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.28); z-index: 50; display: flex; align-items: flex-end; overflow: hidden; }
 .drawer-content { width: 100%; border-radius: 24px 24px 0 0; padding: 10px 16px calc(28px + env(safe-area-inset-bottom)); box-sizing: border-box; }
 .scrollable-drawer { height: min(88dvh, 760px); max-height: 88dvh; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
@@ -920,16 +922,17 @@ onUnmounted(() => {
 .panel-title { font-size: 13px; color: var(--diary-sub); margin-bottom: 10px; }
 .role-checks { display: flex; flex-wrap: wrap; gap: 8px; }
 .sticky-save { position: sticky; bottom: calc(8px + env(safe-area-inset-bottom)); margin-top: 14px; box-shadow: 0 10px 24px color-mix(in srgb, var(--diary-accent) 28%, transparent); }
-.role-detail-hero { display: flex; align-items: center; gap: 12px; padding: 6px 2px 14px; }
+.role-detail-hero { display: flex; align-items: center; gap: 12px; padding: 6px 2px 14px; min-width: 0; }
 .role-detail-avatar { width: 48px; height: 48px; border-radius: 16px; object-fit: cover; }
-.role-detail-name { font-size: 18px; font-weight: 800; }
+.role-detail-hero > div { min-width: 0; flex: 1; }
+.role-detail-name { font-size: 18px; font-weight: 800; overflow-wrap: anywhere; line-height: 1.25; }
 .role-detail-meta { margin-top: 3px; color: var(--diary-sub); font-size: 13px; }
 .role-reading-card { padding: 18px; box-shadow: none; }
 .reading-label { color: var(--diary-accent); font-size: 12px; font-weight: 700; margin-bottom: 8px; }
 .role-reading-card h2 { margin: 0 0 12px; font-size: 22px; }
 .role-reading-card p { margin: 0; white-space: pre-wrap; line-height: 1.8; font-size: 16px; color: var(--diary-text); }
 .linked-role-line { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--diary-sub); font-size: 13px; padding-top: 10px; }
-.role-chip { display: inline-flex; margin: 3px; padding: 4px 8px; border-radius: 999px; background: color-mix(in srgb, var(--diary-accent) 11%, transparent); color: var(--diary-accent); }
+.role-chip { display: inline-flex; max-width: 100%; margin: 3px; padding: 4px 8px; border-radius: 999px; background: color-mix(in srgb, var(--diary-accent) 11%, transparent); color: var(--diary-accent); overflow-wrap: anywhere; }
 .role-detail-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
 .ghost-action, .danger-action { background: var(--diary-soft); border-radius: 14px; padding: 12px; }
 .slide-up-enter-active, .slide-up-leave-active { transition: opacity .18s ease; }

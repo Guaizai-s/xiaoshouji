@@ -11,8 +11,9 @@
         </button>
       </div>
       
-      <div class="flex flex-col items-center flex-[2]">
+      <div class="flex flex-col items-center flex-[2] relative">
         <h1 class="text-[17px] font-semibold tracking-wide transition-colors truncate max-w-full" :class="t.textMain">{{ role?.name || '...' }}</h1>
+        <button class="sms-heart-status-hit" aria-label="心声" @click.stop="openHeartVoice"></button>
         <span class="text-[11px] font-medium tracking-wider transition-colors" :class="t.textMuted">{{ isTyping ? '正在输入...' : '在线' }}</span>
       </div>
 
@@ -173,6 +174,16 @@
       </button>
     </div>
 
+    <heart-voice-panel
+      :visible="heartVoiceOpen"
+      :loading="heartVoiceLoading"
+      :error="heartVoiceError"
+      :data="heartVoiceData"
+      :role-name="role?.name || ''"
+      :variant="activeTheme === 'midnight' ? 'sms theme-midnight' : 'sms'"
+      @close="heartVoiceOpen = false"
+      @retry="generateHeartVoice"
+    />
   </div>
 </template>
 
@@ -183,8 +194,10 @@ import { roleService, conversationService, messageService, apiProfileService } f
 import { callClaude } from '../services/claude.js';
 import { textToSpeech } from '../services/minimax.js'; // 引入语音服务
 import { useTheme } from '../composables/useTheme.js';
-import { buildEnhancedSystemPrompt } from '../utils/promptBuilder.js';
+import HeartVoicePanel from '../components/HeartVoicePanel.vue';
+import { buildEnhancedSystemPrompt, buildHeartVoiceSystemPrompt } from '../utils/promptBuilder.js';
 import { parseMessageDirectives } from '../utils/directiveParser.js';
+import { buildHeartVoiceMessages, parseHeartVoiceResponse } from '../utils/heartVoice.js';
 
 const route = useRoute();
 const router = useRouter();
@@ -199,6 +212,10 @@ const activeMenuId = ref(null);
 const selectionMode = ref(false);
 const selectedMessageIds = ref(new Set());
 const replyingTo = ref(null);
+const heartVoiceOpen = ref(false);
+const heartVoiceLoading = ref(false);
+const heartVoiceError = ref('');
+const heartVoiceData = ref(null);
 let pressTimer = null;
 
 const showAvatar = (index) => index === 0 || messages.value[index - 1].role === 'user';
@@ -348,6 +365,31 @@ const handleMessageAction = async (action, msg) => {
 const handleSystemClick = (msg) => {
   if (selectionMode.value) return toggleMessageSelection(msg.id);
   if (msg.type === 'diary_notice' && msg.diaryId) router.push({ path: '/diary', query: { diaryId: msg.diaryId } });
+};
+
+const openHeartVoice = () => {
+  heartVoiceOpen.value = true;
+  generateHeartVoice();
+};
+
+const generateHeartVoice = async () => {
+  if (!role.value || heartVoiceLoading.value) return;
+  heartVoiceLoading.value = true;
+  heartVoiceError.value = '';
+  try {
+    const contextLength = Math.max(20, role.value?.chatSettings?.contextLength || 15);
+    const contextMessages = await messageService.getCombinedContext(roleId, contextLength);
+    const systemPrompt = await buildHeartVoiceSystemPrompt(role.value, contextMessages);
+    const response = await callClaude(
+      { ...role.value, systemPrompt, skipSystemPromptMerge: true },
+      buildHeartVoiceMessages(contextMessages)
+    );
+    heartVoiceData.value = parseHeartVoiceResponse(response);
+  } catch (error) {
+    heartVoiceError.value = error.message || '心声生成失败';
+  } finally {
+    heartVoiceLoading.value = false;
+  }
 };
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -506,6 +548,20 @@ const generateReply = async () => {
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
   transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+.sms-heart-status-hit {
+  position: absolute;
+  left: 50%;
+  bottom: -2px;
+  width: 84px;
+  height: 20px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  transform: translateX(-50%);
+}
+.sms-heart-status-hit:active {
+  background: rgba(128, 128, 128, 0.12);
 }
 .sms-round-btn,
 .sms-trigger-btn,

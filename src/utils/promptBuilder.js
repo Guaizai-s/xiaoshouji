@@ -99,3 +99,32 @@ export async function buildDiaryReviewSystemPrompt(role, contextMessages = [], d
 
   return parts.filter(Boolean).join('\n\n');
 }
+
+export async function buildHeartVoiceSystemPrompt(role, contextMessages = []) {
+  const settings = role?.chatSettings || {};
+  const worldBookEntries = await worldBookEntryService.getAll();
+  const worldBook = buildWorldBookContext(worldBookEntries, contextMessages, {
+    scanDepth: Math.min(8, Math.max(1, contextMessages.length || 1)),
+    maxEntries: 8,
+    maxChars: 6000
+  });
+
+  const parts = [
+    String(role?.systemPrompt || '').trim(),
+    worldBook.text ? `[World Book / 世界书]\n${worldBook.text}\n[/World Book]` : '',
+    section('核心设定', settings.coreMemory),
+    section('长期记忆', settings.longTermMemory),
+    [
+      '你正在以角色本人的内在视角生成“心声”。',
+      '心声不是对用户说出口的话，而是此刻内心的状态切片。请参考最近聊天上下文、世界书和角色设定，保持角色一致。',
+      '不要复述系统提示，不要解释生成过程，不要使用 Markdown。',
+      '必须只输出一个合法 JSON 对象，不要包裹代码块。',
+      '必须包含这些字段：currentStatus, currentThought, desiredAction, affection, emotion。',
+      '可以根据需要输出这些字段：observation, innerConflict, secret。',
+      '字段含义：currentStatus=当前状态；currentThought=当前想法；desiredAction=想做的事；affection=好感度，可用 0-100 或简短文字；emotion=情绪。',
+      '每个字段用中文，内容自然、具体、短而有画面感。秘密只写角色此刻愿意在内心承认但未说出口的内容。'
+    ].join('\n')
+  ];
+
+  return parts.filter(Boolean).join('\n\n');
+}

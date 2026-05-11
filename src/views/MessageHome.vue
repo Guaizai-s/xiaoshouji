@@ -6,15 +6,24 @@
     <div class="h-10 w-full shrink-0 z-20"></div>
 
     <!-- Header 标题栏 -->
-    <div class="pt-6 pb-2 px-5 flex items-center justify-between z-10 shrink-0 transition-colors duration-500" :class="t.appBg">
+    <div
+      class="pt-6 pb-2 px-5 flex items-center justify-between z-10 shrink-0 transition-colors duration-500"
+      :class="activeTheme === 'mono' ? 'bg-transparent' : t.appBg"
+    >
       <h1 class="text-[26px] font-semibold tracking-tight transition-colors" :class="t.textMain">Messages</h1>
       <div class="flex items-center gap-4">
       </div>
     </div>
 
     <!-- 搜索栏 -->
-    <div class="px-5 py-3 z-10 shrink-0 transition-colors duration-500" :class="t.appBg">
-      <div class="flex items-center rounded-[1rem] px-4 py-2.5 transition-all duration-300" :class="t.searchBg">
+    <div
+      class="px-5 py-3 z-10 shrink-0 transition-colors duration-500"
+      :class="activeTheme === 'mono' ? 'bg-transparent' : t.appBg"
+    >
+      <div
+        class="flex items-center rounded-[1rem] px-4 py-2.5 border transition-all duration-300"
+        :class="[activeTheme === 'mono' ? 'shadow-[0_12px_32px_rgba(0,0,0,0.07)] backdrop-blur-xl' : '', t.searchBg, t.headerBorder]"
+      >
         <i class="ph ph-magnifying-glass text-lg mr-2 transition-colors" :class="t.textMuted"></i>
         <input 
           type="text" 
@@ -31,8 +40,8 @@
         <span class="text-[13px]" :class="t.textMuted">暂无短信，点击右下角 + 开始对话</span>
       </div>
       <div v-for="conv in smsList" :key="conv.id"
-           class="flex items-center gap-4 px-2 py-3.5 rounded-2xl cursor-pointer transition-colors duration-300"
-           :class="[`hover:${t.searchBg}`]"
+           class="flex items-center gap-4 px-3 py-3.5 rounded-2xl cursor-pointer transition-colors duration-300"
+           :class="[activeTheme === 'mono' ? `${t.cardBg} ${t.headerBorder} border shadow-[0_12px_32px_rgba(0,0,0,0.06)] backdrop-blur-md mb-2` : '', `hover:${t.searchBg}`]"
            @click="router.push(`/messages/${conv.role?.id}`)">
 
         <!-- 头像区域 -->

@@ -66,6 +66,16 @@
       @send-wallet="sendWalletMessage"
       @generate="generateReply"
     />
+    <heart-voice-panel
+      :visible="heartVoiceOpen"
+      :loading="heartVoiceLoading"
+      :error="heartVoiceError"
+      :data="heartVoiceData"
+      :role-name="role?.name || ''"
+      variant="wechat"
+      @close="heartVoiceOpen = false"
+      @retry="generateHeartVoice"
+    />
   </div>
 </template>
 
@@ -75,11 +85,13 @@ import { useRoute, useRouter } from 'vue-router';
 import NavBar from '../components/NavBar.vue';
 import MessageBubble from '../components/MessageBubble.vue';
 import ChatInput from '../components/ChatInput.vue';
+import HeartVoicePanel from '../components/HeartVoicePanel.vue';
 import { conversationService, diaryService, messageService, roleService, apiProfileService, stickerService, assetService, walletService, parseAmountToCents } from '../services/db';
 import { callClaude } from '../services/claude';
 import { textToSpeech } from '../services/minimax';
 import { parseMessageDirectives } from '../utils/directiveParser';
-import { buildEnhancedSystemPrompt } from '../utils/promptBuilder';
+import { buildEnhancedSystemPrompt, buildHeartVoiceSystemPrompt } from '../utils/promptBuilder';
+import { buildHeartVoiceMessages, parseHeartVoiceResponse } from '../utils/heartVoice';
 
 const route = useRoute();
 const router = useRouter();
@@ -88,6 +100,9 @@ const conversationId = parseInt(route.params.id);
 const goDetails = () => { router.push(`/chat-details/conv/${conversationId}`); };
 
 const onHeart = () => {
+  heartVoiceOpen.value = true;
+  generateHeartVoice();
+  return;
   // 占位：后期用于展示角色心声
   alert('角色心声功能即将上线');
 };
@@ -125,6 +140,10 @@ const walletBalanceCents = ref(0);
 const selectionMode = ref(false);
 const selectedMessageIds = ref(new Set());
 const replyingTo = ref(null);
+const heartVoiceOpen = ref(false);
+const heartVoiceLoading = ref(false);
+const heartVoiceError = ref('');
+const heartVoiceData = ref(null);
 
 const defaultUserAvatar = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="40" height="40"%3E%3Crect fill="%2307C160" width="40" height="40"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="20" fill="white"%3E我%3C/text%3E%3C/svg%3E';
 const defaultAvatar = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="40" height="40"%3E%3Crect fill="%23ddd" width="40" height="40"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="20"%3E🤖%3C/text%3E%3C/svg%3E';
@@ -355,6 +374,26 @@ const handleMessageAction = async ({ action, message }) => {
 
 const openDiaryNotice = (diaryId) => {
   router.push({ path: '/diary', query: { diaryId } });
+};
+
+const generateHeartVoice = async () => {
+  if (!role.value || heartVoiceLoading.value) return;
+  heartVoiceLoading.value = true;
+  heartVoiceError.value = '';
+  try {
+    const contextLength = Math.max(20, role.value?.chatSettings?.contextLength || 15);
+    const contextMessages = await messageService.getCombinedContext(role.value.id, contextLength);
+    const systemPrompt = await buildHeartVoiceSystemPrompt(role.value, contextMessages);
+    const response = await callClaude(
+      { ...role.value, systemPrompt, skipSystemPromptMerge: true },
+      buildHeartVoiceMessages(contextMessages)
+    );
+    heartVoiceData.value = parseHeartVoiceResponse(response);
+  } catch (error) {
+    heartVoiceError.value = error.message || '心声生成失败';
+  } finally {
+    heartVoiceLoading.value = false;
+  }
 };
 
 const sendTextMessage = async (text) => {
