@@ -103,6 +103,25 @@ db.version(9).stores({
   dailyMoods: 'dateKey, moodId, updatedAt'
 });
 
+db.version(10).stores({
+  roles: '++id, name, createdAt, updatedAt',
+  conversations: '++id, roleId, updatedAt, isTop, isMuted',
+  messages: '++id, conversationId, timestamp',
+  apiProfiles: '++id, name, createdAt',
+  userPersonas: '++id, name, createdAt',
+  stickers: '++id, name, libraryId, createdAt',
+  stickerLibraries: '++id, name, createdAt',
+  assets: 'key',
+  walletAccounts: '++id, &[ownerType+ownerId], ownerType, ownerId, updatedAt',
+  walletTransactions: '++id, conversationId, messageId, type, status, createdAt, updatedAt',
+  worldBookEntries: 'id, enabled, triggerType, priority, updatedAt',
+  diaries: '++id, authorType, roleId, dateKey, startAt, endAt, visibility, includeInContext, createdAt, updatedAt',
+  diaryRoleLinks: '++id, diaryId, roleId',
+  dailyMoods: 'dateKey, moodId, updatedAt'
+}).upgrade(tx => tx.table('roles').toCollection().modify(role => {
+  if (!role.profile) role.profile = {};
+}));
+
 // 角色管理
 const USER_OWNER = { ownerType: 'user', ownerId: 'self' };
 const WALLET_TYPES = new Set(['redpacket', 'transfer']);
@@ -709,23 +728,36 @@ export const personaService = {
 };
 
 // 表情包管理
+const normalizeLibraryId = (libraryId) => {
+  const numericId = Number(libraryId);
+  return Number.isFinite(numericId) ? numericId : libraryId;
+};
+
 export const stickerService = {
   async getAll() {
     return await db.stickers.orderBy('createdAt').reverse().toArray();
   },
   async getByLibrary(libraryId) {
-    return await db.stickers.where('libraryId').equals(libraryId).toArray();
+    const normalizedId = normalizeLibraryId(libraryId);
+    const stickers = await db.stickers.toArray();
+    return stickers
+      .filter(sticker => normalizeLibraryId(sticker.libraryId) === normalizedId)
+      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   },
   async getById(id) {
     return await db.stickers.get(id);
   },
   async create(data) {
     const now = Date.now();
-    const id = await db.stickers.add({ ...data, createdAt: now });
+    const id = await db.stickers.add({ ...data, libraryId: normalizeLibraryId(data.libraryId), createdAt: now });
     return await db.stickers.get(id);
   },
   async update(id, data) {
-    await db.stickers.update(id, data);
+    const updates = { ...data };
+    if (Object.prototype.hasOwnProperty.call(updates, 'libraryId')) {
+      updates.libraryId = normalizeLibraryId(updates.libraryId);
+    }
+    await db.stickers.update(id, updates);
     return await db.stickers.get(id);
   },
   async delete(id) {
@@ -752,7 +784,8 @@ export const stickerLibraryService = {
   },
   async delete(id) {
     // 删除库时同时删除库中的所有表情包
-    await db.stickers.where('libraryId').equals(id).delete();
+    const stickers = await stickerService.getByLibrary(id);
+    if (stickers.length > 0) await db.stickers.bulkDelete(stickers.map(sticker => sticker.id));
     await db.stickerLibraries.delete(id);
   }
 };

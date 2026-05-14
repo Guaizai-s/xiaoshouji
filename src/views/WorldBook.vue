@@ -86,7 +86,7 @@
 
           <div v-if="editorForm.triggerType === 'keyword'" class="form-row">
             <label>关键词 <span>逗号分隔</span></label>
-            <input v-model="editorForm.keywordsStr" class="form-input" placeholder="如：小手机, 林安, 设定名" />
+            <input v-model="editorForm.keywordsStr" class="form-input" placeholder="如：角色名，魔法剑" />
           </div>
 
           <div class="form-row grow">
@@ -410,6 +410,7 @@ const exportJson = async () => {
   font-size: 14px;
   line-height: 1.6;
   display: -webkit-box;
+  line-clamp: 3;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;

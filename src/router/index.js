@@ -32,6 +32,16 @@ const routes = [
     component: () => import('../views/EditRole.vue')
   },
   {
+    path: '/char',
+    name: 'CharHome',
+    component: () => import('../views/CharHome.vue')
+  },
+  {
+    path: '/char/:id',
+    name: 'CharDetail',
+    component: () => import('../views/CharDetail.vue')
+  },
+  {
     path: '/discover',
     name: 'Discover',
     component: () => import('../views/Discover.vue')
@@ -97,6 +107,11 @@ const routes = [
     component: () => import('../views/MessageHome.vue')
   },
   {
+    path: '/messages/profile',
+    name: 'MessageProfile',
+    component: () => import('../views/MessageProfile.vue')
+  },
+  {
     path: '/messages/:id',
     name: 'MessageRoom',
     component: () => import('../views/MessageRoom.vue')
@@ -105,11 +120,6 @@ const routes = [
     path: '/messages/details/:id',
     name: 'MessageDetails',
     component: () => import('../views/MessageDetails.vue')
-  },
-  {
-    path: '/messages/profile',
-    name: 'MessageProfile',
-    component: () => import('../views/MessageProfile.vue')
   }
 ];
 

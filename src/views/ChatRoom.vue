@@ -73,8 +73,11 @@
       :data="heartVoiceData"
       :role-name="role?.name || ''"
       variant="wechat"
+      :saved="heartVoiceSaved"
+      :saving="heartVoiceSaving"
       @close="heartVoiceOpen = false"
       @retry="generateHeartVoice"
+      @save="saveHeartVoice"
     />
   </div>
 </template>
@@ -92,6 +95,7 @@ import { textToSpeech } from '../services/minimax';
 import { parseMessageDirectives } from '../utils/directiveParser';
 import { buildEnhancedSystemPrompt, buildHeartVoiceSystemPrompt } from '../utils/promptBuilder';
 import { buildHeartVoiceMessages, parseHeartVoiceResponse } from '../utils/heartVoice';
+import { createHeartVoiceMemory, normalizeProfile } from '../composables/useCharProfile';
 
 const route = useRoute();
 const router = useRouter();
@@ -144,6 +148,8 @@ const heartVoiceOpen = ref(false);
 const heartVoiceLoading = ref(false);
 const heartVoiceError = ref('');
 const heartVoiceData = ref(null);
+const heartVoiceSaving = ref(false);
+const heartVoiceSaved = ref(false);
 
 const defaultUserAvatar = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="40" height="40"%3E%3Crect fill="%2307C160" width="40" height="40"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="20" fill="white"%3E我%3C/text%3E%3C/svg%3E';
 const defaultAvatar = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="40" height="40"%3E%3Crect fill="%23ddd" width="40" height="40"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="20"%3E🤖%3C/text%3E%3C/svg%3E';
@@ -241,6 +247,17 @@ const loadConversation = async () => {
   }
 
   await conversationService.markAsRead(conversationId);
+};
+
+const refreshRoleSettings = async () => {
+  if (!role.value?.id) return;
+  const latestRole = await roleService.getById(role.value.id);
+  if (!latestRole) return;
+  role.value = { ...role.value, ...latestRole };
+  const settings = role.value?.chatSettings || {};
+  linkedStickers.value = settings.linkedLibraryId
+    ? await stickerService.getByLibrary(settings.linkedLibraryId)
+    : [];
 };
 
 const loadMessages = async () => {
@@ -380,6 +397,7 @@ const generateHeartVoice = async () => {
   if (!role.value || heartVoiceLoading.value) return;
   heartVoiceLoading.value = true;
   heartVoiceError.value = '';
+  heartVoiceSaved.value = false;
   try {
     const contextLength = Math.max(20, role.value?.chatSettings?.contextLength || 15);
     const contextMessages = await messageService.getCombinedContext(role.value.id, contextLength);
@@ -393,6 +411,23 @@ const generateHeartVoice = async () => {
     heartVoiceError.value = error.message || '心声生成失败';
   } finally {
     heartVoiceLoading.value = false;
+  }
+};
+
+const saveHeartVoice = async () => {
+  if (!role.value?.id || !heartVoiceData.value || heartVoiceSaving.value || heartVoiceSaved.value) return;
+  heartVoiceSaving.value = true;
+  try {
+    const latestRole = await roleService.getById(role.value.id);
+    const profile = normalizeProfile(latestRole?.profile || role.value.profile);
+    const memoryItems = [createHeartVoiceMemory(heartVoiceData.value), ...profile.memoryItems].slice(0, 80);
+    const updatedRole = await roleService.update(role.value.id, {
+      profile: { ...profile, memoryItems }
+    });
+    role.value = { ...role.value, profile: updatedRole.profile };
+    heartVoiceSaved.value = true;
+  } finally {
+    heartVoiceSaving.value = false;
   }
 };
 
@@ -487,6 +522,7 @@ const generateReply = async () => {
   try {
     isTyping.value = true;
     const startTime = Date.now();
+    await refreshRoleSettings();
 
     const contextLength = role.value?.chatSettings?.contextLength || 15;
     const contextMessages = await messageService.getCombinedContext(role.value.id, contextLength);

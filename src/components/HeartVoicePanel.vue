@@ -6,7 +6,19 @@
           <div class="heart-voice-kicker">{{ roleName || '角色' }}</div>
           <h2>心声</h2>
         </div>
-        <button class="heart-voice-close" @click="$emit('close')">×</button>
+        <div class="heart-voice-actions">
+          <button
+            v-if="canSave"
+            class="heart-voice-save"
+            :class="{ saved }"
+            :disabled="saving || saved"
+            @click="$emit('save')"
+          >
+            <i :class="saved ? 'ph-fill ph-heart' : 'ph ph-heart'"></i>
+            <span>{{ saved ? '已保存' : (saving ? '保存中' : '保存') }}</span>
+          </button>
+          <button class="heart-voice-close" @click="$emit('close')">×</button>
+        </div>
       </div>
 
       <div v-if="loading" class="heart-voice-loading">
@@ -46,10 +58,12 @@ const props = defineProps({
   error: { type: String, default: '' },
   roleName: { type: String, default: '' },
   data: { type: Object, default: null },
-  variant: { type: String, default: 'wechat' }
+  variant: { type: String, default: 'wechat' },
+  saved: { type: Boolean, default: false },
+  saving: { type: Boolean, default: false }
 });
 
-defineEmits(['close', 'retry']);
+defineEmits(['close', 'retry', 'save']);
 
 const sectionMeta = [
   { key: 'currentStatus', label: '当前状态', icon: 'ph ph-pulse' },
@@ -73,6 +87,7 @@ const visibleSections = computed(() => {
 });
 
 const variantClass = computed(() => `heart-voice-${props.variant}`);
+const canSave = computed(() => !props.loading && !props.error && visibleSections.value.length > 0);
 </script>
 
 <style scoped>
@@ -134,6 +149,12 @@ const variantClass = computed(() => `heart-voice-${props.variant}`);
   letter-spacing: 0;
 }
 
+.heart-voice-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .heart-voice-close {
   width: 32px;
   height: 32px;
@@ -143,6 +164,29 @@ const variantClass = computed(() => `heart-voice-${props.variant}`);
   color: inherit;
   font-size: 22px;
   line-height: 1;
+}
+
+.heart-voice-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 32px;
+  border: none;
+  border-radius: 999px;
+  padding: 0 11px;
+  background: rgba(0, 0, 0, 0.07);
+  color: inherit;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.heart-voice-save.saved {
+  background: rgba(217, 119, 87, 0.14);
+  color: #c95f42;
+}
+
+.heart-voice-save:disabled {
+  opacity: 0.72;
 }
 
 .heart-voice-content {
@@ -235,8 +279,16 @@ const variantClass = computed(() => `heart-voice-${props.variant}`);
 }
 
 :global([data-theme="dark"]) .heart-voice-close,
-.heart-voice-sms.theme-midnight .heart-voice-close {
+:global([data-theme="dark"]) .heart-voice-save,
+.heart-voice-sms.theme-midnight .heart-voice-close,
+.heart-voice-sms.theme-midnight .heart-voice-save {
   background: rgba(255, 255, 255, 0.1);
+}
+
+:global([data-theme="dark"]) .heart-voice-save.saved,
+.heart-voice-sms.theme-midnight .heart-voice-save.saved {
+  color: #ffd3c4;
+  background: rgba(255, 211, 196, 0.12);
 }
 
 :global([data-theme="dark"]) .heart-voice-section,

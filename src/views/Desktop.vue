@@ -1,8 +1,9 @@
 <template>
   <div class="desktop" :class="currentTheme" :style="wallpaper ? `background-image:url(${wallpaper});background-size:cover;background-position:center` : ''">
     <div class="content-scroll">
-      
-      <div class="hero-card animate-enter" style="--delay: 0.1s">
+      <div ref="desktopPagesRef" class="desktop-pages" @scroll.passive="onDesktopScroll">
+        <section class="desktop-page">
+          <div class="hero-card animate-enter" style="--delay: 0.1s">
         <div class="avatar-box" @click="avatarInput.click()">
           <img v-if="heroAvatar" :src="heroAvatar" class="avatar-img" />
           <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="placeholder-avatar"><circle cx="12" cy="8" r="4"></circle><path d="M20 21a8 8 0 00-16 0"></path></svg>
@@ -21,9 +22,9 @@
             @keydown.enter.prevent="$event.target.blur()"
           >{{ quoteText || '点击编辑签名' }}</div>
         </div>
-      </div>
+          </div>
 
-      <div class="module-row animate-enter" style="--delay: 0.2s">
+          <div class="module-row animate-enter" style="--delay: 0.2s">
         <div class="grid-2x2">
           <div class="app-cell" @click="go('/chats')">
             <div class="small-card">
@@ -59,9 +60,9 @@
           <div v-else class="blank-placeholder">图片/挂件区</div>
           <input ref="widgetInput" type="file" accept="image/*" style="display:none" @change="onWidgetUpload" />
         </div>
-      </div>
+          </div>
 
-      <div class="module-row animate-enter" style="--delay: 0.3s">
+          <div class="module-row animate-enter" style="--delay: 0.3s">
         <div class="large-card rect" @click="go('/diary')">
           <component :is="DiaryIcon" class="icon-svg large-svg" />
           <span class="rect-title">日记</span>
@@ -97,8 +98,23 @@
             <span class="card-label">设置</span>
           </div>
         </div>
-      </div>
+          </div>
+        </section>
 
+        <section class="desktop-page desktop-page-secondary">
+          <div class="app-cell char-app-cell animate-enter" style="--delay: 0.15s" title="角色设定和记忆" @click="go('/char')">
+            <div class="small-card char-small-card">
+              <component :is="CharIcon" class="icon-svg char-icon" />
+              <span class="char-memory-dot"></span>
+            </div>
+            <span class="card-label">char</span>
+          </div>
+        </section>
+      </div>
+      <div class="page-dots" aria-hidden="true">
+        <span class="dot" :class="{ active: activeDesktopPage === 0 }"></span>
+        <span class="dot" :class="{ active: activeDesktopPage === 1 }"></span>
+      </div>
     </div>
 
     <div class="dock-container animate-enter" style="--delay: 0.4s">
@@ -139,6 +155,8 @@ const customIcons = ref({});
 const editingQuote = ref(false);
 const avatarInput = ref(null);
 const widgetInput = ref(null);
+const desktopPagesRef = ref(null);
+const activeDesktopPage = ref(0);
 
 const ASSET_KEYS = ['desktopWallpaper', 'desktop_avatar', 'desktop_widget',
   ...['chat','forum','search','date','diary','games','read','gacha','settings','wechat','regex','world'].map(id => `icon_${id}`)];
@@ -180,6 +198,12 @@ const currentDate = computed(() => {
 
 const go = (path) => {
   if (path) router.push(path);
+};
+
+const onDesktopScroll = () => {
+  const el = desktopPagesRef.value;
+  if (!el) return;
+  activeDesktopPage.value = Math.round(el.scrollLeft / Math.max(1, el.clientWidth));
 };
 
 const onAvatarUpload = (e) => {
@@ -237,6 +261,7 @@ const SettingsIcon = mkIcon(['M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 
 const WechatIcon = mkIcon(['M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z']);
 const RegexIcon = mkIcon(['M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4']);
 const WorldIcon = mkIcon(['M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z']);
+const CharIcon = mkIcon(['M6 3.5h12a2 2 0 012 2v15l-4-2-4 2-4-2-4 2v-15a2 2 0 012-2z', 'M9 8h6', 'M9 11.5h4', 'M15.5 13.5a2 2 0 10-4 0 2 2 0 004 0z', 'M10 18a4 4 0 018 0']);
 
 </script>
 
@@ -281,13 +306,66 @@ const WorldIcon = mkIcon(['M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.9
 /* 滚动区 */
 .content-scroll {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-evenly; 
-  padding: 0 20px; /* 只留左右边距 */
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
   box-sizing: border-box;
   /* 如果内容太多超出屏幕，再允许滚动；正常情况下它会刚好撑满 */
   overflow-y: hidden; 
+}
+
+.desktop-pages {
+  height: 100%;
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.desktop-pages::-webkit-scrollbar {
+  display: none;
+}
+
+.desktop-page {
+  flex: 0 0 100%;
+  min-width: 100%;
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+  padding: 0 20px 28px;
+  box-sizing: border-box;
+}
+
+.desktop-page-secondary {
+  justify-content: flex-start;
+  align-items: flex-start;
+  padding-top: 26px;
+  gap: 16px;
+}
+
+.page-dots {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--text-sub);
+  opacity: 0.32;
+}
+.dot.active {
+  width: 16px;
+  opacity: 0.72;
 }
 
 /* 进场动画 */
@@ -422,6 +500,28 @@ const WorldIcon = mkIcon(['M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.9
   cursor: pointer;
   overflow: hidden;
   position: relative;
+}
+
+.char-app-cell {
+  width: 72px;
+  cursor: pointer;
+}
+.char-small-card {
+  position: relative;
+}
+.char-icon {
+  width: 27px;
+  height: 27px;
+}
+.char-memory-dot {
+  position: absolute;
+  right: 9px;
+  bottom: 9px;
+  width: 7px;
+  height: 7px;
+  border: 2px solid var(--card-bg);
+  border-radius: 999px;
+  background: var(--accent-color);
 }
 /* 留白区特殊样式 */
 .right-blank {

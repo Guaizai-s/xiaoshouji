@@ -1,5 +1,5 @@
 <template>
-  <div class="sms-room-page w-full flex flex-col relative font-sans transition-colors duration-500 page-spring-enter-active" :class="[t.appBg, t.backgroundFx]" @click="closeMenu">
+  <div class="sms-room-page w-full flex flex-col relative font-sans transition-colors duration-500 page-spring-enter-active" :class="[t.appBg, t.backgroundFx]" @click="onPageClick">
 
     <div class="h-8 w-full backdrop-blur-md absolute top-0 z-20 transition-colors duration-500" :class="t.headerBg"></div>
 
@@ -139,6 +139,7 @@
 
       <div class="sms-input-shell" :class="t.inputBg">
         <input
+          ref="composerInputRef"
           v-model="inputText"
           type="text"
           placeholder="发消息..."
@@ -168,6 +169,7 @@
         :class="t.sendBtn"
         :disabled="isTyping"
         aria-label="发送"
+        @pointerdown.prevent
         @click="handleSend"
       >
         <i class="ph-fill ph-paper-plane-tilt"></i>
@@ -181,8 +183,11 @@
       :data="heartVoiceData"
       :role-name="role?.name || ''"
       :variant="activeTheme === 'midnight' ? 'sms theme-midnight' : 'sms'"
+      :saved="heartVoiceSaved"
+      :saving="heartVoiceSaving"
       @close="heartVoiceOpen = false"
       @retry="generateHeartVoice"
+      @save="saveHeartVoice"
     />
   </div>
 </template>
@@ -198,6 +203,7 @@ import HeartVoicePanel from '../components/HeartVoicePanel.vue';
 import { buildEnhancedSystemPrompt, buildHeartVoiceSystemPrompt } from '../utils/promptBuilder.js';
 import { parseMessageDirectives } from '../utils/directiveParser.js';
 import { buildHeartVoiceMessages, parseHeartVoiceResponse } from '../utils/heartVoice.js';
+import { createHeartVoiceMemory, normalizeProfile } from '../composables/useCharProfile.js';
 
 const route = useRoute();
 const router = useRouter();
@@ -208,6 +214,7 @@ const messages = ref([]);
 const inputText = ref('');
 const { t, activeTheme } = useTheme();
 const messagesEndRef = ref(null);
+const composerInputRef = ref(null);
 const activeMenuId = ref(null);
 const selectionMode = ref(false);
 const selectedMessageIds = ref(new Set());
@@ -216,6 +223,8 @@ const heartVoiceOpen = ref(false);
 const heartVoiceLoading = ref(false);
 const heartVoiceError = ref('');
 const heartVoiceData = ref(null);
+const heartVoiceSaving = ref(false);
+const heartVoiceSaved = ref(false);
 let pressTimer = null;
 
 const showAvatar = (index) => index === 0 || messages.value[index - 1].role === 'user';
@@ -299,6 +308,30 @@ const menuItems = (msg) => [
 
 const openMenu = (id) => { activeMenuId.value = id; };
 const closeMenu = () => { activeMenuId.value = null; };
+const focusComposerInput = () => {
+  nextTick(() => {
+    const input = composerInputRef.value;
+    if (!input || selectionMode.value) return;
+    try {
+      input.focus({ preventScroll: true });
+    } catch {
+      input.focus();
+    }
+  });
+};
+const blurComposerInput = () => {
+  if (document.activeElement === composerInputRef.value) {
+    composerInputRef.value.blur();
+  }
+};
+const onPageClick = (event) => {
+  closeMenu();
+  const target = event.target;
+  if (!(target instanceof Element)) return;
+  if (!target.closest('.sms-compose') && !target.closest('.sms-reply-draft')) {
+    blurComposerInput();
+  }
+};
 const onPressStart = (id) => {
   pressTimer = setTimeout(() => { activeMenuId.value = id; }, 500);
 };
@@ -376,6 +409,7 @@ const generateHeartVoice = async () => {
   if (!role.value || heartVoiceLoading.value) return;
   heartVoiceLoading.value = true;
   heartVoiceError.value = '';
+  heartVoiceSaved.value = false;
   try {
     const contextLength = Math.max(20, role.value?.chatSettings?.contextLength || 15);
     const contextMessages = await messageService.getCombinedContext(roleId, contextLength);
@@ -392,10 +426,28 @@ const generateHeartVoice = async () => {
   }
 };
 
+const saveHeartVoice = async () => {
+  if (!role.value?.id || !heartVoiceData.value || heartVoiceSaving.value || heartVoiceSaved.value) return;
+  heartVoiceSaving.value = true;
+  try {
+    const latestRole = await roleService.getById(role.value.id);
+    const profile = normalizeProfile(latestRole?.profile || role.value.profile);
+    const memoryItems = [createHeartVoiceMemory(heartVoiceData.value), ...profile.memoryItems].slice(0, 80);
+    const updatedRole = await roleService.update(role.value.id, {
+      profile: { ...profile, memoryItems }
+    });
+    role.value = { ...role.value, profile: updatedRole.profile };
+    heartVoiceSaved.value = true;
+  } finally {
+    heartVoiceSaving.value = false;
+  }
+};
+
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 // 离开页面时停止播放
 onUnmounted(() => {
+  blurComposerInput();
   if (currentAudioPlayer) {
     currentAudioPlayer.pause();
     currentAudioPlayer = null;
@@ -439,6 +491,7 @@ onMounted(async () => {
   convId.value = conv.id;
   messages.value = await messageService.getByConversation(convId.value);
   scrollToBottom();
+  focusComposerInput();
 });
 
 const scrollToBottom = () => {
@@ -460,11 +513,13 @@ const handleSend = async () => {
   const text = inputText.value.trim();
   if (!text || !convId.value || isTyping.value) return;
   inputText.value = '';
+  focusComposerInput();
 
   const extra = replyingTo.value ? { replyTo: makeReplyPayload(replyingTo.value) } : {};
   const userMsg = await messageService.create(convId.value, 'user', text, 'text', null, extra);
   messages.value.push(userMsg);
   replyingTo.value = null;
+  focusComposerInput();
 };
 
 const generateReply = async () => {
