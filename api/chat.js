@@ -1,130 +1,139 @@
-// Vercel Serverless Function - API代理
-// 解决浏览器CORS限制问题
+// Vercel Serverless Function - chat API proxy.
+// Used when the browser cannot call a provider directly because of CORS.
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-api-key'
+};
+
+const jsonResponse = (res, status, data) => {
+  Object.entries(corsHeaders).forEach(([key, value]) => res.setHeader(key, value));
+  return res.status(status).json(data);
+};
+
+const normalizeOpenAIUrl = (baseUrl) => {
+  const rawUrl = (baseUrl || 'https://api.openai.com/v1').replace(/\/$/, '');
+  if (rawUrl.endsWith('/chat/completions')) return rawUrl;
+  if (rawUrl.endsWith('/v1')) return `${rawUrl}/chat/completions`;
+  return `${rawUrl}/v1/chat/completions`;
+};
+
+const normalizeAnthropicUrl = (baseUrl) => {
+  const rawUrl = (baseUrl || 'https://api.anthropic.com').replace(/\/$/, '');
+  if (rawUrl.endsWith('/messages')) return rawUrl;
+  if (rawUrl.endsWith('/v1')) return `${rawUrl}/messages`;
+  return `${rawUrl}/v1/messages`;
+};
+
+const readUpstreamError = async (response) => {
+  const text = await response.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { error: { message: text || `API request failed: ${response.status}` } };
+  }
+};
 
 export default async function handler(req, res) {
-  // 设置CORS头
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  Object.entries(corsHeaders).forEach(([key, value]) => res.setHeader(key, value));
 
-  // 处理预检请求
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: { message: 'Method not allowed' } });
+    return jsonResponse(res, 405, { error: { message: 'Method not allowed' } });
   }
 
   try {
-    const { apiKey, baseUrl, model, messages, system, max_tokens, apiFormat, stream } = req.body;
+    const {
+      apiKey,
+      baseUrl,
+      model,
+      messages,
+      system,
+      max_tokens,
+      apiFormat = 'anthropic',
+      stream = false
+    } = req.body || {};
 
     if (!apiKey) {
-      return res.status(400).json({ error: { message: '缺少API Key' } });
+      return jsonResponse(res, 400, { error: { message: 'Missing API key' } });
     }
 
-    let response;
-    let url;
+    if (!Array.isArray(messages)) {
+      return jsonResponse(res, 400, { error: { message: 'Missing messages' } });
+    }
 
-    // 根据API格式调用不同的端点
-    if (apiFormat === 'openai') {
-      const rawUrl = (baseUrl || 'https://api.openai.com/v1').replace(/\/$/, '');
-      if (rawUrl.endsWith('/chat/completions')) {
-        url = rawUrl;
-      } else if (rawUrl.endsWith('/v1')) {
-        url = rawUrl + '/chat/completions';
-      } else {
-        url = rawUrl + '/v1/chat/completions';
-      }
-
-      response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
+    const isOpenAI = apiFormat === 'openai';
+    const url = isOpenAI ? normalizeOpenAIUrl(baseUrl) : normalizeAnthropicUrl(baseUrl);
+    const upstreamBody = isOpenAI
+      ? {
           model: model || 'gpt-3.5-turbo',
-          messages: messages,
+          messages,
           max_tokens: max_tokens || 4096,
-          stream: stream || false
-        })
-      });
-    } else {
-      const rawUrl = (baseUrl || 'https://api.anthropic.com').replace(/\/$/, '');
-      if (rawUrl.endsWith('/messages')) {
-        url = rawUrl;
-      } else if (rawUrl.endsWith('/v1')) {
-        url = rawUrl + '/messages';
-      } else {
-        url = rawUrl + '/v1/messages';
-      }
-
-      response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': apiKey,
-          'anthropic-version': '2023-06-01'
-        },
-        body: JSON.stringify({
+          stream: !!stream
+        }
+      : {
           model: model || 'claude-3-5-sonnet-20241022',
           max_tokens: max_tokens || 4096,
           system: system || '',
-          messages: messages,
-          stream: stream || false
-        })
-      });
+          messages,
+          stream: !!stream
+        };
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: isOpenAI
+        ? {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+          }
+        : {
+            'Content-Type': 'application/json',
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01'
+          },
+      body: JSON.stringify(upstreamBody)
+    });
+
+    if (!response.ok) {
+      return jsonResponse(res, response.status, await readUpstreamError(response));
     }
 
-    // 如果是流式响应，直接转发
     if (stream) {
-      res.setHeader('Content-Type', 'text/event-stream');
-      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-cache, no-transform');
       res.setHeader('Connection', 'keep-alive');
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
+      const reader = response.body?.getReader();
+      if (!reader) return res.end();
 
       try {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
-          res.write(decoder.decode(value, { stream: true }));
+          res.write(Buffer.from(value));
         }
-        res.end();
-      } catch (streamError) {
-        console.error('流式传输错误:', streamError);
+      } finally {
         res.end();
       }
       return;
     }
 
-    // 非流式响应，保持原逻辑
     const responseText = await response.text();
-
-    let data;
     try {
-      data = JSON.parse(responseText);
-    } catch (parseError) {
-      console.error('API返回非JSON响应:', responseText.substring(0, 500));
-      return res.status(502).json({
-        error: {
-          message: `API返回格式错误: ${responseText.substring(0, 100)}...`
-        }
+      return jsonResponse(res, 200, JSON.parse(responseText));
+    } catch {
+      return jsonResponse(res, 502, {
+        error: { message: `API returned non-JSON response: ${responseText.slice(0, 100)}...` }
       });
     }
-
-    if (!response.ok) {
-      return res.status(response.status).json(data);
-    }
-
-    return res.status(200).json(data);
-
   } catch (error) {
-    console.error('API调用错误:', error);
-    return res.status(500).json({
-      error: { message: error.message || '服务器内部错误' }
+    console.error('API proxy error:', error);
+    return jsonResponse(res, 500, {
+      error: { message: error.message || 'Internal server error' }
     });
   }
 }

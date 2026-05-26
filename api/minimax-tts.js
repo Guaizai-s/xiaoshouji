@@ -1,53 +1,112 @@
-// Vercel Function - Minimax TTS API 代理
+// Vercel Serverless Function - MiniMax API proxy.
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+};
+
+const setCorsHeaders = (res) => {
+  Object.entries(corsHeaders).forEach(([key, value]) => res.setHeader(key, value));
+};
+
+const sendJson = (res, status, body) => {
+  setCorsHeaders(res);
+  return res.status(status).json(body);
+};
+
+const readJsonError = async (response, fallback) => {
+  const data = await response.json().catch(() => ({}));
+  return data?.base_resp?.status_msg || data?.error?.message || data?.message || fallback;
+};
+
+const hexToBuffer = (hex) => Buffer.from(hex, 'hex');
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  setCorsHeaders(res);
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return sendJson(res, 405, { error: 'Method not allowed' });
   }
 
   try {
-    const { apiKey, groupId, text, voiceId, speed, pitch, model } = req.body;
+    const {
+      action = 'tts',
+      apiKey,
+      groupId,
+      text,
+      voiceId,
+      speed,
+      pitch,
+      model
+    } = req.body || {};
 
     if (!apiKey || !groupId) {
-      return res.status(400).json({ error: '缺少 API Key 或 Group ID' });
+      return sendJson(res, 400, { error: 'Missing API key or Group ID' });
     }
 
-    const url = `https://api.minimax.chat/v1/text_to_speech?GroupId=${groupId}`;
+    if (action === 'models') {
+      const response = await fetch(`https://api.minimax.chat/v1/models?GroupId=${groupId}`, {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${apiKey}` }
+      });
 
-    const response = await fetch(url, {
+      if (!response.ok) {
+        return sendJson(res, response.status, {
+          error: await readJsonError(response, 'MiniMax models API request failed')
+        });
+      }
+
+      return sendJson(res, 200, await response.json());
+    }
+
+    if (!text) {
+      return sendJson(res, 400, { error: 'Missing text' });
+    }
+
+    const response = await fetch(`https://api.minimax.chat/v1/t2a_v2?GroupId=${groupId}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`
       },
-     body: JSON.stringify({
-      text,
-      model: model || 'speech-01-hd',
-      voice_id: voiceId || 'male-qn-qingse',
-      speed: speed || 1.0,
-      pitch: pitch || 0
-})
+      body: JSON.stringify({
+        model: model || 'speech-02-hd',
+        text,
+        stream: false,
+        voice_setting: {
+          voice_id: voiceId || 'male-qn-qingse',
+          speed: speed || 1.0,
+          pitch: pitch || 0
+        }
+      })
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      return res.status(response.status).json({ error: error.message || 'TTS API 调用失败' });
+      return sendJson(res, response.status, {
+        error: await readJsonError(response, 'MiniMax TTS API request failed')
+      });
     }
 
-    const audioBuffer = await response.arrayBuffer();
-    res.setHeader('Content-Type', 'audio/mpeg');
-    return res.status(200).send(Buffer.from(audioBuffer));
+    const data = await response.json();
+    if (data.base_resp?.status_code !== 0) {
+      return sendJson(res, 502, { error: data.base_resp?.status_msg || 'MiniMax TTS failed' });
+    }
 
+    const audioHex = data.data?.audio;
+    if (!audioHex) {
+      return sendJson(res, 502, { error: 'MiniMax did not return audio data' });
+    }
+
+    res.setHeader('Content-Type', 'audio/mpeg');
+    res.setHeader('Cache-Control', 'no-store');
+    return res.status(200).send(hexToBuffer(audioHex));
   } catch (error) {
-    console.error('Minimax TTS 错误:', error);
-    return res.status(500).json({ error: error.message || '服务器内部错误' });
+    console.error('MiniMax proxy error:', error);
+    return sendJson(res, 500, { error: error.message || 'Internal server error' });
   }
 }

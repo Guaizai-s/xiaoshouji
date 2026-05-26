@@ -109,6 +109,12 @@
             </div>
             <span class="card-label">char</span>
           </div>
+          <div class="app-cell char-app-cell animate-enter" style="--delay: 0.2s" title="导入 CSS 美化" @click="go('/style-import')">
+            <div class="small-card">
+              <component :is="StyleIcon" class="icon-svg style-icon" />
+            </div>
+            <span class="card-label">美化</span>
+          </div>
         </section>
       </div>
       <div class="page-dots" aria-hidden="true">
@@ -262,6 +268,7 @@ const WechatIcon = mkIcon(['M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9
 const RegexIcon = mkIcon(['M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4']);
 const WorldIcon = mkIcon(['M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z']);
 const CharIcon = mkIcon(['M6 3.5h12a2 2 0 012 2v15l-4-2-4 2-4-2-4 2v-15a2 2 0 012-2z', 'M9 8h6', 'M9 11.5h4', 'M15.5 13.5a2 2 0 10-4 0 2 2 0 004 0z', 'M10 18a4 4 0 018 0']);
+const StyleIcon = mkIcon(['M4 20h16', 'M6 16l8.5-8.5a2.1 2.1 0 013 3L9 19H6v-3z', 'M14 6l4 4', 'M5 7h4', 'M7 5v4']);
 
 </script>
 

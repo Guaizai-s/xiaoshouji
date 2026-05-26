@@ -1,6 +1,11 @@
 // Claude API 调用服务
 import { mergeSystemPrompts } from '../config/systemPrompts';
 
+const CHAT_PROXY_ENDPOINT = '/api/chat';
+const USE_VERCEL_PROXY_KEY = 'useVercelProxy';
+
+const useVercelProxy = () => localStorage.getItem(USE_VERCEL_PROXY_KEY) === 'true';
+
 /**
  * 带有自动重试机制的 fetch
  */
@@ -190,6 +195,7 @@ export async function callClaude(role, messages, onChunk = null) {
  */
 async function callAnthropicAPI(baseUrl, apiKey, model, systemPrompt, messages, onChunk) {
   const useStream = localStorage.getItem('useStreamAPI') === 'true';
+  const useProxy = useVercelProxy();
 
   // 构建 API URL
   const url = baseUrl
@@ -198,20 +204,26 @@ async function callAnthropicAPI(baseUrl, apiKey, model, systemPrompt, messages, 
        `${baseUrl}/v1/messages`)
     : 'https://api.anthropic.com/v1/messages';
 
-  const response = await fetchWithRetry(url, {
+  const requestBody = {
+    model: model || 'claude-3-5-sonnet-20241022',
+    max_tokens: 4096,
+    system: systemPrompt || '',
+    messages: messages,
+    stream: useStream
+  };
+
+  const response = await fetchWithRetry(useProxy ? CHAT_PROXY_ENDPOINT : url, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01'
-    },
-    body: JSON.stringify({
-      model: model || 'claude-3-5-sonnet-20241022',
-      max_tokens: 4096,
-      system: systemPrompt || '',
-      messages: messages,
-      stream: useStream
-    })
+    headers: useProxy
+      ? { 'Content-Type': 'application/json' }
+      : {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01'
+        },
+    body: JSON.stringify(useProxy
+      ? { ...requestBody, apiKey, baseUrl, apiFormat: 'anthropic' }
+      : requestBody)
   });
 
   if (!response.ok) {
@@ -234,6 +246,7 @@ async function callAnthropicAPI(baseUrl, apiKey, model, systemPrompt, messages, 
  */
 async function callOpenAIAPI(baseUrl, apiKey, model, systemPrompt, messages, onChunk) {
   const useStream = localStorage.getItem('useStreamAPI') === 'true';
+  const useProxy = useVercelProxy();
 
   // 转换消息格式（添加 system 消息）
   const openaiMessages = systemPrompt
@@ -247,17 +260,23 @@ async function callOpenAIAPI(baseUrl, apiKey, model, systemPrompt, messages, onC
        `${baseUrl}/v1/chat/completions`)
     : 'https://api.openai.com/v1/chat/completions';
 
-  const response = await fetchWithRetry(url, {
+  const requestBody = {
+    model: model || 'gpt-3.5-turbo',
+    messages: openaiMessages,
+    stream: useStream
+  };
+
+  const response = await fetchWithRetry(useProxy ? CHAT_PROXY_ENDPOINT : url, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      model: model || 'gpt-3.5-turbo',
-      messages: openaiMessages,
-      stream: useStream
-    })
+    headers: useProxy
+      ? { 'Content-Type': 'application/json' }
+      : {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+    body: JSON.stringify(useProxy
+      ? { ...requestBody, apiKey, baseUrl, apiFormat: 'openai' }
+      : requestBody)
   });
 
   if (!response.ok) {
@@ -277,6 +296,7 @@ async function callOpenAIAPI(baseUrl, apiKey, model, systemPrompt, messages, onC
 
 export async function callClaudeVision(role, imageBase64, mimeType, contextMessages = []) {
   const { apiKey, baseUrl, model, apiFormat, systemPrompt } = role;
+  const useProxy = useVercelProxy();
 
   if (!apiKey) {
     throw new Error('请配置 API Key');
@@ -307,19 +327,25 @@ export async function callClaudeVision(role, imageBase64, mimeType, contextMessa
          `${baseUrl}/v1/messages`)
       : 'https://api.anthropic.com/v1/messages';
 
-    const response = await fetchWithRetry(url, {
+    const requestBody = {
+      model: model || 'claude-3-5-sonnet-20241022',
+      max_tokens: 4096,
+      system: finalSystemPrompt || '',
+      messages
+    };
+
+    const response = await fetchWithRetry(useProxy ? CHAT_PROXY_ENDPOINT : url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: model || 'claude-3-5-sonnet-20241022',
-        max_tokens: 4096,
-        system: finalSystemPrompt || '',
-        messages
-      })
+      headers: useProxy
+        ? { 'Content-Type': 'application/json' }
+        : {
+            'Content-Type': 'application/json',
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01'
+          },
+      body: JSON.stringify(useProxy
+        ? { ...requestBody, apiKey, baseUrl, apiFormat: 'anthropic' }
+        : requestBody)
     });
 
     if (!response.ok) {
@@ -349,17 +375,23 @@ export async function callClaudeVision(role, imageBase64, mimeType, contextMessa
          `${baseUrl}/v1/chat/completions`)
       : 'https://api.openai.com/v1/chat/completions';
 
-    const response = await fetchWithRetry(url, {
+    const requestBody = {
+      model: model || 'gpt-4-vision-preview',
+      max_tokens: 4096,
+      messages
+    };
+
+    const response = await fetchWithRetry(useProxy ? CHAT_PROXY_ENDPOINT : url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: model || 'gpt-4-vision-preview',
-        max_tokens: 4096,
-        messages
-      })
+      headers: useProxy
+        ? { 'Content-Type': 'application/json' }
+        : {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+          },
+      body: JSON.stringify(useProxy
+        ? { ...requestBody, apiKey, baseUrl, apiFormat: 'openai' }
+        : requestBody)
     });
 
     if (!response.ok) {

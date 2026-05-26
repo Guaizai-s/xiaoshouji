@@ -1,5 +1,8 @@
 // Minimax TTS 服务
 
+const MINIMAX_PROXY_ENDPOINT = '/api/minimax-tts';
+const useVercelProxy = () => localStorage.getItem('useVercelProxy') === 'true';
+
 /**
  * 获取 MiniMax 可用的 TTS 模型列表
  * @returns {Promise<Array>} - TTS 模型列表
@@ -12,12 +15,16 @@ export async function getTTSModels() {
   }
 
   const url = `https://api.minimax.chat/v1/models?GroupId=${minimax.groupId}`;
+  const useProxy = useVercelProxy();
 
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: {
-      'Authorization': `Bearer ${minimax.apiKey}`
-    }
+  const response = await fetch(useProxy ? MINIMAX_PROXY_ENDPOINT : url, {
+    method: useProxy ? 'POST' : 'GET',
+    headers: useProxy
+      ? { 'Content-Type': 'application/json' }
+      : { 'Authorization': `Bearer ${minimax.apiKey}` },
+    body: useProxy
+      ? JSON.stringify({ action: 'models', apiKey: minimax.apiKey, groupId: minimax.groupId })
+      : undefined
   });
 
   if (!response.ok) {
@@ -68,6 +75,7 @@ export async function textToSpeech(text, voiceSettings = {}) {
   }
 
   const url = `https://api.minimax.chat/v1/t2a_v2?GroupId=${minimax.groupId}`;
+  const useProxy = useVercelProxy();
 
   const requestBody = {
     model: voiceSettings.model || 'speech-02-hd',
@@ -80,18 +88,35 @@ export async function textToSpeech(text, voiceSettings = {}) {
     }
   };
 
-  const response = await fetch(url, {
+  const response = await fetch(useProxy ? MINIMAX_PROXY_ENDPOINT : url, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${minimax.apiKey}`
-    },
-    body: JSON.stringify(requestBody)
+    headers: useProxy
+      ? { 'Content-Type': 'application/json' }
+      : {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${minimax.apiKey}`
+        },
+    body: JSON.stringify(useProxy
+      ? {
+          action: 'tts',
+          apiKey: minimax.apiKey,
+          groupId: minimax.groupId,
+          text,
+          model: requestBody.model,
+          voiceId: requestBody.voice_setting.voice_id,
+          speed: requestBody.voice_setting.speed,
+          pitch: requestBody.voice_setting.pitch
+        }
+      : requestBody)
   });
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
     throw new Error(error.base_resp?.status_msg || `TTS 请求失败: ${response.status}`);
+  }
+
+  if (useProxy) {
+    return URL.createObjectURL(new Blob([await response.arrayBuffer()], { type: 'audio/mpeg' }));
   }
 
   const data = await response.json();

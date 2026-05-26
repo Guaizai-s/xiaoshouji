@@ -77,6 +77,11 @@ const routes = [
     component: () => import('../views/AppSettings.vue')
   },
   {
+    path: '/style-import',
+    name: 'StyleImport',
+    component: () => import('../views/StyleImport.vue')
+  },
+  {
     path: '/world-book',
     name: 'WorldBook',
     component: () => import('../views/WorldBook.vue')

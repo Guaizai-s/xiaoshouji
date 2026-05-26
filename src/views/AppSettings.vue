@@ -83,6 +83,16 @@
               </div>
             </label>
 
+            <label class="pill-card">
+              <div class="pill-left">
+                <div class="icon-circle"><api-chat-icon /></div>
+                <span class="pill-label">Vercel API 代理</span>
+              </div>
+              <div class="pill-right">
+                <input type="checkbox" v-model="useVercelProxy" @change="saveVercelProxy" class="wx-switch" />
+              </div>
+            </label>
+
             <div class="pill-card" @click="activePage = 'appearance'">
               <div class="pill-left">
                 <div class="icon-circle"><theme-icon /></div>
@@ -350,17 +360,19 @@ const apiProfiles = ref([]);
 const editingProfile = ref({ name:'', apiKey:'', baseUrl:'', model:'' });
 const globalMinimax = ref({ apiKey:'', groupId:'' });
 const useStreamAPI = ref(false);
+const useVercelProxy = ref(false);
 const wallpaperPreview = ref('');
 const customIcons = ref({});
 const dataMsg = ref('');
 const BACKUP_TABLES = ['roles', 'conversations', 'messages', 'apiProfiles', 'userPersonas', 'stickers', 'stickerLibraries', 'assets', 'walletAccounts', 'walletTransactions', 'worldBookEntries'];
-const BACKUP_LOCAL_STORAGE_KEYS = ['globalMinimax', 'useStreamAPI', SYSTEM_THEME_KEY, SMS_THEME_KEY, 'userStatus'];
+const BACKUP_LOCAL_STORAGE_KEYS = ['globalMinimax', 'useStreamAPI', 'useVercelProxy', SYSTEM_THEME_KEY, SMS_THEME_KEY, 'userStatus'];
 
 const loadAll = async () => {
   apiProfiles.value = await apiProfileService.getAll();
   const mm = localStorage.getItem('globalMinimax');
   if (mm) globalMinimax.value = JSON.parse(mm);
   useStreamAPI.value = localStorage.getItem('useStreamAPI') === 'true';
+  useVercelProxy.value = localStorage.getItem('useVercelProxy') === 'true';
   
   const savedTheme = localStorage.getItem(SYSTEM_THEME_KEY) || 'theme-minimal';
   applyTheme(savedTheme);
@@ -393,6 +405,7 @@ const deleteProfile = async () => {
 };
 const saveMinimax = () => { localStorage.setItem('globalMinimax', JSON.stringify(globalMinimax.value)); activePage.value = 'main'; };
 const saveStreamAPI = () => localStorage.setItem('useStreamAPI', useStreamAPI.value ? 'true' : 'false');
+const saveVercelProxy = () => localStorage.setItem('useVercelProxy', useVercelProxy.value ? 'true' : 'false');
 
 // 上传壁纸和图标
 const onWallpaperUpload = (e) => {
