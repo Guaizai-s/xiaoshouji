@@ -1,136 +1,93 @@
 <template>
   <div class="memory-panel">
-    <article class="memory-draw-card">
+    <article class="memory-draw-strip">
       <div>
         <span>Memory Draw</span>
-        <h2>抽一张记忆</h2>
-        <p>以后会从日记、长期记忆和手写记忆里随机抽取一段，像翻到一张随手夹进手账的小纸条。</p>
+        <strong>抽一张记忆</strong>
       </div>
       <button disabled>即将开放</button>
     </article>
 
-    <section class="memory-board">
-      <div class="section-heading">
-        <h2>保存的心声</h2>
-        <small>{{ savedHeartVoices.length }} 张</small>
+    <nav class="memory-tabs" aria-label="记忆分类">
+      <button
+        v-for="tab in memoryTabs"
+        :key="tab.id"
+        :class="{ active: activeType === tab.id }"
+        @click="setActiveType(tab.id)"
+      >
+        <span>{{ tab.label }}</span>
+        <em>{{ tab.count }}</em>
+      </button>
+    </nav>
+
+    <section class="notebook-stack" @touchstart.passive="onTouchStart" @touchend.passive="onTouchEnd">
+      <div class="stack-head">
+        <div>
+          <span>{{ activeTabLabel }}</span>
+          <h2>{{ currentNote?.title || '暂无记忆' }}</h2>
+        </div>
+        <small>{{ activeNotes.length ? `${currentIndex + 1} / ${activeNotes.length}` : '0 / 0' }}</small>
       </div>
-      <div v-if="savedHeartVoices.length" class="note-grid">
-        <article
-          v-for="(item, index) in savedHeartVoices"
-          :key="item.id"
-          class="note-card heart-note"
-          :class="noteTilt(index)"
-        >
+
+      <div class="note-stack-wrap" :class="{ empty: !currentNote }">
+        <span class="stack-sheet back-one"></span>
+        <span class="stack-sheet back-two"></span>
+
+        <article v-if="currentNote" class="note-card" :class="currentNote.kind">
           <span class="tape"></span>
           <div class="note-head">
-            <strong>{{ item.title || '心声' }}</strong>
-            <time>{{ formatDate(item.createdAt) }}</time>
+            <strong>{{ currentNote.title }}</strong>
+            <time>{{ currentNote.dateLabel }}</time>
           </div>
-          <p v-if="item.content">{{ item.content }}</p>
-          <div class="heart-fields">
-            <p v-for="field in heartVoiceFieldsFor(item)" :key="`${item.id}-${field.key}`">
+
+          <button
+            v-if="currentNote.audioMessage"
+            class="memory-audio-btn"
+            :class="{ playing: currentMemoryAudioId === currentNote.audioMessage.id }"
+            @click="$emit('toggle-audio', currentNote.audioMessage)"
+          >
+            <i :class="currentMemoryAudioId === currentNote.audioMessage.id ? 'ph-fill ph-pause-circle' : 'ph-fill ph-play-circle'"></i>
+            <span>{{ currentMemoryAudioId === currentNote.audioMessage.id ? '正在播放' : '播放语音' }}</span>
+          </button>
+
+          <p class="note-content" :class="{ collapsed: isCollapsed(currentNote) }">{{ currentNote.content }}</p>
+          <button v-if="isLongNote(currentNote)" class="expand-btn" @click="toggleExpanded(currentNote.id)">
+            {{ expandedNotes.has(currentNote.id) ? '收起' : '展开' }}
+          </button>
+
+          <div v-if="currentNote.fields?.length" class="heart-fields">
+            <p v-for="field in currentNote.fields" :key="`${currentNote.id}-${field.key}`">
               <span>{{ field.label }}</span>{{ field.value }}
             </p>
           </div>
+
+          <small v-if="currentNote.hint" class="future-hint">{{ currentNote.hint }}</small>
         </article>
-      </div>
-      <div v-else class="soft-empty">还没有保存的心声。聊天里的心声面板点保存后会来到这里。</div>
-    </section>
 
-    <section class="memory-board">
-      <div class="section-heading">
-        <h2>长期记忆</h2>
-        <small>{{ longTermMemory ? '1 张' : '0 张' }}</small>
-      </div>
-      <article v-if="longTermMemory" class="note-card long-note">
-        <span class="tape"></span>
-        <div class="note-head">
-          <strong>长期记忆总览</strong>
-          <time>长期</time>
-        </div>
-        <p>{{ longTermMemory }}</p>
-        <small class="future-hint">以后会拆成像 GPT 记忆一样的一条条记录，可带总结、关键词和来源。</small>
-      </article>
-      <div v-else class="soft-empty">还没有长期记忆。这里先保留未来的逐条记忆入口。</div>
-    </section>
-
-    <section class="memory-board">
-      <div class="section-heading">
-        <h2>核心记忆</h2>
-        <small>{{ coreMemory ? '1 张' : '0 张' }}</small>
-      </div>
-      <article v-if="coreMemory" class="note-card core-note">
-        <span class="tape"></span>
-        <div class="note-head">
-          <strong>核心记忆</strong>
-          <time>核心</time>
-        </div>
-        <p>{{ coreMemory }}</p>
-      </article>
-      <div v-else class="soft-empty">还没有写入核心记忆。</div>
-    </section>
-
-    <section class="memory-board">
-      <div class="section-heading">
-        <h2>角色日记</h2>
-        <small>{{ roleDiaries.length }} 篇</small>
-      </div>
-      <div v-if="roleDiaries.length" class="note-grid">
-        <article
-          v-for="(diary, index) in roleDiaries.slice(0, 8)"
-          :key="diary.id"
-          class="note-card diary-note"
-          :class="noteTilt(index + 1)"
-        >
+        <article v-else class="note-card empty-note">
           <span class="tape"></span>
           <div class="note-head">
-            <strong>{{ diary.title }}</strong>
-            <time>{{ diary.dateKey || formatDate(diary.createdAt) }}</time>
+            <strong>{{ activeTabLabel }}</strong>
+            <time>空</time>
           </div>
-          <p>{{ clip(diary.summary || diary.content, 180) }}</p>
+          <p>这里还没有纸条。以后保存或写入的记忆会收进这一叠。</p>
         </article>
       </div>
-      <div v-else class="soft-empty">还没有角色日记。未来抽取记忆时，这里会是来源之一。</div>
-    </section>
 
-    <section class="memory-board">
-      <div class="section-heading">
-        <h2>收藏的聊天</h2>
-        <small>{{ favoriteMessages.length }} 条</small>
+      <div class="stack-controls">
+        <button :disabled="activeNotes.length <= 1" @click="prevNote"><i class="ph ph-caret-left"></i></button>
+        <span>左右滑动翻纸条</span>
+        <button :disabled="activeNotes.length <= 1" @click="nextNote"><i class="ph ph-caret-right"></i></button>
       </div>
-      <div v-if="favoriteMessages.length" class="note-grid">
-        <article
-          v-for="(msg, index) in favoriteMessages"
-          :key="msg.id"
-          class="note-card favorite-note"
-          :class="noteTilt(index + 2)"
-        >
-          <span class="tape"></span>
-          <div class="note-head">
-            <strong>{{ msg.role === 'user' ? '你' : role.name }}</strong>
-            <time>{{ formatDate(msg.favoriteAt || msg.timestamp) }}</time>
-          </div>
-          <button
-            v-if="msg.audioUrl"
-            class="memory-audio-btn"
-            :class="{ playing: currentMemoryAudioId === msg.id }"
-            @click="$emit('toggle-audio', msg)"
-          >
-            <i :class="currentMemoryAudioId === msg.id ? 'ph-fill ph-pause-circle' : 'ph-fill ph-play-circle'"></i>
-            <span>{{ currentMemoryAudioId === msg.id ? '正在播放' : '播放语音' }}</span>
-          </button>
-          <p>{{ messageMemoryText(msg) }}</p>
-        </article>
-      </div>
-      <div v-else class="soft-empty">长按聊天或语音消息收藏后，会自动出现在这里。</div>
     </section>
   </div>
 </template>
 
 <script setup>
+import { computed, ref } from 'vue';
 import { clip, formatDate } from '../../composables/useCharProfile';
 
-defineProps({
+const props = defineProps({
   coreMemory: { type: String, default: '' },
   currentMemoryAudioId: { type: [Number, String, null], default: null },
   favoriteMessages: { type: Array, default: () => [] },
@@ -144,107 +101,304 @@ defineProps({
 
 defineEmits(['toggle-audio']);
 
-const noteTilt = (index) => `tilt-${index % 4}`;
+const activeType = ref('all');
+const activeIndexByType = ref({});
+const expandedNotes = ref(new Set());
+const touchStartX = ref(0);
+
+const createNote = (patch) => ({
+  audioMessage: null,
+  content: '',
+  dateLabel: '',
+  fields: [],
+  hint: '',
+  kind: 'plain-note',
+  timestamp: 0,
+  ...patch
+});
+
+const memoryGroups = computed(() => {
+  const heart = props.savedHeartVoices.map(item => createNote({
+    id: item.id,
+    kind: 'heart-note',
+    title: item.title || '心声',
+    dateLabel: formatDate(item.createdAt),
+    content: item.content || '保存了一段心声。',
+    fields: props.heartVoiceFieldsFor(item),
+    timestamp: Number(item.createdAt) || 0
+  }));
+
+  const longTerm = props.longTermMemory
+    ? [createNote({
+        id: 'long-term-memory',
+        kind: 'long-note',
+        title: '长期记忆总览',
+        dateLabel: '长期',
+        content: props.longTermMemory,
+        hint: '以后这里会拆成一条条记忆，可带总结、关键词和来源。',
+        timestamp: 1
+      })]
+    : [];
+
+  const core = props.coreMemory
+    ? [createNote({
+        id: 'core-memory',
+        kind: 'core-note',
+        title: '核心记忆',
+        dateLabel: '核心',
+        content: props.coreMemory,
+        timestamp: 2
+      })]
+    : [];
+
+  const diary = props.roleDiaries.map(item => createNote({
+    id: `diary-${item.id}`,
+    kind: 'diary-note',
+    title: item.title || '角色日记',
+    dateLabel: item.dateKey || formatDate(item.createdAt),
+    content: clip(item.summary || item.content, 320),
+    timestamp: Number(item.createdAt) || 0
+  }));
+
+  const favorite = props.favoriteMessages.map(msg => createNote({
+    id: `favorite-${msg.id}`,
+    kind: 'favorite-note',
+    title: msg.role === 'user' ? '你' : props.role.name,
+    dateLabel: formatDate(msg.favoriteAt || msg.timestamp),
+    content: props.messageMemoryText(msg),
+    audioMessage: msg.audioUrl ? msg : null,
+    timestamp: Number(msg.favoriteAt || msg.timestamp) || 0
+  }));
+
+  const all = [...heart, ...longTerm, ...core, ...diary, ...favorite]
+    .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+  return { all, heart, longTerm, core, diary, favorite };
+});
+
+const memoryTabs = computed(() => [
+  { id: 'all', label: '全部', count: memoryGroups.value.all.length },
+  { id: 'heart', label: '心声', count: memoryGroups.value.heart.length },
+  { id: 'longTerm', label: '长期', count: memoryGroups.value.longTerm.length },
+  { id: 'core', label: '核心', count: memoryGroups.value.core.length },
+  { id: 'diary', label: '日记', count: memoryGroups.value.diary.length },
+  { id: 'favorite', label: '收藏', count: memoryGroups.value.favorite.length }
+]);
+
+const activeNotes = computed(() => memoryGroups.value[activeType.value] || []);
+const activeTabLabel = computed(() => memoryTabs.value.find(tab => tab.id === activeType.value)?.label || '记忆');
+const currentIndex = computed(() => {
+  const length = activeNotes.value.length;
+  if (!length) return 0;
+  const raw = activeIndexByType.value[activeType.value] || 0;
+  return Math.min(Math.max(raw, 0), length - 1);
+});
+const currentNote = computed(() => activeNotes.value[currentIndex.value] || null);
+
+const setActiveType = (type) => {
+  activeType.value = type;
+};
+
+const setCurrentIndex = (index) => {
+  const length = activeNotes.value.length;
+  if (!length) return;
+  activeIndexByType.value = {
+    ...activeIndexByType.value,
+    [activeType.value]: (index + length) % length
+  };
+};
+
+const prevNote = () => setCurrentIndex(currentIndex.value - 1);
+const nextNote = () => setCurrentIndex(currentIndex.value + 1);
+
+const isLongNote = (note) => String(note?.content || '').length > 130;
+const isCollapsed = (note) => isLongNote(note) && !expandedNotes.value.has(note.id);
+
+const toggleExpanded = (id) => {
+  const next = new Set(expandedNotes.value);
+  next.has(id) ? next.delete(id) : next.add(id);
+  expandedNotes.value = next;
+};
+
+const onTouchStart = (event) => {
+  touchStartX.value = event.changedTouches?.[0]?.clientX || 0;
+};
+
+const onTouchEnd = (event) => {
+  const endX = event.changedTouches?.[0]?.clientX || 0;
+  const delta = endX - touchStartX.value;
+  if (Math.abs(delta) < 36) return;
+  delta > 0 ? prevNote() : nextNote();
+};
 </script>
 
 <style scoped>
 .memory-panel {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 14px;
 }
 
-.memory-draw-card {
+.memory-draw-strip {
   position: relative;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
   overflow: hidden;
   border: 1px solid var(--char-border-soft);
-  border-radius: 22px;
-  padding: 18px;
+  border-radius: 18px;
+  padding: 13px 14px;
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.38), transparent 54%),
     var(--char-accent-soft);
-  box-shadow: 0 14px 28px var(--char-shadow);
+  box-shadow: 0 10px 22px var(--char-shadow);
 }
 
-.memory-draw-card::before {
+.memory-draw-strip::before {
   content: '';
   position: absolute;
-  left: 22px;
-  top: -10px;
-  width: 86px;
-  height: 24px;
+  left: 24px;
+  top: -8px;
+  width: 72px;
+  height: 18px;
   border-radius: 4px;
   background: rgba(255, 244, 190, 0.62);
   transform: rotate(-5deg);
 }
 
-.memory-draw-card span {
+.memory-draw-strip span,
+.stack-head span {
+  display: block;
   color: var(--char-accent-text);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 900;
 }
 
-.memory-draw-card h2 {
-  margin: 7px 0 8px;
-  color: var(--char-text-strong);
-  font-size: 22px;
-}
-
-.memory-draw-card p {
-  margin: 0;
-  color: var(--char-text-soft);
-  font-size: 13px;
-  line-height: 1.6;
-}
-
-.memory-draw-card button {
-  flex-shrink: 0;
-  border: 0;
-  border-radius: 999px;
-  padding: 9px 12px;
-  color: var(--char-text-muted);
-  background: var(--char-surface);
-  font-weight: 800;
-}
-
-.memory-board {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.section-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.section-heading h2 {
-  margin: 0;
+.memory-draw-strip strong {
+  display: block;
+  margin-top: 3px;
   color: var(--char-text-strong);
   font-size: 18px;
 }
 
-.section-heading small {
+.memory-draw-strip button {
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 999px;
+  padding: 8px 11px;
   color: var(--char-text-muted);
+  background: var(--char-surface);
+  font-size: 12px;
+  font-weight: 900;
 }
 
-.note-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 13px;
+.memory-tabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+}
+
+.memory-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.memory-tabs button {
+  flex: 0 0 auto;
+  min-width: 62px;
+  border: 1px solid var(--char-border-soft);
+  border-radius: 999px;
+  padding: 8px 10px;
+  color: var(--char-text-soft);
+  background: var(--char-surface-soft);
+  font-weight: 800;
+}
+
+.memory-tabs button.active {
+  color: var(--char-text-strong);
+  background: var(--char-surface);
+  box-shadow: 0 8px 18px var(--char-shadow);
+}
+
+.memory-tabs span,
+.memory-tabs em {
+  display: inline-block;
+}
+
+.memory-tabs em {
+  margin-left: 5px;
+  color: var(--char-accent-text);
+  font-size: 11px;
+  font-style: normal;
+}
+
+.notebook-stack {
+  border: 1px solid var(--char-border-soft);
+  border-radius: 22px;
+  padding: 16px 14px 14px;
+  background: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 14px 28px var(--char-shadow);
+}
+
+.stack-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.stack-head h2 {
+  margin: 4px 0 0;
+  color: var(--char-text-strong);
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+.stack-head small {
+  border-radius: 999px;
+  padding: 5px 9px;
+  color: var(--char-accent-text);
+  background: var(--char-accent-soft);
+  font-weight: 900;
+}
+
+.note-stack-wrap {
+  position: relative;
+  min-height: 284px;
+}
+
+.stack-sheet {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  top: 10px;
+  min-height: 240px;
+  border: 1px solid rgba(126, 98, 69, 0.1);
+  border-radius: 12px;
+  background: var(--char-note-bg);
+  box-shadow: 0 8px 18px rgba(58, 43, 32, 0.08);
+}
+
+.back-one {
+  transform: rotate(-1.3deg) translateY(6px);
+  opacity: 0.62;
+}
+
+.back-two {
+  transform: rotate(1.1deg) translateY(13px);
+  opacity: 0.42;
 }
 
 .note-card {
   position: relative;
+  z-index: 2;
+  min-height: 240px;
   border: 1px solid rgba(126, 98, 69, 0.12);
-  border-radius: 10px;
-  padding: 18px 16px 16px;
+  border-radius: 12px;
+  padding: 20px 16px 16px;
   color: var(--char-note-text);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.58), rgba(255, 255, 255, 0.14)),
@@ -252,19 +406,6 @@ const noteTilt = (index) => `tilt-${index % 4}`;
   box-shadow:
     0 12px 24px rgba(58, 43, 32, 0.1),
     inset 0 0 0 1px rgba(255, 255, 255, 0.36);
-  transform-origin: center top;
-}
-
-.note-card.tilt-1 {
-  transform: rotate(-0.6deg);
-}
-
-.note-card.tilt-2 {
-  transform: rotate(0.5deg);
-}
-
-.note-card.tilt-3 {
-  transform: rotate(-0.25deg);
 }
 
 .tape {
@@ -299,7 +440,8 @@ const noteTilt = (index) => `tilt-${index % 4}`;
 .note-head strong {
   min-width: 0;
   color: inherit;
-  font-size: 16px;
+  font-size: 17px;
+  line-height: 1.35;
 }
 
 .note-head time,
@@ -308,20 +450,42 @@ const noteTilt = (index) => `tilt-${index % 4}`;
   font-size: 12px;
 }
 
-.note-card p {
+.note-content {
   margin: 0;
+  color: inherit;
   font-size: 14px;
   line-height: 1.72;
+  white-space: pre-wrap;
+}
+
+.note-content.collapsed {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+}
+
+.expand-btn {
+  border: 0;
+  border-radius: 999px;
+  padding: 6px 10px;
+  margin-top: 10px;
+  color: var(--char-accent-text);
+  background: var(--char-accent-soft);
+  font-weight: 900;
 }
 
 .heart-fields {
   display: grid;
   gap: 7px;
-  margin-top: 10px;
+  margin-top: 12px;
 }
 
 .heart-fields p {
+  margin: 0;
   color: inherit;
+  font-size: 14px;
+  line-height: 1.6;
 }
 
 .heart-fields span {
@@ -330,6 +494,11 @@ const noteTilt = (index) => `tilt-${index % 4}`;
   color: var(--char-accent-text);
   font-size: 12px;
   font-weight: 900;
+}
+
+.future-hint {
+  display: block;
+  margin-top: 12px;
 }
 
 .memory-audio-btn {
@@ -354,11 +523,33 @@ const noteTilt = (index) => `tilt-${index % 4}`;
   background: var(--char-accent);
 }
 
-.soft-empty {
-  border: 1px dashed var(--char-border-dashed);
-  border-radius: 16px;
-  padding: 18px;
+.empty-note {
+  min-height: 190px;
+}
+
+.stack-controls {
+  display: grid;
+  grid-template-columns: 42px 1fr 42px;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
   color: var(--char-text-muted);
+  font-size: 12px;
   text-align: center;
+}
+
+.stack-controls button {
+  width: 42px;
+  height: 36px;
+  border: 0;
+  border-radius: 999px;
+  color: var(--char-accent-text);
+  background: var(--char-accent-soft);
+  font-size: 18px;
+}
+
+.stack-controls button:disabled {
+  color: var(--char-text-muted);
+  background: var(--char-surface-soft);
 }
 </style>

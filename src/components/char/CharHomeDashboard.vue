@@ -88,7 +88,7 @@ const branchItems = computed(() => [
 
 .home-cover {
   position: relative;
-  min-height: 70vh;
+  min-height: 72vh;
   padding-top: env(safe-area-inset-top);
   background:
     linear-gradient(135deg, rgba(75, 60, 48, 0.2), rgba(255, 255, 255, 0.3)),
@@ -127,7 +127,7 @@ const branchItems = computed(() => [
   position: absolute;
   left: 24px;
   right: 24px;
-  bottom: 94px;
+  bottom: 118px;
   z-index: 2;
   color: #fff;
 }
@@ -160,32 +160,35 @@ const branchItems = computed(() => [
   z-index: 4;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-  margin: -58px 12px 0;
-  padding-bottom: calc(28px + env(safe-area-inset-bottom));
+  gap: 6px;
+  margin: -92px 18px 0;
+  border: 1px solid var(--char-border-soft);
+  border-radius: 28px;
+  padding: 10px;
+  background: linear-gradient(180deg, var(--char-surface) 0%, rgba(255, 255, 255, 0.74) 100%);
+  box-shadow: 0 18px 34px var(--char-shadow);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
 
 .branch-card {
-  min-height: 86px;
+  min-height: 76px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  border: 1px solid var(--char-border-soft);
-  border-radius: 18px;
-  padding: 10px 6px;
+  gap: 5px;
+  border: 0;
+  border-radius: 20px;
+  padding: 8px 4px;
   color: var(--char-text);
-  background: var(--char-surface);
+  background: transparent;
   text-align: center;
-  box-shadow: 0 16px 30px var(--char-shadow);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
 }
 
 .branch-card i {
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   display: grid;
   place-items: center;
   border-radius: 12px;
@@ -201,7 +204,7 @@ const branchItems = computed(() => [
 
 .branch-card strong {
   color: var(--char-text-strong);
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.2;
 }
 
@@ -211,7 +214,7 @@ const branchItems = computed(() => [
 
 .branch-card em {
   border-radius: 999px;
-  padding: 3px 7px;
+  padding: 3px 8px;
   color: var(--char-accent-text);
   background: var(--char-accent-soft);
   font-size: 10px;
@@ -221,9 +224,10 @@ const branchItems = computed(() => [
 
 @media (max-width: 360px) {
   .branch-panel {
-    gap: 6px;
-    margin-left: 10px;
-    margin-right: 10px;
+    gap: 4px;
+    margin-left: 12px;
+    margin-right: 12px;
+    padding: 8px;
   }
 
   .home-title h1 {

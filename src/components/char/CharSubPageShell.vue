@@ -33,7 +33,7 @@ defineEmits(['back']);
 
 .subpage-hero {
   position: relative;
-  padding: calc(14px + env(safe-area-inset-top)) 18px 18px;
+  padding: calc(10px + env(safe-area-inset-top)) 18px 12px;
   overflow: hidden;
 }
 
@@ -67,7 +67,7 @@ defineEmits(['back']);
 .subpage-title {
   position: relative;
   z-index: 2;
-  margin-top: 24px;
+  margin-top: 14px;
   color: var(--char-text);
 }
 
@@ -78,18 +78,18 @@ defineEmits(['back']);
 }
 
 .subpage-title h1 {
-  margin: 8px 0 0;
+  margin: 6px 0 0;
   color: var(--char-text-strong);
-  font-size: 34px;
+  font-size: 32px;
   line-height: 1.1;
 }
 
 .subpage-body {
   position: relative;
   z-index: 3;
-  min-height: calc(100dvh - 154px - env(safe-area-inset-top));
-  padding: 22px 16px calc(42px + env(safe-area-inset-bottom));
-  border-radius: 26px 26px 0 0;
+  min-height: calc(100dvh - 126px - env(safe-area-inset-top));
+  padding: 16px 16px calc(42px + env(safe-area-inset-bottom));
+  border-radius: 22px 22px 0 0;
   background: linear-gradient(180deg, var(--char-body-start) 0%, var(--char-body-end) 100%);
 }
 </style>
