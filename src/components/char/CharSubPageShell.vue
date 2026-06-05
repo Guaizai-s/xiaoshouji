@@ -1,15 +1,12 @@
 <template>
   <main class="char-subpage">
     <header class="subpage-hero">
-      <div class="subpage-hero-media" :style="coverStyle(role)"></div>
       <div class="subpage-toolbar">
         <button aria-label="返回角色首页" @click="$emit('back')"><i class="ph ph-caret-left"></i></button>
-        <button aria-label="聊天设置" @click="$emit('settings')"><i class="ph ph-dots-three"></i></button>
       </div>
       <div class="subpage-title">
         <span>{{ role.name || '未命名角色' }}</span>
         <h1>{{ title }}</h1>
-        <p>{{ description }}</p>
       </div>
     </header>
 
@@ -20,15 +17,12 @@
 </template>
 
 <script setup>
-import { coverStyle } from '../../composables/useCharProfile';
-
 defineProps({
-  description: { type: String, default: '' },
   role: { type: Object, required: true },
   title: { type: String, required: true }
 });
 
-defineEmits(['back', 'settings']);
+defineEmits(['back']);
 </script>
 
 <style scoped>
@@ -39,20 +33,8 @@ defineEmits(['back', 'settings']);
 
 .subpage-hero {
   position: relative;
-  min-height: 236px;
-  padding-top: env(safe-area-inset-top);
+  padding: calc(14px + env(safe-area-inset-top)) 18px 18px;
   overflow: hidden;
-}
-
-.subpage-hero-media {
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(135deg, rgba(75, 60, 48, 0.2), rgba(255, 255, 255, 0.36)),
-    var(--char-surface-muted);
-  background-size: cover;
-  background-position: center;
-  filter: saturate(0.96);
 }
 
 .subpage-hero::after {
@@ -60,16 +42,16 @@ defineEmits(['back', 'settings']);
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(180deg, rgba(0, 0, 0, 0.12) 0%, rgba(0, 0, 0, 0.68) 100%),
-    linear-gradient(0deg, rgba(0, 0, 0, 0.36), transparent 52%);
+    radial-gradient(circle at 18% 0%, rgba(255, 255, 255, 0.72), transparent 42%),
+    linear-gradient(180deg, var(--char-bg-start) 0%, rgba(255, 255, 255, 0) 100%);
+  pointer-events: none;
 }
 
 .subpage-toolbar {
   position: relative;
   z-index: 2;
   display: flex;
-  justify-content: space-between;
-  padding: 16px 18px;
+  justify-content: flex-start;
 }
 
 .subpage-toolbar button {
@@ -83,38 +65,29 @@ defineEmits(['back', 'settings']);
 }
 
 .subpage-title {
-  position: absolute;
-  left: 22px;
-  right: 22px;
-  bottom: 28px;
+  position: relative;
   z-index: 2;
-  color: #fff;
+  margin-top: 24px;
+  color: var(--char-text);
 }
 
 .subpage-title span {
-  color: rgba(255, 255, 255, 0.76);
-  font-size: 12px;
+  color: var(--char-text-soft);
+  font-size: 13px;
   font-weight: 800;
 }
 
 .subpage-title h1 {
   margin: 8px 0 0;
-  font-size: 30px;
+  color: var(--char-text-strong);
+  font-size: 34px;
   line-height: 1.1;
-}
-
-.subpage-title p {
-  margin: 9px 0 0;
-  color: rgba(255, 255, 255, 0.82);
-  font-size: 13px;
-  line-height: 1.5;
 }
 
 .subpage-body {
   position: relative;
   z-index: 3;
-  min-height: calc(100dvh - 218px);
-  margin-top: -18px;
+  min-height: calc(100dvh - 154px - env(safe-area-inset-top));
   padding: 22px 16px calc(42px + env(safe-area-inset-bottom));
   border-radius: 26px 26px 0 0;
   background: linear-gradient(180deg, var(--char-body-start) 0%, var(--char-body-end) 100%);

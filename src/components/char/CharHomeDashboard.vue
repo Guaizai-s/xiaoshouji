@@ -83,7 +83,7 @@ const branchItems = computed(() => [
 .char-home-dashboard {
   min-height: var(--vvh, 100dvh);
   color: var(--char-text);
-  overflow: hidden;
+  overflow-x: hidden;
 }
 
 .home-cover {
@@ -159,24 +159,25 @@ const branchItems = computed(() => [
   position: relative;
   z-index: 4;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin: -74px 14px 0;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: -58px 12px 0;
   padding-bottom: calc(28px + env(safe-area-inset-bottom));
 }
 
 .branch-card {
-  min-height: 118px;
-  display: grid;
-  grid-template-columns: 34px 1fr;
-  grid-template-rows: 1fr auto;
-  gap: 10px;
+  min-height: 86px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
   border: 1px solid var(--char-border-soft);
-  border-radius: 20px;
-  padding: 14px;
+  border-radius: 18px;
+  padding: 10px 6px;
   color: var(--char-text);
   background: var(--char-surface);
-  text-align: left;
+  text-align: center;
   box-shadow: 0 16px 30px var(--char-shadow);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
@@ -199,36 +200,30 @@ const branchItems = computed(() => [
 }
 
 .branch-card strong {
-  margin-bottom: 6px;
   color: var(--char-text-strong);
-  font-size: 17px;
+  font-size: 14px;
+  line-height: 1.2;
 }
 
 .branch-card small {
-  display: -webkit-box;
-  overflow: hidden;
-  color: var(--char-text-soft);
-  font-size: 12px;
-  line-height: 1.45;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  display: none;
 }
 
 .branch-card em {
-  grid-column: 1 / -1;
-  justify-self: start;
   border-radius: 999px;
-  padding: 5px 9px;
+  padding: 3px 7px;
   color: var(--char-accent-text);
   background: var(--char-accent-soft);
-  font-size: 11px;
+  font-size: 10px;
   font-style: normal;
   font-weight: 800;
 }
 
 @media (max-width: 360px) {
   .branch-panel {
-    grid-template-columns: 1fr;
+    gap: 6px;
+    margin-left: 10px;
+    margin-right: 10px;
   }
 
   .home-title h1 {

@@ -17,11 +17,9 @@
 
       <char-sub-page-shell
         v-else
-        :description="sectionCopy.description"
         :role="selectedRole"
         :title="sectionCopy.title"
         @back="goRoleHome"
-        @settings="openSettings"
       >
         <char-archive-panel
           v-if="currentSection === 'archive'"
@@ -182,7 +180,7 @@ const openSettings = async () => {
   --char-note-text: #3b3028;
   --char-note-muted: rgba(59, 48, 40, 0.54);
 
-  min-height: var(--vvh, 100dvh);
+  height: var(--vvh, 100dvh);
   color: var(--char-text);
   background:
     radial-gradient(circle at 18% 0%, rgba(255, 255, 255, 0.92), transparent 36%),
