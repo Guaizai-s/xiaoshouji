@@ -42,6 +42,26 @@ const routes = [
     component: () => import('../views/CharDetail.vue')
   },
   {
+    path: '/char/:id/archive',
+    name: 'CharArchive',
+    component: () => import('../views/CharDetail.vue')
+  },
+  {
+    path: '/char/:id/world',
+    name: 'CharWorld',
+    component: () => import('../views/CharDetail.vue')
+  },
+  {
+    path: '/char/:id/memory',
+    name: 'CharMemory',
+    component: () => import('../views/CharDetail.vue')
+  },
+  {
+    path: '/char/:id/relations',
+    name: 'CharRelations',
+    component: () => import('../views/CharDetail.vue')
+  },
+  {
     path: '/discover',
     name: 'Discover',
     component: () => import('../views/Discover.vue')

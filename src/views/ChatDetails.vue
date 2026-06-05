@@ -5,9 +5,6 @@
         <i class="ph ph-caret-left"></i>
       </button>
       <div class="nav-title">{{ viewTitle }}</div>
-      <button class="nav-btn ghost" aria-label="角色档案" @click="openChar">
-        <i class="ph ph-identification-card"></i>
-      </button>
     </div>
 
     <main v-show="currentView === 'main'" class="page-content details-home">
@@ -17,7 +14,6 @@
           <h1>{{ role?.name || '未命名角色' }}</h1>
           <p>{{ roleSubtitle }}</p>
         </div>
-        <button class="archive-btn" @click="openChar">档案</button>
       </section>
 
       <section class="settings-section">
@@ -378,12 +374,18 @@ onMounted(async () => {
 .nav-bar {
   height: 48px;
   padding: env(safe-area-inset-top) 14px 0;
-  display: flex;
+  display: grid;
+  grid-template-columns: 42px 1fr 42px;
   align-items: center;
-  justify-content: space-between;
   flex-shrink: 0;
   background: var(--wx-white);
   border-bottom: 1px solid var(--wx-border);
+}
+
+.nav-bar::after {
+  content: '';
+  width: 42px;
+  height: 42px;
 }
 
 .nav-btn {
@@ -402,8 +404,10 @@ onMounted(async () => {
 }
 
 .nav-title {
+  min-width: 0;
   font-size: 17px;
   font-weight: 700;
+  text-align: center;
 }
 
 .page-content {
@@ -456,7 +460,6 @@ onMounted(async () => {
   line-height: 1.35;
 }
 
-.archive-btn,
 .secondary-btn {
   border: 0;
   border-radius: 999px;
