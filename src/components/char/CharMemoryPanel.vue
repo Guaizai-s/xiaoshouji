@@ -20,7 +20,7 @@
       </button>
     </nav>
 
-    <section class="notebook-stack" @touchstart.passive="onTouchStart" @touchend.passive="onTouchEnd">
+    <section class="notebook-stack">
       <div class="stack-head">
         <div>
           <span>{{ activeTabLabel }}</span>
@@ -29,49 +29,58 @@
         <small>{{ activeNotes.length ? `${currentIndex + 1} / ${activeNotes.length}` : '0 / 0' }}</small>
       </div>
 
-      <div class="note-stack-wrap" :class="{ empty: !currentNote }">
+      <div
+        class="note-stack-wrap"
+        :class="{ empty: !currentNote }"
+        @touchstart.passive="onTouchStart"
+        @touchmove.passive="onTouchMove"
+        @touchend.passive="onTouchEnd"
+        @touchcancel.passive="resetTouch"
+      >
         <span class="stack-sheet back-one"></span>
         <span class="stack-sheet back-two"></span>
 
-        <article v-if="currentNote" class="note-card" :class="currentNote.kind">
-          <span class="tape"></span>
-          <div class="note-head">
-            <strong>{{ currentNote.title }}</strong>
-            <time>{{ currentNote.dateLabel }}</time>
-          </div>
+        <Transition :name="noteTransitionName" mode="out-in">
+          <article v-if="currentNote" :key="currentNote.id" class="note-card" :class="currentNote.kind">
+            <span class="tape"></span>
+            <div class="note-head">
+              <strong>{{ currentNote.title }}</strong>
+              <time>{{ currentNote.dateLabel }}</time>
+            </div>
 
-          <button
-            v-if="currentNote.audioMessage"
-            class="memory-audio-btn"
-            :class="{ playing: currentMemoryAudioId === currentNote.audioMessage.id }"
-            @click="$emit('toggle-audio', currentNote.audioMessage)"
-          >
-            <i :class="currentMemoryAudioId === currentNote.audioMessage.id ? 'ph-fill ph-pause-circle' : 'ph-fill ph-play-circle'"></i>
-            <span>{{ currentMemoryAudioId === currentNote.audioMessage.id ? '正在播放' : '播放语音' }}</span>
-          </button>
+            <button
+              v-if="currentNote.audioMessage"
+              class="memory-audio-btn"
+              :class="{ playing: currentMemoryAudioId === currentNote.audioMessage.id }"
+              @click="$emit('toggle-audio', currentNote.audioMessage)"
+            >
+              <i :class="currentMemoryAudioId === currentNote.audioMessage.id ? 'ph-fill ph-pause-circle' : 'ph-fill ph-play-circle'"></i>
+              <span>{{ currentMemoryAudioId === currentNote.audioMessage.id ? '正在播放' : '播放语音' }}</span>
+            </button>
 
-          <p class="note-content" :class="{ collapsed: isCollapsed(currentNote) }">{{ currentNote.content }}</p>
-          <button v-if="isLongNote(currentNote)" class="expand-btn" @click="toggleExpanded(currentNote.id)">
-            {{ expandedNotes.has(currentNote.id) ? '收起' : '展开' }}
-          </button>
+            <p class="note-content" :class="{ collapsed: isCollapsed(currentNote) }">{{ currentNote.content }}</p>
+            <button v-if="isLongNote(currentNote)" class="expand-btn" @click="toggleExpanded(currentNote.id)">
+              {{ expandedNotes.has(currentNote.id) ? '收起' : '展开' }}
+            </button>
 
-          <div v-if="currentNote.fields?.length" class="heart-fields">
-            <p v-for="field in currentNote.fields" :key="`${currentNote.id}-${field.key}`">
-              <span>{{ field.label }}</span>{{ field.value }}
-            </p>
-          </div>
+            <div v-if="currentNote.fields?.length" class="heart-fields">
+              <p v-for="field in currentNote.fields" :key="`${currentNote.id}-${field.key}`">
+                <span>{{ field.label }}</span>{{ field.value }}
+              </p>
+            </div>
 
-          <small v-if="currentNote.hint" class="future-hint">{{ currentNote.hint }}</small>
-        </article>
+            <small v-if="currentNote.hint" class="future-hint">{{ currentNote.hint }}</small>
+          </article>
 
-        <article v-else class="note-card empty-note">
-          <span class="tape"></span>
-          <div class="note-head">
-            <strong>{{ activeTabLabel }}</strong>
-            <time>空</time>
-          </div>
-          <p>这里还没有纸条。以后保存或写入的记忆会收进这一叠。</p>
-        </article>
+          <article v-else key="empty-note" class="note-card empty-note">
+            <span class="tape"></span>
+            <div class="note-head">
+              <strong>{{ activeTabLabel }}</strong>
+              <time>空</time>
+            </div>
+            <p>这里还没有纸条。以后保存或写入的记忆会收进这一叠。</p>
+          </article>
+        </Transition>
       </div>
 
       <div class="stack-controls">
@@ -105,6 +114,11 @@ const activeType = ref('all');
 const activeIndexByType = ref({});
 const expandedNotes = ref(new Set());
 const touchStartX = ref(0);
+const touchStartY = ref(0);
+const touchDeltaX = ref(0);
+const touchDeltaY = ref(0);
+const touchAxis = ref(null);
+const noteTransitionName = ref('note-next');
 
 const createNote = (patch) => ({
   audioMessage: null,
@@ -208,8 +222,14 @@ const setCurrentIndex = (index) => {
   };
 };
 
-const prevNote = () => setCurrentIndex(currentIndex.value - 1);
-const nextNote = () => setCurrentIndex(currentIndex.value + 1);
+const navigateNote = (direction) => {
+  if (activeNotes.value.length <= 1) return;
+  noteTransitionName.value = direction > 0 ? 'note-next' : 'note-prev';
+  setCurrentIndex(currentIndex.value + direction);
+};
+
+const prevNote = () => navigateNote(-1);
+const nextNote = () => navigateNote(1);
 
 const isLongNote = (note) => String(note?.content || '').length > 130;
 const isCollapsed = (note) => isLongNote(note) && !expandedNotes.value.has(note.id);
@@ -221,14 +241,55 @@ const toggleExpanded = (id) => {
 };
 
 const onTouchStart = (event) => {
-  touchStartX.value = event.changedTouches?.[0]?.clientX || 0;
+  const touch = event.changedTouches?.[0];
+  touchStartX.value = touch?.clientX || 0;
+  touchStartY.value = touch?.clientY || 0;
+  touchDeltaX.value = 0;
+  touchDeltaY.value = 0;
+  touchAxis.value = null;
+};
+
+const onTouchMove = (event) => {
+  const touch = event.changedTouches?.[0];
+  if (!touch) return;
+
+  touchDeltaX.value = touch.clientX - touchStartX.value;
+  touchDeltaY.value = touch.clientY - touchStartY.value;
+
+  if (!touchAxis.value && Math.hypot(touchDeltaX.value, touchDeltaY.value) >= 10) {
+    touchAxis.value = Math.abs(touchDeltaX.value) > Math.abs(touchDeltaY.value) * 1.25
+      ? 'horizontal'
+      : 'vertical';
+  }
+};
+
+const resetTouch = () => {
+  touchDeltaX.value = 0;
+  touchDeltaY.value = 0;
+  touchAxis.value = null;
 };
 
 const onTouchEnd = (event) => {
-  const endX = event.changedTouches?.[0]?.clientX || 0;
-  const delta = endX - touchStartX.value;
-  if (Math.abs(delta) < 36) return;
-  delta > 0 ? prevNote() : nextNote();
+  const touch = event.changedTouches?.[0];
+  if (touch) {
+    touchDeltaX.value = touch.clientX - touchStartX.value;
+    touchDeltaY.value = touch.clientY - touchStartY.value;
+  }
+
+  if (!touchAxis.value && Math.hypot(touchDeltaX.value, touchDeltaY.value) >= 10) {
+    touchAxis.value = Math.abs(touchDeltaX.value) > Math.abs(touchDeltaY.value) * 1.25
+      ? 'horizontal'
+      : 'vertical';
+  }
+
+  const isHorizontalSwipe = touchAxis.value === 'horizontal'
+    && Math.abs(touchDeltaX.value) >= 56
+    && Math.abs(touchDeltaX.value) > Math.abs(touchDeltaY.value) * 1.25;
+
+  if (isHorizontalSwipe) {
+    touchDeltaX.value > 0 ? prevNote() : nextNote();
+  }
+  resetTouch();
 };
 </script>
 
@@ -368,6 +429,7 @@ const onTouchEnd = (event) => {
 .note-stack-wrap {
   position: relative;
   min-height: 284px;
+  touch-action: pan-y;
 }
 
 .stack-sheet {
@@ -406,6 +468,27 @@ const onTouchEnd = (event) => {
   box-shadow:
     0 12px 24px rgba(58, 43, 32, 0.1),
     inset 0 0 0 1px rgba(255, 255, 255, 0.36);
+}
+
+.note-next-enter-active,
+.note-next-leave-active,
+.note-prev-enter-active,
+.note-prev-leave-active {
+  transition:
+    transform 180ms cubic-bezier(0.22, 0.8, 0.3, 1),
+    opacity 180ms ease;
+}
+
+.note-next-enter-from,
+.note-prev-leave-to {
+  opacity: 0;
+  transform: translateX(42px) rotate(1.5deg);
+}
+
+.note-next-leave-to,
+.note-prev-enter-from {
+  opacity: 0;
+  transform: translateX(-42px) rotate(-1.5deg);
 }
 
 .tape {
@@ -551,5 +634,14 @@ const onTouchEnd = (event) => {
 .stack-controls button:disabled {
   color: var(--char-text-muted);
   background: var(--char-surface-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .note-next-enter-active,
+  .note-next-leave-active,
+  .note-prev-enter-active,
+  .note-prev-leave-active {
+    transition-duration: 1ms;
+  }
 }
 </style>
